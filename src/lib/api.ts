@@ -154,7 +154,7 @@ export const publicMenuApi = {
   getBySlug: (slug: string) =>
     fetch(`http://localhost:5000/menu/${slug}`).then(res => {
       if (!res.ok) throw new Error('Menu not found');
-      return res.json() as Promise<PublicMenu>;
+      return res.json() as Promise<PublicMenuResponse>;
     }),
 };
 
@@ -243,6 +243,7 @@ export interface Category {
   name: string;
   mainCategory: string;
   restaurant: string;
+  order?: number;
 }
 
 export interface MenuItem {
@@ -269,9 +270,28 @@ export interface CreateMenuItemData {
   image?: string;
 }
 
-export interface PublicMenu {
-  restaurant: Restaurant;
-  mainCategories: MainCategory[];
-  categories: Category[];
-  items: MenuItem[];
+// Public menu item with embedded category objects
+export interface PublicMenuItem {
+  _id: string;
+  restaurant: string;
+  mainCategory: MainCategory;
+  category: Category & { mainCategory: string };
+  name: string;
+  description?: string;
+  price: number;
+  isVeg: boolean;
+  isJain?: boolean;
+  isAvailable: boolean;
+  image?: string;
+  order: number;
+}
+
+// Updated restaurant type for public menu (includes qrSlug)
+export interface PublicRestaurant extends Omit<Restaurant, 'slug'> {
+  qrSlug: string;
+}
+
+export interface PublicMenuResponse {
+  restaurant: PublicRestaurant;
+  menu: PublicMenuItem[];
 }
