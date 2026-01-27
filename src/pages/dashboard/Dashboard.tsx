@@ -90,7 +90,7 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center gap-3">
           <Button variant="outline" asChild>
-            <a href={`http://localhost:5000/menu/${(restaurant as any).qrSlug || restaurant.slug}`} target="_blank" rel="noopener noreferrer">
+            <a href={`http://localhost:5173/menu/${(restaurant as any).qrSlug || restaurant.slug}`} target="_blank" rel="noopener noreferrer">
               <Eye className="mr-2 h-4 w-4" />
               View Menu
             </a>
