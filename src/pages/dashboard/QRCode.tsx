@@ -10,7 +10,7 @@ export default function QRCodePage() {
   const { toast } = useToast();
 
   const menuUrl = restaurant 
-    ? `http://localhost:5000/menu/${restaurant.slug}` 
+    ? `http://localhost:5173/menu/${(restaurant as any).qrSlug || restaurant.slug}` 
     : '';
 
   useEffect(() => {
