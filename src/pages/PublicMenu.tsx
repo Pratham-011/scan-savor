@@ -1,18 +1,31 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import { publicMenuApi, PublicMenu as PublicMenuType } from '@/lib/api';
+import { publicMenuApi, PublicMenuResponse, PublicMenuItem, MainCategory, Category } from '@/lib/api';
 import { Loader2, MapPin, Phone, Instagram, Leaf, Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+
+interface GroupedCategory {
+  _id: string;
+  name: string;
+  order: number;
+  items: PublicMenuItem[];
+}
+
+interface GroupedMainCategory {
+  _id: string;
+  name: string;
+  order: number;
+  subCategories: GroupedCategory[];
+}
 
 export default function PublicMenu() {
   const { slug } = useParams<{ slug: string }>();
-  const [menu, setMenu] = useState<PublicMenuType | null>(null);
+  const [menuData, setMenuData] = useState<PublicMenuResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedMainCategory, setSelectedMainCategory] = useState<string | null>(null);
   const [showVegOnly, setShowVegOnly] = useState(false);
 
   useEffect(() => {
@@ -20,7 +33,7 @@ export default function PublicMenu() {
       if (!slug) return;
       try {
         const data = await publicMenuApi.getBySlug(slug);
-        setMenu(data);
+        setMenuData(data);
       } catch (err) {
         setError('Menu not found or subscription expired');
       } finally {
@@ -30,6 +43,79 @@ export default function PublicMenu() {
     fetchMenu();
   }, [slug]);
 
+  // Extract unique main categories from menu items
+  const mainCategories = useMemo(() => {
+    if (!menuData?.menu) return [];
+    const uniqueMainCats = new Map<string, MainCategory>();
+    menuData.menu.forEach(item => {
+      if (item.mainCategory && !uniqueMainCats.has(item.mainCategory._id)) {
+        uniqueMainCats.set(item.mainCategory._id, item.mainCategory);
+      }
+    });
+    return Array.from(uniqueMainCats.values()).sort((a, b) => a.order - b.order);
+  }, [menuData]);
+
+  // Filter and group items
+  const groupedItems = useMemo((): GroupedMainCategory[] => {
+    if (!menuData?.menu) return [];
+
+    // Filter items based on search, category, and veg filter
+    const filteredItems = menuData.menu.filter(item => {
+      const matchesSearch = 
+        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.description?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesCategory = !selectedMainCategory || item.mainCategory._id === selectedMainCategory;
+      const matchesVeg = !showVegOnly || item.isVeg;
+      const isAvailable = item.isAvailable;
+      return matchesSearch && matchesCategory && matchesVeg && isAvailable;
+    });
+
+    // Group by main category, then by sub category
+    const mainCatMap = new Map<string, GroupedMainCategory>();
+
+    filteredItems.forEach(item => {
+      const mainCat = item.mainCategory;
+      const subCat = item.category;
+
+      if (!mainCatMap.has(mainCat._id)) {
+        mainCatMap.set(mainCat._id, {
+          _id: mainCat._id,
+          name: mainCat.name,
+          order: mainCat.order,
+          subCategories: []
+        });
+      }
+
+      const mainCatGroup = mainCatMap.get(mainCat._id)!;
+      let subCatGroup = mainCatGroup.subCategories.find(s => s._id === subCat._id);
+      
+      if (!subCatGroup) {
+        subCatGroup = {
+          _id: subCat._id,
+          name: subCat.name,
+          order: subCat.order || 0,
+          items: []
+        };
+        mainCatGroup.subCategories.push(subCatGroup);
+      }
+
+      subCatGroup.items.push(item);
+    });
+
+    // Sort everything
+    return Array.from(mainCatMap.values())
+      .sort((a, b) => a.order - b.order)
+      .map(mainCat => ({
+        ...mainCat,
+        subCategories: mainCat.subCategories
+          .sort((a, b) => a.order - b.order)
+          .map(subCat => ({
+            ...subCat,
+            items: subCat.items.sort((a, b) => a.order - b.order)
+          }))
+      }));
+  }, [menuData, searchQuery, selectedMainCategory, showVegOnly]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -38,7 +124,7 @@ export default function PublicMenu() {
     );
   }
 
-  if (error || !menu) {
+  if (error || !menuData) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <div className="text-center">
@@ -49,32 +135,7 @@ export default function PublicMenu() {
     );
   }
 
-  const { restaurant, mainCategories, categories, items } = menu;
-
-  const filteredItems = items.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          item.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = !selectedCategory || 
-                            item.mainCategory === selectedCategory || 
-                            item.category === selectedCategory;
-    const matchesVeg = !showVegOnly || item.isVeg;
-    const isAvailable = item.isAvailable;
-    return matchesSearch && matchesCategory && matchesVeg && isAvailable;
-  });
-
-  const groupedItems = mainCategories
-    .sort((a, b) => a.order - b.order)
-    .map(mainCat => ({
-      ...mainCat,
-      subCategories: categories
-        .filter(c => c.mainCategory === mainCat._id)
-        .map(subCat => ({
-          ...subCat,
-          items: filteredItems.filter(item => item.category === subCat._id)
-        }))
-        .filter(sub => sub.items.length > 0)
-    }))
-    .filter(main => main.subCategories.length > 0);
+  const { restaurant } = menuData;
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -168,10 +229,10 @@ export default function PublicMenu() {
         {/* Category Pills */}
         <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide">
           <button
-            onClick={() => setSelectedCategory(null)}
+            onClick={() => setSelectedMainCategory(null)}
             className={cn(
               "px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors",
-              !selectedCategory
+              !selectedMainCategory
                 ? "bg-primary text-primary-foreground" 
                 : "bg-secondary text-secondary-foreground"
             )}
@@ -181,10 +242,10 @@ export default function PublicMenu() {
           {mainCategories.map(cat => (
             <button
               key={cat._id}
-              onClick={() => setSelectedCategory(cat._id)}
+              onClick={() => setSelectedMainCategory(cat._id)}
               className={cn(
                 "px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors",
-                selectedCategory === cat._id 
+                selectedMainCategory === cat._id 
                   ? "bg-primary text-primary-foreground" 
                   : "bg-secondary text-secondary-foreground"
               )}
@@ -228,7 +289,7 @@ export default function PublicMenu() {
                           />
                         )}
                         <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-start justify-between gap-2">
                             <div className="flex items-center gap-2">
                               {item.isVeg ? (
                                 <div className="p-0.5 border border-veg rounded flex-shrink-0">
