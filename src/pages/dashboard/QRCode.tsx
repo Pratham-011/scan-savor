@@ -10,7 +10,7 @@ export default function QRCodePage() {
   const { toast } = useToast();
 
   const menuUrl = restaurant 
-    ? `http://localhost:5173/menu/${(restaurant as any).qrSlug || restaurant.slug}` 
+    ? `http://localhost:8080/menu/${(restaurant as any).qrSlug || restaurant.slug}` 
     : '';
 
   useEffect(() => {
@@ -32,16 +32,45 @@ export default function QRCodePage() {
     toast({ title: 'Link copied!' });
   };
 
-  const downloadQR = () => {
-    // Generate QR code using a free API
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(menuUrl)}`;
+  // const downloadQR = () => {
+  //   // Generate QR code using a free API
+  //   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(menuUrl)}`;
     
-    const link = document.createElement('a');
-    link.href = qrUrl;
-    link.download = `${restaurant?.name || 'menu'}-qr-code.png`;
-    link.click();
+  //   const link = document.createElement('a');
+  //   link.href = qrUrl;
+  //   link.download = `${restaurant?.name || 'menu'}-qr-code.png`;
+  //   link.click();
     
-    toast({ title: 'QR Code downloading...' });
+  //   toast({ title: 'QR Code downloading...' });
+  // };
+  const downloadQR = async () => {
+    try {
+      // Generate QR code using the free API
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(menuUrl)}`;
+  
+      // Fetch the image as a blob
+      const response = await fetch(qrUrl);
+      const blob = await response.blob();
+  
+      // Create a temporary object URL
+      const objectUrl = URL.createObjectURL(blob);
+  
+      // Create a hidden link and trigger download
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = `${restaurant?.name || 'menu'}-qr-code.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+  
+      // Release memory
+      URL.revokeObjectURL(objectUrl);
+  
+      toast({ title: 'QR Code downloading...' });
+    } catch (err) {
+      console.error("❌ Failed to download QR:", err);
+      toast({ title: 'Failed to download QR Code' });
+    }
   };
 
   if (isLoading) {

@@ -133,12 +133,27 @@ export default function Categories() {
     setDialogOpen(true);
   };
 
+  // const openEditSub = (cat: Category) => {
+  //   setEditingSub(cat);
+  //   setSubName(cat.name);
+  //   setSelectedMainCat(cat.mainCategory);
+  //   setSubDialogOpen(true);
+  // };
+
   const openEditSub = (cat: Category) => {
     setEditingSub(cat);
     setSubName(cat.name);
-    setSelectedMainCat(cat.mainCategory);
+  
+    const mainCatId =
+      typeof cat.mainCategory === 'string'
+        ? cat.mainCategory
+        : cat.mainCategory._id;
+  
+    setSelectedMainCat(mainCatId);
     setSubDialogOpen(true);
   };
+
+  
 
   if (isLoading) {
     return (
@@ -255,7 +270,16 @@ export default function Categories() {
           {mainCategories
             .sort((a, b) => a.order - b.order)
             .map((mainCat) => {
-              const subCats = categories.filter(c => c.mainCategory === mainCat._id);
+              // const subCats = categories.filter(c => c.mainCategory === mainCat._id);
+              const subCats = categories.filter(c => {
+                const mainCatId =
+                  typeof c.mainCategory === 'string'
+                    ? c.mainCategory
+                    : c.mainCategory._id;
+              
+                return mainCatId === mainCat._id;
+              });
+              
               return (
                 <div key={mainCat._id} className="glass rounded-xl overflow-hidden">
                   <div className="flex items-center justify-between p-4 bg-secondary/30">
@@ -266,7 +290,7 @@ export default function Categories() {
                       <div>
                         <h3 className="font-semibold">{mainCat.name}</h3>
                         <p className="text-sm text-muted-foreground">
-                          Order: {mainCat.order} • {subCats.length} subcategories
+                            {subCats.length} subcategories
                         </p>
                       </div>
                     </div>

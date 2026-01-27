@@ -241,10 +241,14 @@ export interface MainCategory {
 export interface Category {
   _id: string;
   name: string;
-  mainCategory: string;
+  mainCategory: {
+    _id: string;
+    name: string;
+  };
   restaurant: string;
   order?: number;
 }
+
 
 export interface MenuItem {
   _id: string;

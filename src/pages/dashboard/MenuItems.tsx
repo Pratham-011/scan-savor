@@ -113,8 +113,16 @@ export default function MenuItems() {
   const openEdit = (item: MenuItem) => {
     setEditingItem(item);
     setFormData({
-      mainCategory: item.mainCategory,
-      category: item.category,
+      mainCategory:
+        typeof item.mainCategory === 'string'
+          ? item.mainCategory
+          : item.mainCategory._id,
+    
+      category:
+        typeof item.category === 'string'
+          ? item.category
+          : item.category._id,
+    
       name: item.name,
       description: item.description || '',
       price: item.price,
@@ -122,6 +130,7 @@ export default function MenuItems() {
       isAvailable: item.isAvailable,
       image: item.image || '',
     });
+    
     setDialogOpen(true);
   };
 
@@ -131,14 +140,41 @@ export default function MenuItems() {
     setDialogOpen(true);
   };
 
+  // const filteredItems = items.filter(item => {
+  //   const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+  //   const matchesCategory = filterCategory === 'all' || item.mainCategory === filterCategory;
+  //   return matchesSearch && matchesCategory;
+  // });
+  const [filterSubCategory, setFilterSubCategory] = useState('all');
+
   const filteredItems = items.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = filterCategory === 'all' || item.mainCategory === filterCategory;
-    return matchesSearch && matchesCategory;
+    const matchesSearch = item.name
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase());
+  
+    const itemMainCategoryId =
+      typeof item.mainCategory === 'string'
+        ? item.mainCategory
+        : item.mainCategory._id;
+  
+    const itemCategoryId =
+      typeof item.category === 'string'
+        ? item.category
+        : item.category._id;
+  
+    const matchesMainCategory =
+      filterCategory === 'all' || itemMainCategoryId === filterCategory;
+  
+    const matchesSubCategory =
+      filterSubCategory === 'all' || itemCategoryId === filterSubCategory;
+  
+    return matchesSearch && matchesMainCategory && matchesSubCategory;
   });
-
-  const availableSubCategories = categories.filter(c => c.mainCategory === formData.mainCategory);
-
+  
+  const availableSubCategories = categories.filter(
+    c => c.mainCategory._id === formData.mainCategory
+  );
+  
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -290,7 +326,14 @@ export default function MenuItems() {
             className="pl-10"
           />
         </div>
-        <Select value={filterCategory} onValueChange={setFilterCategory}>
+        {/* <Select value={filterCategory} onValueChange={setFilterCategory}> */}
+        <Select
+  value={filterCategory}
+  onValueChange={(v) => {
+    setFilterCategory(v);
+    setFilterSubCategory('all');
+  }}
+>
           <SelectTrigger className="w-48">
             <SelectValue placeholder="All Categories" />
           </SelectTrigger>
@@ -303,6 +346,27 @@ export default function MenuItems() {
             ))}
           </SelectContent>
         </Select>
+        <Select
+  value={filterSubCategory}
+  onValueChange={setFilterSubCategory}
+  disabled={filterCategory === 'all'}
+>
+  <SelectTrigger className="w-48">
+    <SelectValue placeholder="All Subcategories" />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="all">All Subcategories</SelectItem>
+
+    {categories
+      .filter(c => c.mainCategory._id === filterCategory)
+      .map(cat => (
+        <SelectItem key={cat._id} value={cat._id}>
+          {cat.name}
+        </SelectItem>
+      ))}
+  </SelectContent>
+</Select>
+
       </div>
 
       {/* Items Grid */}
@@ -343,15 +407,15 @@ export default function MenuItems() {
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="flex items-center gap-2">
-                      {item.isVeg ? (
-                        <div className="p-1 border-2 border-veg rounded">
-                          <div className="w-2 h-2 bg-veg rounded-full" />
-                        </div>
-                      ) : (
-                        <div className="p-1 border-2 border-non-veg rounded">
-                          <div className="w-2 h-2 bg-non-veg rounded-full" />
-                        </div>
-                      )}
+                    {item.isVeg ? (
+  <div className="p-1 border-2 border-green-500 rounded">
+    <div className="w-2 h-2 bg-green-500 rounded-full" />
+  </div>
+) : (
+  <div className="p-1 border-2 border-red-500 rounded">
+    <div className="w-2 h-2 bg-red-500 rounded-full" />
+  </div>
+)}
                       <h3 className="font-semibold">{item.name}</h3>
                     </div>
                     <p className="font-bold text-primary">₹{item.price}</p>
