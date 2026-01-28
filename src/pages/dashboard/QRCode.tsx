@@ -10,7 +10,7 @@ export default function QRCodePage() {
   const { toast } = useToast();
 
   const menuUrl = restaurant 
-    ? `http://localhost:8080/menu/${(restaurant as any).qrSlug || restaurant.slug}` 
+    ? `${window.location.origin}/menu/${(restaurant as any).qrSlug}` 
     : '';
 
   useEffect(() => {
@@ -47,7 +47,7 @@ export default function QRCodePage() {
     try {
       // Generate QR code using the free API
       const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(menuUrl)}`;
-  
+      console.log("🔗 QR Code URL:", qrUrl);
       // Fetch the image as a blob
       const response = await fetch(qrUrl);
       const blob = await response.blob();

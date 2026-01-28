@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = 'https://oneqr.onrender.com/api';
 
 // Helper to get auth token
 const getToken = () => localStorage.getItem('authToken');
@@ -152,7 +152,7 @@ export const menuItemApi = {
 // Public Menu API
 export const publicMenuApi = {
   getBySlug: (slug: string) =>
-    fetch(`http://localhost:5000/menu/${slug}`).then(res => {
+    fetch(`https://oneqr.onrender.com/menu/${slug}`).then(res => {
       if (!res.ok) throw new Error('Menu not found');
       return res.json() as Promise<PublicMenuResponse>;
     }),
