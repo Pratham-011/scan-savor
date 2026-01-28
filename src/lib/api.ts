@@ -147,6 +147,11 @@ export const menuItemApi = {
     apiRequest<{ message: string }>(`/menu-item/${id}`, {
       method: 'DELETE',
     }),
+
+  clearAll: () =>
+    apiRequest<{ message: string }>('/menu-item/clear', {
+      method: 'DELETE',
+    }),
 };
 
 // Public Menu API
@@ -270,6 +275,7 @@ export interface CreateMenuItemData {
   description?: string;
   price: number;
   isVeg: boolean;
+  isJain?: boolean;
   isAvailable: boolean;
   image?: string;
 }

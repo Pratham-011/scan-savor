@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { publicMenuApi, PublicMenuResponse, PublicMenuItem, MainCategory, Category } from '@/lib/api';
 import { demoMenuData } from '@/lib/demoData';
-import { Loader2, MapPin, Phone, Instagram, Leaf, Search, X } from 'lucide-react';
+import { Loader2, MapPin, Phone, Instagram, Leaf, Search, X, Sparkles } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
@@ -27,7 +27,9 @@ export default function PublicMenu() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMainCategory, setSelectedMainCategory] = useState<string | null>(null);
+  const [selectedSubCategory, setSelectedSubCategory] = useState<string | null>(null);
   const [showVegOnly, setShowVegOnly] = useState(false);
+  const [showJainOnly, setShowJainOnly] = useState(false);
 
   useEffect(() => {
     const fetchMenu = async () => {
@@ -69,19 +71,37 @@ export default function PublicMenu() {
     return Array.from(uniqueMainCats.values()).sort((a, b) => a.order - b.order);
   }, [menuData]);
 
+  // Extract subcategories for selected main category
+  const subCategories = useMemo(() => {
+    if (!menuData?.menu || !selectedMainCategory) return [];
+    const uniqueSubCats = new Map<string, { _id: string; name: string; order: number }>();
+    menuData.menu.forEach(item => {
+      if (item.mainCategory._id === selectedMainCategory && item.category && !uniqueSubCats.has(item.category._id)) {
+        uniqueSubCats.set(item.category._id, {
+          _id: item.category._id,
+          name: item.category.name,
+          order: item.category.order || 0
+        });
+      }
+    });
+    return Array.from(uniqueSubCats.values()).sort((a, b) => a.order - b.order);
+  }, [menuData, selectedMainCategory]);
+
   // Filter and group items
   const groupedItems = useMemo((): GroupedMainCategory[] => {
     if (!menuData?.menu) return [];
 
-    // Filter items based on search, category, and veg filter
+    // Filter items based on search, category, subcategory, veg, and jain filters
     const filteredItems = menuData.menu.filter(item => {
       const matchesSearch = 
         item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.description?.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesCategory = !selectedMainCategory || item.mainCategory._id === selectedMainCategory;
+      const matchesSubCategory = !selectedSubCategory || item.category._id === selectedSubCategory;
       const matchesVeg = !showVegOnly || item.isVeg;
+      const matchesJain = !showJainOnly || item.isJain;
       const isAvailable = item.isAvailable;
-      return matchesSearch && matchesCategory && matchesVeg && isAvailable;
+      return matchesSearch && matchesCategory && matchesSubCategory && matchesVeg && matchesJain && isAvailable;
     });
 
     // Group by main category, then by sub category
@@ -128,7 +148,7 @@ export default function PublicMenu() {
             items: subCat.items.sort((a, b) => a.order - b.order)
           }))
       }));
-  }, [menuData, searchQuery, selectedMainCategory, showVegOnly]);
+  }, [menuData, searchQuery, selectedMainCategory, selectedSubCategory, showVegOnly, showJainOnly]);
 
   if (isLoading) {
     return (
@@ -238,12 +258,27 @@ export default function PublicMenu() {
             <Leaf className="h-4 w-4" />
             Veg
           </button>
+          <button
+            onClick={() => setShowJainOnly(!showJainOnly)}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors",
+              showJainOnly 
+                ? "border-amber-500 bg-amber-500/10 text-amber-500" 
+                : "border-border text-muted-foreground"
+            )}
+          >
+            <Sparkles className="h-4 w-4" />
+            Jain
+          </button>
         </div>
 
         {/* Category Pills */}
         <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide">
           <button
-            onClick={() => setSelectedMainCategory(null)}
+            onClick={() => {
+              setSelectedMainCategory(null);
+              setSelectedSubCategory(null);
+            }}
             className={cn(
               "px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors",
               !selectedMainCategory
@@ -256,7 +291,10 @@ export default function PublicMenu() {
           {mainCategories.map(cat => (
             <button
               key={cat._id}
-              onClick={() => setSelectedMainCategory(cat._id)}
+              onClick={() => {
+                setSelectedMainCategory(cat._id);
+                setSelectedSubCategory(null);
+              }}
               className={cn(
                 "px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors",
                 selectedMainCategory === cat._id 
@@ -268,6 +306,37 @@ export default function PublicMenu() {
             </button>
           ))}
         </div>
+
+        {/* Subcategory Pills - show only when main category is selected */}
+        {selectedMainCategory && subCategories.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide mt-2">
+            <button
+              onClick={() => setSelectedSubCategory(null)}
+              className={cn(
+                "px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors",
+                !selectedSubCategory
+                  ? "bg-accent text-accent-foreground" 
+                  : "bg-muted text-muted-foreground"
+              )}
+            >
+              All
+            </button>
+            {subCategories.map(cat => (
+              <button
+                key={cat._id}
+                onClick={() => setSelectedSubCategory(cat._id)}
+                className={cn(
+                  "px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors",
+                  selectedSubCategory === cat._id 
+                    ? "bg-accent text-accent-foreground" 
+                    : "bg-muted text-muted-foreground"
+                )}
+              >
+                {cat.name}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Menu Items */}

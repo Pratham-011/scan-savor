@@ -9,8 +9,21 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
-  DialogTrigger 
+  DialogTrigger,
+  DialogDescription,
+  DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import {
   Select,
   SelectContent,
@@ -31,6 +44,7 @@ const emptyForm: CreateMenuItemData = {
   description: '',
   price: 0,
   isVeg: true,
+  isJain: false,
   isAvailable: true,
   image: '',
 };
@@ -127,11 +141,26 @@ export default function MenuItems() {
       description: item.description || '',
       price: item.price,
       isVeg: item.isVeg,
+      isJain: (item as any).isJain || false,
       isAvailable: item.isAvailable,
       image: item.image || '',
     });
     
     setDialogOpen(true);
+  };
+
+  const handleClearAll = async () => {
+    try {
+      await menuItemApi.clearAll();
+      toast({ title: 'All menu items deleted!' });
+      fetchData();
+    } catch (error) {
+      toast({ 
+        title: 'Failed to delete menu', 
+        description: error instanceof Error ? error.message : 'Please try again',
+        variant: 'destructive' 
+      });
+    }
   };
 
   const openNew = () => {
@@ -193,13 +222,38 @@ export default function MenuItems() {
             {items.length} items • {items.filter(i => i.isAvailable).length} available
           </p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button variant="gold" onClick={openNew}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Item
-            </Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          {items.length > 0 && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive">
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete All
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete All Menu Items?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete all {items.length} menu items. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleClearAll} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    Yes, Delete All
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="gold" onClick={openNew}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Item
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingItem ? 'Edit' : 'Add'} Menu Item</DialogTitle>
@@ -284,7 +338,7 @@ export default function MenuItems() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center gap-4">
                 <div className="flex items-center gap-3">
                   <Switch
                     checked={formData.isVeg}
@@ -297,6 +351,13 @@ export default function MenuItems() {
                       <><Drumstick className="h-4 w-4 text-non-veg" /> Non-Veg</>
                     )}
                   </Label>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch
+                    checked={formData.isJain || false}
+                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isJain: checked }))}
+                  />
+                  <Label>Jain</Label>
                 </div>
                 <div className="flex items-center gap-3">
                   <Switch
@@ -313,6 +374,7 @@ export default function MenuItems() {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Filters */}
