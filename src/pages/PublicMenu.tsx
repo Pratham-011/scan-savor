@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { publicMenuApi, PublicMenuResponse, PublicMenuItem, MainCategory, Category } from '@/lib/api';
-// import { demoMenuData } from '@/lib/demoData';
+import { demoMenuData } from '@/lib/demoData';
 import { Loader2, MapPin, Phone, Instagram, Leaf, Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -28,40 +28,18 @@ export default function PublicMenu() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMainCategory, setSelectedMainCategory] = useState<string | null>(null);
   const [showVegOnly, setShowVegOnly] = useState(false);
-  // const [isDemo, setIsDemo] = useState(false);
-
-  // useEffect(() => {
-  //   const fetchMenu = async () => {
-  //     if (!slug) return;
-      
-  //     // Check for demo mode
-  //     if (slug === 'demo') {
-  //       setMenuData(demoMenuData);
-  //       setIsDemo(true);
-  //       setIsLoading(false);
-  //       return;
-  //     }
-      
-  //     try {
-  //       const data = await publicMenuApi.getBySlug(slug);
-  //       setMenuData(data);
-  //     } catch (err) {
-  //       // If backend fails, fall back to demo mode
-  //       console.log('Backend unavailable, loading demo menu...');
-  //       setMenuData(demoMenuData);
-  //       setIsDemo(true);
-  //     } finally {
-  //       setIsLoading(false);
-  //     }
-  //   };
-  //   fetchMenu();
-  // }, [slug]);
-
 
   useEffect(() => {
     const fetchMenu = async () => {
       if (!slug) return;
-  
+      
+      // Demo mode - only when explicitly typing /menu/demo
+      if (slug === 'demo') {
+        setMenuData(demoMenuData);
+        setIsLoading(false);
+        return;
+      }
+      
       try {
         const data = await publicMenuApi.getBySlug(slug);
         setMenuData(data);
