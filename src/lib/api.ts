@@ -252,8 +252,8 @@ export interface Category {
 
 export interface MenuItem {
   _id: string;
-  mainCategory: string;
-  category: string;
+  mainCategory: string | { _id: string; name: string };
+  category: string | { _id: string; name: string };
   name: string;
   description?: string;
   price: number;
@@ -279,7 +279,13 @@ export interface PublicMenuItem {
   _id: string;
   restaurant: string;
   mainCategory: MainCategory;
-  category: Category & { mainCategory: string };
+  category: {
+    _id: string;
+    name: string;
+    mainCategory: { _id: string; name: string };
+    restaurant: string;
+    order?: number;
+  };
   name: string;
   description?: string;
   price: number;
