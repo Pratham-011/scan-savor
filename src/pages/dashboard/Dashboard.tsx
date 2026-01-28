@@ -90,7 +90,7 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center gap-3">
           <Button variant="outline" asChild>
-            <a href={`${window.location.origin}/menu/${(restaurant as any).qrSlug || restaurant.slug}`} target="_blank" rel="noopener noreferrer">
+            <a href={`https://scan-savor.vercel.app/menu/${(restaurant as any).qrSlug || restaurant.slug}`} target="_blank" rel="noopener noreferrer">
               <Eye className="mr-2 h-4 w-4" />
               View Menu
             </a>

@@ -11,7 +11,7 @@ export default function QRCodePage() {
 
   // Use window.location.origin to get the correct URL (works for both preview and published)
   const menuUrl = restaurant 
-    ? `${window.location.origin}/menu/${(restaurant as any).qrSlug || restaurant._id}` 
+    ? `https://scan-savor.vercel.app/menu/${(restaurant as any).qrSlug || restaurant._id}` 
     : '';
 
   useEffect(() => {
