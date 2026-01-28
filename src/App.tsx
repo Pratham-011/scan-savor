@@ -20,6 +20,7 @@ import Categories from "./pages/dashboard/Categories";
 import MenuItems from "./pages/dashboard/MenuItems";
 import QRCodePage from "./pages/dashboard/QRCode";
 import Settings from "./pages/dashboard/Settings";
+import ForgotPassword from "./pages/auth/ForgotPassword";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/menu/:slug" element={<PublicMenu />} />
 
             {/* Dashboard Routes */}

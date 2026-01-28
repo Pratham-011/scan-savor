@@ -1,4 +1,4 @@
-const API_BASE = 'https://oneqr.onrender.com/api';
+const API_BASE = 'http://localhost:5001/api';
 
 // Helper to get auth token
 const getToken = () => localStorage.getItem('authToken');
@@ -59,6 +59,25 @@ export const authApi = {
     apiRequest<{ message: string }>('/auth/logout', {
       method: 'POST',
     }),
+
+    forgotPassword: (email: string) =>
+      apiRequest<{ message: string }>('/auth/forgot', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      }),
+  
+    verifyForgotOtp: (email: string, otp: string) =>
+      apiRequest<{ resetToken: string }>('/auth/forgot/verify', {
+        method: 'POST',
+        body: JSON.stringify({ email, otp }),
+      }),
+  
+    resetPassword: (resetToken: string, newPassword: string) =>
+      apiRequest<{ message: string }>('/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({ resetToken, newPassword }),
+      }),
+  
 };
 
 // Restaurant API
