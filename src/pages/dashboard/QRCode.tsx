@@ -9,10 +9,9 @@ export default function QRCodePage() {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  // Use the production frontend URL for QR codes
-  const FRONTEND_URL = 'https://id-preview--06e4da2e-d5df-475a-b89a-d461d3e6b36d.lovable.app';
+  // Use window.location.origin to get the correct URL (works for both preview and published)
   const menuUrl = restaurant 
-    ? `${FRONTEND_URL}/menu/${(restaurant as any).qrSlug || restaurant._id}` 
+    ? `${window.location.origin}/menu/${(restaurant as any).qrSlug || restaurant._id}` 
     : '';
 
   useEffect(() => {
