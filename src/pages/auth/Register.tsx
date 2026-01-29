@@ -78,7 +78,7 @@ export default function Register() {
       setAuth(response.token, response.user);
       toast({
         title: 'Account Created!',
-        description: 'Welcome to oneQR. Let\'s set up your restaurant.',
+        description: 'Welcome to oneQr. Let\'s set up your restaurant.',
       });
       navigate('/dashboard/setup');
     } catch (error) {

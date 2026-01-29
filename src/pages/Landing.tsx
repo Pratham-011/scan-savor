@@ -181,7 +181,7 @@ export default function Landing() {
                 Ready to elevate your menu?
               </h2>
               <p className="text-muted-foreground text-lg mb-8 max-w-xl mx-auto">
-                Join hundreds of restaurants already using oneQR to delight their customers.
+                Join hundreds of restaurants already using oneQr to delight their customers.
               </p>
               <Button variant="gold" size="xl" asChild>
                 <Link to="/register">
@@ -200,7 +200,7 @@ export default function Landing() {
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <Logo size="sm" />
             <p className="text-muted-foreground text-sm">
-              © {new Date().getFullYear()} oneQR. All rights reserved.
+              © {new Date().getFullYear()} oneQr. All rights reserved.
             </p>
           </div>
         </div>

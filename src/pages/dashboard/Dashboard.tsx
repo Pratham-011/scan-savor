@@ -65,7 +65,7 @@ export default function Dashboard() {
           <UtensilsCrossed className="h-12 w-12 text-primary" />
         </div>
         <h1 className="font-display text-3xl font-bold mb-4">
-          Welcome to oneQR!
+          Welcome to oneQr!
         </h1>
         <p className="text-muted-foreground text-lg mb-8">
           Let's set up your restaurant to get started with your digital menu.

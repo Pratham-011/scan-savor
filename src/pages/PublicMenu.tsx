@@ -408,7 +408,7 @@ export default function PublicMenu() {
       {/* Powered By Footer */}
       <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-lg border-t border-border px-4 py-3">
         <p className="text-center text-xs text-muted-foreground">
-          Powered by <span className="text-gradient-gold font-semibold">oneQR</span>
+          Powered by <span className="text-gradient-gold font-semibold">oneQr</span>
         </p>
       </div>
     </div>

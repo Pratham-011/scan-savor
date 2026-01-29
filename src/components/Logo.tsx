@@ -28,7 +28,7 @@ export function Logo({ size = 'md', showText = true }: LogoProps) {
       </div>
       {showText && (
         <span className={`font-display font-bold ${textSizes[size]} text-gradient-gold`}>
-          oneQR
+          oneQr
         </span>
       )}
     </div>
