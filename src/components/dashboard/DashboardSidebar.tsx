@@ -10,12 +10,16 @@ import {
   ChevronLeft,
   ChevronRight,
   Upload,
-  Download
+  Download,
+  Menu,
+  X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
@@ -25,37 +29,33 @@ const navItems = [
   { icon: Settings, label: 'Settings', path: '/dashboard/settings' },
 ];
 
-export function DashboardSidebar() {
+function SidebarContent({ collapsed, onCollapse, onNavigate }: { collapsed: boolean; onCollapse?: () => void; onNavigate?: () => void }) {
   const location = useLocation();
   const { logout, user } = useAuth();
-  const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <aside 
-      className={cn(
-        "fixed left-0 top-0 h-screen bg-sidebar border-r border-sidebar-border flex flex-col transition-all duration-300 z-40",
-        collapsed ? "w-16" : "w-64"
-      )}
-    >
+    <>
       {/* Header */}
       <div className="h-16 flex items-center justify-between px-4 border-b border-sidebar-border">
         {!collapsed && <Logo size="sm" />}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setCollapsed(!collapsed)}
-          className="h-8 w-8"
-        >
-          {collapsed ? (
-            <ChevronRight className="h-4 w-4" />
-          ) : (
-            <ChevronLeft className="h-4 w-4" />
-          )}
-        </Button>
+        {onCollapse && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onCollapse}
+            className="h-8 w-8"
+          >
+            {collapsed ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <ChevronLeft className="h-4 w-4" />
+            )}
+          </Button>
+        )}
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 py-4 px-2">
+      <nav className="flex-1 py-4 px-2 overflow-y-auto">
         <ul className="space-y-1">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path;
@@ -63,6 +63,7 @@ export function DashboardSidebar() {
               <li key={item.path}>
                 <Link
                   to={item.path}
+                  onClick={onNavigate}
                   className={cn(
                     "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors",
                     isActive 
@@ -90,6 +91,7 @@ export function DashboardSidebar() {
               <li>
                 <Link
                   to="/dashboard/import"
+                  onClick={onNavigate}
                   className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
                 >
                   <Upload className="h-5 w-5" />
@@ -99,6 +101,7 @@ export function DashboardSidebar() {
               <li>
                 <Link
                   to="/dashboard/export"
+                  onClick={onNavigate}
                   className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
                 >
                   <Download className="h-5 w-5" />
@@ -129,6 +132,71 @@ export function DashboardSidebar() {
           {!collapsed && <span className="ml-3">Sign Out</span>}
         </Button>
       </div>
+    </>
+  );
+}
+
+export function DashboardSidebar() {
+  const isMobile = useIsMobile();
+  const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const location = useLocation();
+
+  // Close mobile sheet on navigation
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname]);
+
+  if (isMobile) {
+    return (
+      <>
+        {/* Mobile Header */}
+        <div className="fixed top-0 left-0 right-0 h-14 bg-sidebar border-b border-sidebar-border flex items-center justify-between px-4 z-50">
+          <Logo size="sm" />
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <Menu className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-72 p-0 bg-sidebar border-sidebar-border">
+              <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+              <div className="h-full flex flex-col">
+                <SidebarContent 
+                  collapsed={false} 
+                  onNavigate={() => setMobileOpen(false)} 
+                />
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
+        {/* Spacer for fixed header */}
+        <div className="h-14" />
+      </>
+    );
+  }
+
+  return (
+    <aside 
+      className={cn(
+        "fixed left-0 top-0 h-screen bg-sidebar border-r border-sidebar-border flex flex-col transition-all duration-300 z-40",
+        collapsed ? "w-16" : "w-64"
+      )}
+    >
+      <SidebarContent 
+        collapsed={collapsed} 
+        onCollapse={() => setCollapsed(!collapsed)} 
+      />
     </aside>
   );
+}
+
+export function useSidebarState() {
+  const isMobile = useIsMobile();
+  const [collapsed] = useState(false);
+  
+  return {
+    isMobile,
+    sidebarWidth: isMobile ? 0 : (collapsed ? 64 : 256),
+  };
 }

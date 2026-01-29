@@ -11,7 +11,6 @@ import {
   DialogTitle, 
   DialogTrigger,
   DialogDescription,
-  DialogFooter,
 } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -42,7 +41,7 @@ const emptyForm: CreateMenuItemData = {
   category: '',
   name: '',
   description: '',
-  price: 0,
+  price: '' as unknown as number,
   isVeg: true,
   isJain: false,
   isAvailable: true,
@@ -215,14 +214,14 @@ export default function MenuItems() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-3xl font-bold">Menu Items</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="font-display text-2xl sm:text-3xl font-bold">Menu Items</h1>
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">
             {items.length} items • {items.filter(i => i.isAvailable).length} available
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {items.length > 0 && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -254,12 +253,15 @@ export default function MenuItems() {
                 Add Item
               </Button>
             </DialogTrigger>
-          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" aria-describedby="menu-item-dialog-description">
             <DialogHeader>
               <DialogTitle>{editingItem ? 'Edit' : 'Add'} Menu Item</DialogTitle>
+              <DialogDescription id="menu-item-dialog-description">
+                Fill in the details below to {editingItem ? 'update' : 'create'} a menu item.
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 pt-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Main Category</Label>
                   <Select 
@@ -323,9 +325,10 @@ export default function MenuItems() {
                   <Label>Price (₹)</Label>
                   <Input
                     type="number"
-                    value={formData.price}
-                    onChange={(e) => setFormData(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
+                    value={formData.price === 0 ? '' : formData.price}
+                    onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value === '' ? '' as unknown as number : parseFloat(e.target.value) }))}
                     min={0}
+                    placeholder="Enter price"
                   />
                 </div>
                 <div className="space-y-2">
@@ -378,8 +381,8 @@ export default function MenuItems() {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-4">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+        <div className="relative flex-1 sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search items..."
@@ -388,47 +391,46 @@ export default function MenuItems() {
             className="pl-10"
           />
         </div>
-        {/* <Select value={filterCategory} onValueChange={setFilterCategory}> */}
-        <Select
-  value={filterCategory}
-  onValueChange={(v) => {
-    setFilterCategory(v);
-    setFilterSubCategory('all');
-  }}
->
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="All Categories" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            {mainCategories.map((cat) => (
-              <SelectItem key={cat._id} value={cat._id}>
-                {cat.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select
-  value={filterSubCategory}
-  onValueChange={setFilterSubCategory}
-  disabled={filterCategory === 'all'}
->
-  <SelectTrigger className="w-48">
-    <SelectValue placeholder="All Subcategories" />
-  </SelectTrigger>
-  <SelectContent>
-    <SelectItem value="all">All Subcategories</SelectItem>
-
-    {categories
-      .filter(c => c.mainCategory._id === filterCategory)
-      .map(cat => (
-        <SelectItem key={cat._id} value={cat._id}>
-          {cat.name}
-        </SelectItem>
-      ))}
-  </SelectContent>
-</Select>
-
+        <div className="flex gap-2 sm:gap-4 flex-wrap">
+          <Select
+            value={filterCategory}
+            onValueChange={(v) => {
+              setFilterCategory(v);
+              setFilterSubCategory('all');
+            }}
+          >
+            <SelectTrigger className="w-full sm:w-48">
+              <SelectValue placeholder="All Categories" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {mainCategories.map((cat) => (
+                <SelectItem key={cat._id} value={cat._id}>
+                  {cat.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={filterSubCategory}
+            onValueChange={setFilterSubCategory}
+            disabled={filterCategory === 'all'}
+          >
+            <SelectTrigger className="w-full sm:w-48">
+              <SelectValue placeholder="All Subcategories" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Subcategories</SelectItem>
+              {categories
+                .filter(c => c.mainCategory._id === filterCategory)
+                .map(cat => (
+                  <SelectItem key={cat._id} value={cat._id}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Items Grid */}
@@ -492,6 +494,11 @@ export default function MenuItems() {
                   <div className="flex flex-wrap gap-1 mb-3">
                     {mainCat && <Badge variant="secondary">{mainCat.name}</Badge>}
                     {subCat && <Badge variant="outline">{subCat.name}</Badge>}
+                    {(item as any).isJain && (
+                      <Badge className="bg-amber-500/20 text-amber-600 border-amber-500/30 hover:bg-amber-500/30">
+                        Jain
+                      </Badge>
+                    )}
                     {!item.isAvailable && <Badge variant="destructive">Unavailable</Badge>}
                   </div>
 
