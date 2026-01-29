@@ -164,21 +164,22 @@ export default function Categories() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-3xl font-bold">Categories</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="font-display text-2xl sm:text-3xl font-bold">Categories</h1>
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">
             Organize your menu with categories and subcategories
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-2 sm:gap-3 flex-wrap">
           <Dialog open={subDialogOpen} onOpenChange={setSubDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" onClick={() => { setEditingSub(null); setSubName(''); }}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Subcategory
+              <Button variant="outline" size="sm" className="sm:size-default" onClick={() => { setEditingSub(null); setSubName(''); }}>
+                <Plus className="mr-1 sm:mr-2 h-4 w-4" />
+                <span className="hidden sm:inline">Add Subcategory</span>
+                <span className="sm:hidden">Sub</span>
               </Button>
             </DialogTrigger>
             <DialogContent>
@@ -218,9 +219,10 @@ export default function Categories() {
 
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="gold" onClick={() => { setEditingMain(null); setMainName(''); setMainOrder(1); }}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Main Category
+              <Button variant="gold" size="sm" className="sm:size-default" onClick={() => { setEditingMain(null); setMainName(''); setMainOrder(1); }}>
+                <Plus className="mr-1 sm:mr-2 h-4 w-4" />
+                <span className="hidden sm:inline">Add Main Category</span>
+                <span className="sm:hidden">Main</span>
               </Button>
             </DialogTrigger>
             <DialogContent>

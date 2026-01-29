@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { DashboardSidebar } from './DashboardSidebar';
 import { Loader2 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { cn } from '@/lib/utils';
 
 export function DashboardLayout() {
   const { user, isLoading } = useAuth();
@@ -21,9 +22,14 @@ export function DashboardLayout() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row">
+    <div className="min-h-screen flex flex-col md:flex-row w-full">
       <DashboardSidebar />
-      <main className={`flex-1 p-4 sm:p-6 lg:p-8 ${isMobile ? '' : 'ml-64'}`}>
+      <main 
+        className={cn(
+          "flex-1 p-4 sm:p-6 lg:p-8 w-full min-w-0",
+          !isMobile && "md:ml-64"
+        )}
+      >
         <Outlet />
       </main>
     </div>
