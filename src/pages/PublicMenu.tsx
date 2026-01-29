@@ -383,6 +383,11 @@ export default function PublicMenu() {
                                   <div className="w-1.5 h-1.5 bg-non-veg rounded-full" />
                                 </div>
                               )}
+                              {item.isJain && (
+                                <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-amber-500/20 text-amber-600 rounded border border-amber-500/30">
+                                  JAIN
+                                </span>
+                              )}
                               <h4 className="font-semibold">{item.name}</h4>
                             </div>
                             <span className="font-bold text-primary flex-shrink-0">
