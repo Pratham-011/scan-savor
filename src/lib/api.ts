@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:5001/api';
+const API_BASE = 'https://oneqr.onrender.com/api';
 
 // Helper to get auth token
 const getToken = () => localStorage.getItem('authToken');
