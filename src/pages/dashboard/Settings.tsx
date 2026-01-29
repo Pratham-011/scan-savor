@@ -103,7 +103,7 @@ export default function Settings() {
     try {
       await restaurantApi.delete();
       toast({ title: 'Restaurant deleted' });
-      navigate('/dashboard/setup');
+      navigate('/');
     } catch (error) {
       toast({ title: 'Failed to delete', variant: 'destructive' });
     } finally {
