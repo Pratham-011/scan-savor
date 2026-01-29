@@ -54,19 +54,19 @@ export default function RestaurantSetup() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto py-8">
-      <div className="text-center mb-8">
-        <div className="inline-flex p-4 rounded-2xl bg-primary/10 mb-4">
-          <Store className="h-8 w-8 text-primary" />
+    <div className="w-full max-w-2xl mx-auto py-4 sm:py-8">
+      <div className="text-center mb-6 sm:mb-8">
+        <div className="inline-flex p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-primary/10 mb-3 sm:mb-4">
+          <Store className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
         </div>
-        <h1 className="font-display text-3xl font-bold">Set Up Your Restaurant</h1>
-        <p className="text-muted-foreground mt-2">
+        <h1 className="font-display text-2xl sm:text-3xl font-bold">Set Up Your Restaurant</h1>
+        <p className="text-muted-foreground mt-2 text-sm sm:text-base">
           Tell us about your restaurant to get started
         </p>
       </div>
 
-      <div className="glass rounded-2xl p-8">
-        <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="glass rounded-xl sm:rounded-2xl p-4 sm:p-8">
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
           <div className="space-y-2">
             <Label htmlFor="name">Restaurant Name *</Label>
             <Input

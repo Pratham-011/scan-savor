@@ -120,15 +120,15 @@ export default function Settings() {
   }
 
   return (
-    <div className="max-w-2xl space-y-8">
+    <div className="w-full max-w-2xl space-y-6 sm:space-y-8">
       <div>
-        <h1 className="font-display text-3xl font-bold">Settings</h1>
-        <p className="text-muted-foreground mt-1">Manage your restaurant details</p>
+        <h1 className="font-display text-2xl sm:text-3xl font-bold">Settings</h1>
+        <p className="text-muted-foreground mt-1 text-sm sm:text-base">Manage your restaurant details</p>
       </div>
 
       {/* Restaurant Details */}
-      <div className="glass rounded-2xl p-6 space-y-6">
-        <h2 className="font-display text-xl font-semibold">Restaurant Details</h2>
+      <div className="glass rounded-xl sm:rounded-2xl p-4 sm:p-6 space-y-4 sm:space-y-6">
+        <h2 className="font-display text-lg sm:text-xl font-semibold">Restaurant Details</h2>
         
         <div className="space-y-4">
           <div className="space-y-2">

@@ -81,24 +81,26 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-3xl font-bold">{restaurant.name}</h1>
-          <p className="text-muted-foreground mt-1">{restaurant.address}</p>
+          <h1 className="font-display text-2xl sm:text-3xl font-bold">{restaurant.name}</h1>
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base truncate">{restaurant.address}</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" asChild>
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          <Button variant="outline" size="sm" className="sm:size-default" asChild>
             <a href={`https://scan-savor.vercel.app/menu/${(restaurant as any).qrSlug || restaurant.slug}`} target="_blank" rel="noopener noreferrer">
-              <Eye className="mr-2 h-4 w-4" />
-              View Menu
+              <Eye className="mr-1 sm:mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">View Menu</span>
+              <span className="sm:hidden">View</span>
             </a>
           </Button>
-          <Button variant="gold" asChild>
+          <Button variant="gold" size="sm" className="sm:size-default" asChild>
             <Link to="/dashboard/qr">
-              <QrCode className="mr-2 h-4 w-4" />
-              Get QR Code
+              <QrCode className="mr-1 sm:mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">Get QR Code</span>
+              <span className="sm:hidden">QR</span>
             </Link>
           </Button>
         </div>
@@ -133,8 +135,8 @@ export default function Dashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div className="glass rounded-2xl p-6">
-        <h2 className="font-display text-xl font-semibold mb-4">Quick Actions</h2>
+      <div className="glass rounded-xl sm:rounded-2xl p-4 sm:p-6">
+        <h2 className="font-display text-lg sm:text-xl font-semibold mb-4">Quick Actions</h2>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <QuickActionCard
             icon={Plus}

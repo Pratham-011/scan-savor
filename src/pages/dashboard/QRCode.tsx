@@ -93,41 +93,41 @@ export default function QRCodePage() {
   const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(menuUrl)}&color=f59e0b&bgcolor=0f0f11`;
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8">
+    <div className="w-full max-w-2xl mx-auto space-y-6 sm:space-y-8">
       {/* Header */}
       <div className="text-center">
-        <h1 className="font-display text-3xl font-bold">Your QR Code</h1>
-        <p className="text-muted-foreground mt-2">
+        <h1 className="font-display text-2xl sm:text-3xl font-bold">Your QR Code</h1>
+        <p className="text-muted-foreground mt-2 text-sm sm:text-base">
           Share this QR code with your customers to view your menu
         </p>
       </div>
 
       {/* QR Code Display */}
-      <div className="glass rounded-3xl p-12 text-center">
-        <div className="inline-block p-6 bg-white rounded-2xl mb-6">
+      <div className="glass rounded-2xl sm:rounded-3xl p-6 sm:p-12 text-center">
+        <div className="inline-block p-4 sm:p-6 bg-white rounded-xl sm:rounded-2xl mb-4 sm:mb-6">
           <img 
             src={qrImageUrl}
             alt="Menu QR Code"
-            className="w-64 h-64"
+            className="w-48 h-48 sm:w-64 sm:h-64"
           />
         </div>
         
-        <h2 className="font-display text-xl font-semibold mb-2">{restaurant.name}</h2>
+        <h2 className="font-display text-lg sm:text-xl font-semibold mb-2">{restaurant.name}</h2>
         
-        <div className="flex items-center justify-center gap-2 text-muted-foreground mb-6">
-          <span className="text-sm truncate max-w-xs">{menuUrl}</span>
+        <div className="flex items-center justify-center gap-2 text-muted-foreground mb-4 sm:mb-6 px-2">
+          <span className="text-xs sm:text-sm truncate max-w-[200px] sm:max-w-xs">{menuUrl}</span>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-          <Button variant="gold" onClick={downloadQR}>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3">
+          <Button variant="gold" onClick={downloadQR} className="w-full sm:w-auto">
             <Download className="mr-2 h-4 w-4" />
-            Download QR Code
+            Download QR
           </Button>
-          <Button variant="outline" onClick={copyLink}>
+          <Button variant="outline" onClick={copyLink} className="w-full sm:w-auto">
             <Copy className="mr-2 h-4 w-4" />
             Copy Link
           </Button>
-          <Button variant="outline" asChild>
+          <Button variant="outline" className="w-full sm:w-auto" asChild>
             <a href={menuUrl} target="_blank" rel="noopener noreferrer">
               <ExternalLink className="mr-2 h-4 w-4" />
               View Menu
@@ -137,19 +137,19 @@ export default function QRCodePage() {
       </div>
 
       {/* Tips */}
-      <div className="glass rounded-xl p-6">
-        <h3 className="font-display text-lg font-semibold mb-4">Tips for using your QR code</h3>
-        <ul className="space-y-3 text-muted-foreground">
-          <li className="flex items-start gap-3">
-            <QrCode className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+      <div className="glass rounded-xl p-4 sm:p-6">
+        <h3 className="font-display text-base sm:text-lg font-semibold mb-3 sm:mb-4">Tips for using your QR code</h3>
+        <ul className="space-y-2 sm:space-y-3 text-muted-foreground text-sm">
+          <li className="flex items-start gap-2 sm:gap-3">
+            <QrCode className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0 mt-0.5" />
             <span>Print and display at each table for easy customer access</span>
           </li>
-          <li className="flex items-start gap-3">
-            <QrCode className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+          <li className="flex items-start gap-2 sm:gap-3">
+            <QrCode className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0 mt-0.5" />
             <span>Add to your marketing materials and social media</span>
           </li>
-          <li className="flex items-start gap-3">
-            <QrCode className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+          <li className="flex items-start gap-2 sm:gap-3">
+            <QrCode className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0 mt-0.5" />
             <span>Your QR code is permanent - it will always point to your latest menu</span>
           </li>
         </ul>
