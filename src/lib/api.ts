@@ -243,6 +243,7 @@ export interface Restaurant {
   phone?: string;
   slug: string;
   user: string;
+  foodTypes?: ('jain' | 'veg' | 'non-veg' | 'vegan')[];
 }
 
 export interface CreateRestaurantData {
@@ -253,6 +254,7 @@ export interface CreateRestaurantData {
   Instaurl?: string;
   address?: string;
   phone?: string;
+  foodTypes?: ('jain' | 'veg' | 'non-veg' | 'vegan')[];
 }
 
 export interface MainCategory {
@@ -282,6 +284,8 @@ export interface MenuItem {
   description?: string;
   price: number;
   isVeg: boolean;
+  isJain?: boolean;
+  isVegan?: boolean;
   isAvailable: boolean;
   image?: string;
   restaurant: string;
@@ -295,6 +299,7 @@ export interface CreateMenuItemData {
   price: number;
   isVeg: boolean;
   isJain?: boolean;
+  isVegan?: boolean;
   isAvailable: boolean;
   image?: string;
 }
@@ -316,6 +321,7 @@ export interface PublicMenuItem {
   price: number;
   isVeg: boolean;
   isJain?: boolean;
+  isVegan?: boolean;
   isAvailable: boolean;
   image?: string;
   order: number;
@@ -324,6 +330,7 @@ export interface PublicMenuItem {
 // Updated restaurant type for public menu (includes qrSlug)
 export interface PublicRestaurant extends Omit<Restaurant, 'slug'> {
   qrSlug: string;
+  foodTypes?: ('jain' | 'veg' | 'non-veg' | 'vegan')[];
 }
 
 export interface PublicMenuResponse {

@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { publicMenuApi, PublicMenuResponse, PublicMenuItem, MainCategory, Category } from '@/lib/api';
 import { demoMenuData } from '@/lib/demoData';
-import { Loader2, MapPin, Phone, Instagram, Leaf, Search, X, Sparkles } from 'lucide-react';
+import { Loader2, MapPin, Phone, Instagram, Leaf, Search, X, Sparkles, Salad } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
@@ -30,6 +30,7 @@ export default function PublicMenu() {
   const [selectedSubCategory, setSelectedSubCategory] = useState<string | null>(null);
   const [showVegOnly, setShowVegOnly] = useState(false);
   const [showJainOnly, setShowJainOnly] = useState(false);
+  const [showVeganOnly, setShowVeganOnly] = useState(false);
 
   useEffect(() => {
     const fetchMenu = async () => {
@@ -91,7 +92,7 @@ export default function PublicMenu() {
   const groupedItems = useMemo((): GroupedMainCategory[] => {
     if (!menuData?.menu) return [];
 
-    // Filter items based on search, category, subcategory, veg, and jain filters
+    // Filter items based on search, category, subcategory, veg, jain, and vegan filters
     const filteredItems = menuData.menu.filter(item => {
       const matchesSearch = 
         item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -100,8 +101,9 @@ export default function PublicMenu() {
       const matchesSubCategory = !selectedSubCategory || item.category._id === selectedSubCategory;
       const matchesVeg = !showVegOnly || item.isVeg;
       const matchesJain = !showJainOnly || item.isJain;
+      const matchesVegan = !showVeganOnly || item.isVegan;
       const isAvailable = item.isAvailable;
-      return matchesSearch && matchesCategory && matchesSubCategory && matchesVeg && matchesJain && isAvailable;
+      return matchesSearch && matchesCategory && matchesSubCategory && matchesVeg && matchesJain && matchesVegan && isAvailable;
     });
 
     // Group by main category, then by sub category
@@ -148,7 +150,7 @@ export default function PublicMenu() {
             items: subCat.items.sort((a, b) => a.order - b.order)
           }))
       }));
-  }, [menuData, searchQuery, selectedMainCategory, selectedSubCategory, showVegOnly, showJainOnly]);
+  }, [menuData, searchQuery, selectedMainCategory, selectedSubCategory, showVegOnly, showJainOnly, showVeganOnly]);
 
   if (isLoading) {
     return (
@@ -258,18 +260,34 @@ export default function PublicMenu() {
             <Leaf className="h-4 w-4" />
             Veg
           </button>
-          <button
-            onClick={() => setShowJainOnly(!showJainOnly)}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors",
-              showJainOnly 
-                ? "border-amber-500 bg-amber-500/10 text-amber-500" 
-                : "border-border text-muted-foreground"
-            )}
-          >
-            <Sparkles className="h-4 w-4" />
-            Jain
-          </button>
+          {restaurant.foodTypes?.includes('jain') && (
+            <button
+              onClick={() => setShowJainOnly(!showJainOnly)}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors",
+                showJainOnly 
+                  ? "border-amber-500 bg-amber-500/10 text-amber-500" 
+                  : "border-border text-muted-foreground"
+              )}
+            >
+              <Sparkles className="h-4 w-4" />
+              Jain
+            </button>
+          )}
+          {restaurant.foodTypes?.includes('vegan') && (
+            <button
+              onClick={() => setShowVeganOnly(!showVeganOnly)}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors",
+                showVeganOnly 
+                  ? "border-emerald-500 bg-emerald-500/10 text-emerald-500" 
+                  : "border-border text-muted-foreground"
+              )}
+            >
+              <Salad className="h-4 w-4" />
+              Vegan
+            </button>
+          )}
         </div>
 
         {/* Category Pills */}
@@ -386,6 +404,11 @@ export default function PublicMenu() {
                               {item.isJain && (
                                 <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-amber-500/20 text-amber-600 rounded border border-amber-500/30">
                                   JAIN
+                                </span>
+                              )}
+                              {item.isVegan && (
+                                <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-emerald-500/20 text-emerald-600 rounded border border-emerald-500/30">
+                                  VEGAN
                                 </span>
                               )}
                               <h4 className="font-semibold">{item.name}</h4>
