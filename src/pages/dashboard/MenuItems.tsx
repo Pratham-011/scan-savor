@@ -60,6 +60,7 @@ export default function MenuItems() {
   const [formData, setFormData] = useState<CreateMenuItemData>(emptyForm);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
+  const [filterFoodType, setFilterFoodType] = useState('all');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -200,8 +201,15 @@ export default function MenuItems() {
   
     const matchesSubCategory =
       filterSubCategory === 'all' || itemCategoryId === filterSubCategory;
+
+    // Food type filter
+    let matchesFoodType = true;
+    if (filterFoodType === 'veg') matchesFoodType = item.isVeg;
+    else if (filterFoodType === 'non-veg') matchesFoodType = !item.isVeg;
+    else if (filterFoodType === 'jain') matchesFoodType = item.isJain || false;
+    else if (filterFoodType === 'vegan') matchesFoodType = item.isVegan || false;
   
-    return matchesSearch && matchesMainCategory && matchesSubCategory;
+    return matchesSearch && matchesMainCategory && matchesSubCategory && matchesFoodType;
   });
   
   const availableSubCategories = categories.filter(
@@ -472,6 +480,43 @@ export default function MenuItems() {
                     {cat.name}
                   </SelectItem>
                 ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={filterFoodType}
+            onValueChange={setFilterFoodType}
+          >
+            <SelectTrigger className="w-full sm:w-40">
+              <SelectValue placeholder="All Types" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="veg">
+                <span className="flex items-center gap-2">
+                  <Leaf className="h-3 w-3 text-veg" /> Veg
+                </span>
+              </SelectItem>
+              {restaurant?.foodTypes?.includes('non-veg') && (
+                <SelectItem value="non-veg">
+                  <span className="flex items-center gap-2">
+                    <Drumstick className="h-3 w-3 text-non-veg" /> Non-Veg
+                  </span>
+                </SelectItem>
+              )}
+              {restaurant?.foodTypes?.includes('jain') && (
+                <SelectItem value="jain">
+                  <span className="flex items-center gap-2">
+                    <Sparkles className="h-3 w-3 text-amber-500" /> Jain
+                  </span>
+                </SelectItem>
+              )}
+              {restaurant?.foodTypes?.includes('vegan') && (
+                <SelectItem value="vegan">
+                  <span className="flex items-center gap-2">
+                    <Salad className="h-3 w-3 text-emerald-500" /> Vegan
+                  </span>
+                </SelectItem>
+              )}
             </SelectContent>
           </Select>
         </div>

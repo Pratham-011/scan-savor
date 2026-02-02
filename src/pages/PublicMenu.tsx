@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { publicMenuApi, PublicMenuResponse, PublicMenuItem, MainCategory, Category } from '@/lib/api';
 import { demoMenuData } from '@/lib/demoData';
-import { Loader2, MapPin, Phone, Instagram, Leaf, Search, X, Sparkles, Salad } from 'lucide-react';
+import { Loader2, MapPin, Phone, Instagram, Leaf, Search, X, Sparkles, Salad, Drumstick } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
@@ -29,6 +29,7 @@ export default function PublicMenu() {
   const [selectedMainCategory, setSelectedMainCategory] = useState<string | null>(null);
   const [selectedSubCategory, setSelectedSubCategory] = useState<string | null>(null);
   const [showVegOnly, setShowVegOnly] = useState(false);
+  const [showNonVegOnly, setShowNonVegOnly] = useState(false);
   const [showJainOnly, setShowJainOnly] = useState(false);
   const [showVeganOnly, setShowVeganOnly] = useState(false);
 
@@ -100,10 +101,11 @@ export default function PublicMenu() {
       const matchesCategory = !selectedMainCategory || item.mainCategory._id === selectedMainCategory;
       const matchesSubCategory = !selectedSubCategory || item.category._id === selectedSubCategory;
       const matchesVeg = !showVegOnly || item.isVeg;
+      const matchesNonVeg = !showNonVegOnly || !item.isVeg;
       const matchesJain = !showJainOnly || item.isJain;
       const matchesVegan = !showVeganOnly || item.isVegan;
       const isAvailable = item.isAvailable;
-      return matchesSearch && matchesCategory && matchesSubCategory && matchesVeg && matchesJain && matchesVegan && isAvailable;
+      return matchesSearch && matchesCategory && matchesSubCategory && matchesVeg && matchesNonVeg && matchesJain && matchesVegan && isAvailable;
     });
 
     // Group by main category, then by sub category
@@ -150,7 +152,7 @@ export default function PublicMenu() {
             items: subCat.items.sort((a, b) => a.order - b.order)
           }))
       }));
-  }, [menuData, searchQuery, selectedMainCategory, selectedSubCategory, showVegOnly, showJainOnly, showVeganOnly]);
+  }, [menuData, searchQuery, selectedMainCategory, selectedSubCategory, showVegOnly, showNonVegOnly, showJainOnly, showVeganOnly]);
 
   if (isLoading) {
     return (
@@ -249,7 +251,10 @@ export default function PublicMenu() {
             )}
           </div>
           <button
-            onClick={() => setShowVegOnly(!showVegOnly)}
+            onClick={() => {
+              setShowVegOnly(!showVegOnly);
+              if (!showVegOnly) setShowNonVegOnly(false);
+            }}
             className={cn(
               "flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors",
               showVegOnly 
@@ -260,6 +265,23 @@ export default function PublicMenu() {
             <Leaf className="h-4 w-4" />
             Veg
           </button>
+          {restaurant.foodTypes?.includes('non-veg') && (
+            <button
+              onClick={() => {
+                setShowNonVegOnly(!showNonVegOnly);
+                if (!showNonVegOnly) setShowVegOnly(false);
+              }}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors",
+                showNonVegOnly 
+                  ? "border-non-veg bg-non-veg/10 text-non-veg" 
+                  : "border-border text-muted-foreground"
+              )}
+            >
+              <Drumstick className="h-4 w-4" />
+              Non-Veg
+            </button>
+          )}
           {restaurant.foodTypes?.includes('jain') && (
             <button
               onClick={() => setShowJainOnly(!showJainOnly)}
