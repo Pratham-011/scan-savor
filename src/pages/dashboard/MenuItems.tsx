@@ -30,9 +30,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { menuItemApi, mainCategoryApi, categoryApi } from '@/lib/api';
-import type { MenuItem, MainCategory, Category, CreateMenuItemData } from '@/lib/api';
-import { Plus, Pencil, Trash2, UtensilsCrossed, Loader2, Search, Leaf, Drumstick } from 'lucide-react';
+import { menuItemApi, mainCategoryApi, categoryApi, restaurantApi } from '@/lib/api';
+import type { MenuItem, MainCategory, Category, CreateMenuItemData, Restaurant } from '@/lib/api';
+import { Plus, Pencil, Trash2, UtensilsCrossed, Loader2, Search, Leaf, Drumstick, Sparkles, Salad } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 
@@ -44,6 +44,7 @@ const emptyForm: CreateMenuItemData = {
   price: '' as unknown as number,
   isVeg: true,
   isJain: false,
+  isVegan: false,
   isAvailable: true,
   image: '',
 };
@@ -52,6 +53,7 @@ export default function MenuItems() {
   const [items, setItems] = useState<MenuItem[]>([]);
   const [mainCategories, setMainCategories] = useState<MainCategory[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
@@ -66,14 +68,16 @@ export default function MenuItems() {
 
   const fetchData = async () => {
     try {
-      const [itemsData, mainCats, cats] = await Promise.all([
+      const [itemsData, mainCats, cats, restaurantData] = await Promise.all([
         menuItemApi.getAll(),
         mainCategoryApi.getAll(),
         categoryApi.getAll(),
+        restaurantApi.get(),
       ]);
       setItems(itemsData);
       setMainCategories(mainCats);
       setCategories(cats);
+      setRestaurant(restaurantData);
     } catch (error) {
       toast({ title: 'Failed to load menu items', variant: 'destructive' });
     } finally {
@@ -140,7 +144,8 @@ export default function MenuItems() {
       description: item.description || '',
       price: item.price,
       isVeg: item.isVeg,
-      isJain: (item as any).isJain || false,
+      isJain: item.isJain || false,
+      isVegan: item.isVegan || false,
       isAvailable: item.isAvailable,
       image: item.image || '',
     });
@@ -342,26 +347,65 @@ export default function MenuItems() {
               </div>
 
               <div className="flex flex-wrap items-center gap-4">
-                <div className="flex items-center gap-3">
-                  <Switch
-                    checked={formData.isVeg}
-                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isVeg: checked }))}
-                  />
-                  <Label className="flex items-center gap-2">
-                    {formData.isVeg ? (
-                      <><Leaf className="h-4 w-4 text-veg" /> Vegetarian</>
-                    ) : (
-                      <><Drumstick className="h-4 w-4 text-non-veg" /> Non-Veg</>
-                    )}
-                  </Label>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Switch
-                    checked={formData.isJain || false}
-                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isJain: checked }))}
-                  />
-                  <Label>Jain</Label>
-                </div>
+                {/* Veg/Non-veg toggle - always show, but only if restaurant supports non-veg */}
+                {restaurant?.foodTypes?.includes('non-veg') ? (
+                  <div className="flex items-center gap-3">
+                    <Switch
+                      checked={formData.isVeg}
+                      onCheckedChange={(checked) => {
+                        // If switching to non-veg, disable jain as jain food must be veg
+                        setFormData(prev => ({ 
+                          ...prev, 
+                          isVeg: checked,
+                          isJain: checked ? prev.isJain : false 
+                        }));
+                      }}
+                    />
+                    <Label className="flex items-center gap-2">
+                      {formData.isVeg ? (
+                        <><Leaf className="h-4 w-4 text-veg" /> Vegetarian</>
+                      ) : (
+                        <><Drumstick className="h-4 w-4 text-non-veg" /> Non-Veg</>
+                      )}
+                    </Label>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-veg">
+                    <Leaf className="h-4 w-4" />
+                    <span className="text-sm font-medium">Vegetarian</span>
+                  </div>
+                )}
+                
+                {/* Jain toggle - show only if restaurant supports jain, disabled when non-veg */}
+                {restaurant?.foodTypes?.includes('jain') && (
+                  <div className="flex items-center gap-3">
+                    <Switch
+                      checked={formData.isJain || false}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isJain: checked }))}
+                      disabled={!formData.isVeg}
+                    />
+                    <Label className={`flex items-center gap-2 ${!formData.isVeg ? 'opacity-50' : ''}`}>
+                      <Sparkles className="h-4 w-4 text-amber-500" />
+                      Jain
+                      {!formData.isVeg && <span className="text-xs text-muted-foreground">(Veg only)</span>}
+                    </Label>
+                  </div>
+                )}
+
+                {/* Vegan toggle - show only if restaurant supports vegan */}
+                {restaurant?.foodTypes?.includes('vegan') && (
+                  <div className="flex items-center gap-3">
+                    <Switch
+                      checked={formData.isVegan || false}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isVegan: checked }))}
+                    />
+                    <Label className="flex items-center gap-2">
+                      <Salad className="h-4 w-4 text-emerald-500" />
+                      Vegan
+                    </Label>
+                  </div>
+                )}
+
                 <div className="flex items-center gap-3">
                   <Switch
                     checked={formData.isAvailable}
@@ -494,9 +538,14 @@ export default function MenuItems() {
                   <div className="flex flex-wrap gap-1 mb-3">
                     {mainCat && <Badge variant="secondary">{mainCat.name}</Badge>}
                     {subCat && <Badge variant="outline">{subCat.name}</Badge>}
-                    {(item as any).isJain && (
+                    {item.isJain && (
                       <Badge className="bg-amber-500/20 text-amber-600 border-amber-500/30 hover:bg-amber-500/30">
                         Jain
+                      </Badge>
+                    )}
+                    {item.isVegan && (
+                      <Badge className="bg-emerald-500/20 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/30">
+                        Vegan
                       </Badge>
                     )}
                     {!item.isAvailable && <Badge variant="destructive">Unavailable</Badge>}
