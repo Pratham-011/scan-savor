@@ -61,28 +61,34 @@ export default function PublicMenu() {
   
   
   
-  // Extract unique main categories from menu items
+  // Extract unique main categories from menu items (only available ones)
   const mainCategories = useMemo(() => {
     if (!menuData?.menu) return [];
     const uniqueMainCats = new Map<string, MainCategory>();
     menuData.menu.forEach(item => {
-      if (item.mainCategory && !uniqueMainCats.has(item.mainCategory._id)) {
+      // Only include main categories that are available
+      if (item.mainCategory && item.mainCategory.isAvailable !== false && !uniqueMainCats.has(item.mainCategory._id)) {
         uniqueMainCats.set(item.mainCategory._id, item.mainCategory);
       }
     });
     return Array.from(uniqueMainCats.values()).sort((a, b) => a.order - b.order);
   }, [menuData]);
 
-  // Extract subcategories for selected main category
+  // Extract subcategories for selected main category (only available ones)
   const subCategories = useMemo(() => {
     if (!menuData?.menu || !selectedMainCategory) return [];
-    const uniqueSubCats = new Map<string, { _id: string; name: string; order: number }>();
+    const uniqueSubCats = new Map<string, { _id: string; name: string; order: number; image?: string }>();
     menuData.menu.forEach(item => {
-      if (item.mainCategory._id === selectedMainCategory && item.category && !uniqueSubCats.has(item.category._id)) {
+      // Only include subcategories that are available and belong to an available main category
+      const mainCatAvailable = item.mainCategory.isAvailable !== false;
+      const subCatAvailable = (item.category as any).isAvailable !== false;
+      
+      if (mainCatAvailable && subCatAvailable && item.mainCategory._id === selectedMainCategory && item.category && !uniqueSubCats.has(item.category._id)) {
         uniqueSubCats.set(item.category._id, {
           _id: item.category._id,
           name: item.category.name,
-          order: item.category.order || 0
+          order: item.category.order || 0,
+          image: (item.category as any).image
         });
       }
     });
@@ -93,7 +99,7 @@ export default function PublicMenu() {
   const groupedItems = useMemo((): GroupedMainCategory[] => {
     if (!menuData?.menu) return [];
 
-    // Filter items based on search, category, subcategory, veg, jain, and vegan filters
+    // Filter items based on search, category, subcategory, veg, jain, vegan, and availability filters
     const filteredItems = menuData.menu.filter(item => {
       const matchesSearch = 
         item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -104,8 +110,14 @@ export default function PublicMenu() {
       const matchesNonVeg = !showNonVegOnly || !item.isVeg;
       const matchesJain = !showJainOnly || item.isJain;
       const matchesVegan = !showVeganOnly || item.isVegan;
-      const isAvailable = item.isAvailable;
-      return matchesSearch && matchesCategory && matchesSubCategory && matchesVeg && matchesNonVeg && matchesJain && matchesVegan && isAvailable;
+      const isItemAvailable = item.isAvailable;
+      
+      // Check if main category is available
+      const isMainCatAvailable = item.mainCategory.isAvailable !== false;
+      // Check if subcategory is available
+      const isSubCatAvailable = (item.category as any).isAvailable !== false;
+      
+      return matchesSearch && matchesCategory && matchesSubCategory && matchesVeg && matchesNonVeg && matchesJain && matchesVegan && isItemAvailable && isMainCatAvailable && isSubCatAvailable;
     });
 
     // Group by main category, then by sub category

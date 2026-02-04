@@ -104,7 +104,7 @@ export const restaurantApi = {
 
 // Main Category API
 export const mainCategoryApi = {
-  create: (data: { name: string; order: number }) =>
+  create: (data: { name: string; order: number; isAvailable?: boolean; image?: string }) =>
     apiRequest<MainCategory>('/main-category', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -112,7 +112,7 @@ export const mainCategoryApi = {
 
   getAll: () => apiRequest<MainCategory[]>('/main-category'),
 
-  update: (id: string, data: { name?: string; order?: number }) =>
+  update: (id: string, data: { name?: string; order?: number; isAvailable?: boolean; image?: string }) =>
     apiRequest<MainCategory>(`/main-category/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -126,7 +126,7 @@ export const mainCategoryApi = {
 
 // Category API
 export const categoryApi = {
-  create: (data: { name: string; mainCategory: string }) =>
+  create: (data: { name: string; mainCategory: string; isAvailable?: boolean; image?: string }) =>
     apiRequest<Category>('/category', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -134,7 +134,7 @@ export const categoryApi = {
 
   getAll: () => apiRequest<Category[]>('/category'),
 
-  update: (id: string, data: { name?: string }) =>
+  update: (id: string, data: { name?: string; isAvailable?: boolean; image?: string }) =>
     apiRequest<Category>(`/category/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -284,6 +284,8 @@ export interface MainCategory {
   name: string;
   order: number;
   restaurant: string;
+  isAvailable: boolean;
+  image?: string;
 }
 
 export interface Category {
@@ -292,9 +294,12 @@ export interface Category {
   mainCategory: {
     _id: string;
     name: string;
+    isAvailable?: boolean;
   };
   restaurant: string;
   order?: number;
+  isAvailable: boolean;
+  image?: string;
 }
 
 
@@ -334,9 +339,11 @@ export interface PublicMenuItem {
   category: {
     _id: string;
     name: string;
-    mainCategory: { _id: string; name: string };
+    mainCategory: { _id: string; name: string; isAvailable?: boolean };
     restaurant: string;
     order?: number;
+    isAvailable?: boolean;
+    image?: string;
   };
   name: string;
   description?: string;
