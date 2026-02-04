@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { 
   Dialog, 
   DialogContent, 
@@ -18,7 +19,7 @@ import {
 } from '@/components/ui/select';
 import { mainCategoryApi, categoryApi } from '@/lib/api';
 import type { MainCategory, Category } from '@/lib/api';
-import { Plus, Pencil, Trash2, FolderTree, ChevronRight, Loader2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, FolderTree, ChevronRight, Loader2, Image as ImageIcon, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Categories() {
@@ -34,8 +35,13 @@ export default function Categories() {
   // Form states
   const [mainName, setMainName] = useState('');
   const [mainOrder, setMainOrder] = useState(1);
+  const [mainIsAvailable, setMainIsAvailable] = useState(true);
+  const [mainImage, setMainImage] = useState('');
+  
   const [subName, setSubName] = useState('');
   const [selectedMainCat, setSelectedMainCat] = useState('');
+  const [subIsAvailable, setSubIsAvailable] = useState(true);
+  const [subImage, setSubImage] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -62,16 +68,24 @@ export default function Categories() {
   const handleCreateMainCategory = async () => {
     try {
       if (editingMain) {
-        await mainCategoryApi.update(editingMain._id, { name: mainName, order: mainOrder });
+        await mainCategoryApi.update(editingMain._id, { 
+          name: mainName, 
+          order: mainOrder,
+          isAvailable: mainIsAvailable,
+          image: mainImage || undefined
+        });
         toast({ title: 'Category updated!' });
       } else {
-        await mainCategoryApi.create({ name: mainName, order: mainOrder });
+        await mainCategoryApi.create({ 
+          name: mainName, 
+          order: mainOrder,
+          isAvailable: mainIsAvailable,
+          image: mainImage || undefined
+        });
         toast({ title: 'Category created!' });
       }
       setDialogOpen(false);
-      setEditingMain(null);
-      setMainName('');
-      setMainOrder(1);
+      resetMainForm();
       fetchData();
     } catch (error) {
       toast({
@@ -80,6 +94,14 @@ export default function Categories() {
         variant: 'destructive',
       });
     }
+  };
+
+  const resetMainForm = () => {
+    setEditingMain(null);
+    setMainName('');
+    setMainOrder(1);
+    setMainIsAvailable(true);
+    setMainImage('');
   };
 
   const handleDeleteMainCategory = async (id: string) => {
@@ -96,16 +118,23 @@ export default function Categories() {
   const handleCreateSubCategory = async () => {
     try {
       if (editingSub) {
-        await categoryApi.update(editingSub._id, { name: subName });
+        await categoryApi.update(editingSub._id, { 
+          name: subName,
+          isAvailable: subIsAvailable,
+          image: subImage || undefined
+        });
         toast({ title: 'Subcategory updated!' });
       } else {
-        await categoryApi.create({ name: subName, mainCategory: selectedMainCat });
+        await categoryApi.create({ 
+          name: subName, 
+          mainCategory: selectedMainCat,
+          isAvailable: subIsAvailable,
+          image: subImage || undefined
+        });
         toast({ title: 'Subcategory created!' });
       }
       setSubDialogOpen(false);
-      setEditingSub(null);
-      setSubName('');
-      setSelectedMainCat('');
+      resetSubForm();
       fetchData();
     } catch (error) {
       toast({
@@ -113,6 +142,14 @@ export default function Categories() {
         variant: 'destructive',
       });
     }
+  };
+
+  const resetSubForm = () => {
+    setEditingSub(null);
+    setSubName('');
+    setSelectedMainCat('');
+    setSubIsAvailable(true);
+    setSubImage('');
   };
 
   const handleDeleteSubCategory = async (id: string) => {
@@ -130,19 +167,16 @@ export default function Categories() {
     setEditingMain(cat);
     setMainName(cat.name);
     setMainOrder(cat.order);
+    setMainIsAvailable(cat.isAvailable);
+    setMainImage(cat.image || '');
     setDialogOpen(true);
   };
-
-  // const openEditSub = (cat: Category) => {
-  //   setEditingSub(cat);
-  //   setSubName(cat.name);
-  //   setSelectedMainCat(cat.mainCategory);
-  //   setSubDialogOpen(true);
-  // };
 
   const openEditSub = (cat: Category) => {
     setEditingSub(cat);
     setSubName(cat.name);
+    setSubIsAvailable(cat.isAvailable);
+    setSubImage(cat.image || '');
   
     const mainCatId =
       typeof cat.mainCategory === 'string'
@@ -153,7 +187,25 @@ export default function Categories() {
     setSubDialogOpen(true);
   };
 
-  
+  const toggleMainAvailability = async (cat: MainCategory) => {
+    try {
+      await mainCategoryApi.update(cat._id, { isAvailable: !cat.isAvailable });
+      toast({ title: `Category ${!cat.isAvailable ? 'shown' : 'hidden'}!` });
+      fetchData();
+    } catch (error) {
+      toast({ title: 'Failed to update', variant: 'destructive' });
+    }
+  };
+
+  const toggleSubAvailability = async (cat: Category) => {
+    try {
+      await categoryApi.update(cat._id, { isAvailable: !cat.isAvailable });
+      toast({ title: `Subcategory ${!cat.isAvailable ? 'shown' : 'hidden'}!` });
+      fetchData();
+    } catch (error) {
+      toast({ title: 'Failed to update', variant: 'destructive' });
+    }
+  };
 
   if (isLoading) {
     return (
@@ -176,7 +228,7 @@ export default function Categories() {
         <div className="flex gap-2 sm:gap-3 flex-wrap">
           <Dialog open={subDialogOpen} onOpenChange={setSubDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="sm:size-default" onClick={() => { setEditingSub(null); setSubName(''); }}>
+              <Button variant="outline" size="sm" className="sm:size-default" onClick={() => resetSubForm()}>
                 <Plus className="mr-1 sm:mr-2 h-4 w-4" />
                 <span className="hidden sm:inline">Add Subcategory</span>
                 <span className="sm:hidden">Sub</span>
@@ -210,6 +262,21 @@ export default function Categories() {
                     placeholder="e.g., Soups, Starters"
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label>Image URL (optional)</Label>
+                  <Input
+                    value={subImage}
+                    onChange={(e) => setSubImage(e.target.value)}
+                    placeholder="https://example.com/image.jpg"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label>Available in Menu</Label>
+                  <Switch
+                    checked={subIsAvailable}
+                    onCheckedChange={setSubIsAvailable}
+                  />
+                </div>
                 <Button onClick={handleCreateSubCategory} variant="gold" className="w-full">
                   {editingSub ? 'Update' : 'Create'} Subcategory
                 </Button>
@@ -219,7 +286,7 @@ export default function Categories() {
 
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="gold" size="sm" className="sm:size-default" onClick={() => { setEditingMain(null); setMainName(''); setMainOrder(1); }}>
+              <Button variant="gold" size="sm" className="sm:size-default" onClick={() => resetMainForm()}>
                 <Plus className="mr-1 sm:mr-2 h-4 w-4" />
                 <span className="hidden sm:inline">Add Main Category</span>
                 <span className="sm:hidden">Main</span>
@@ -247,6 +314,21 @@ export default function Categories() {
                     min={1}
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label>Image URL (optional)</Label>
+                  <Input
+                    value={mainImage}
+                    onChange={(e) => setMainImage(e.target.value)}
+                    placeholder="https://example.com/image.jpg"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label>Available in Menu</Label>
+                  <Switch
+                    checked={mainIsAvailable}
+                    onCheckedChange={setMainIsAvailable}
+                  />
+                </div>
                 <Button onClick={handleCreateMainCategory} variant="gold" className="w-full">
                   {editingMain ? 'Update' : 'Create'} Category
                 </Button>
@@ -272,7 +354,6 @@ export default function Categories() {
           {mainCategories
             .sort((a, b) => a.order - b.order)
             .map((mainCat) => {
-              // const subCats = categories.filter(c => c.mainCategory === mainCat._id);
               const subCats = categories.filter(c => {
                 const mainCatId =
                   typeof c.mainCategory === 'string'
@@ -283,20 +364,47 @@ export default function Categories() {
               });
               
               return (
-                <div key={mainCat._id} className="glass rounded-xl overflow-hidden">
+                <div key={mainCat._id} className={`glass rounded-xl overflow-hidden ${!mainCat.isAvailable ? 'opacity-60' : ''}`}>
                   <div className="flex items-center justify-between p-4 bg-secondary/30">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-primary/10">
-                        <FolderTree className="h-5 w-5 text-primary" />
-                      </div>
+                      {mainCat.image ? (
+                        <img 
+                          src={mainCat.image} 
+                          alt={mainCat.name}
+                          className="w-12 h-12 rounded-lg object-cover"
+                        />
+                      ) : (
+                        <div className="p-2 rounded-lg bg-primary/10">
+                          <FolderTree className="h-5 w-5 text-primary" />
+                        </div>
+                      )}
                       <div>
-                        <h3 className="font-semibold">{mainCat.name}</h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold">{mainCat.name}</h3>
+                          {!mainCat.isAvailable && (
+                            <span className="px-2 py-0.5 text-xs bg-muted text-muted-foreground rounded">
+                              Hidden
+                            </span>
+                          )}
+                        </div>
                         <p className="text-sm text-muted-foreground">
-                            {subCats.length} subcategories
+                          {subCats.length} subcategories
                         </p>
                       </div>
                     </div>
                     <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => toggleMainAvailability(mainCat)}
+                        title={mainCat.isAvailable ? 'Hide from menu' : 'Show in menu'}
+                      >
+                        {mainCat.isAvailable ? (
+                          <Eye className="h-4 w-4" />
+                        ) : (
+                          <EyeOff className="h-4 w-4" />
+                        )}
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -320,13 +428,39 @@ export default function Categories() {
                       {subCats.map((sub) => (
                         <div
                           key={sub._id}
-                          className="flex items-center justify-between p-3 rounded-lg bg-secondary/20 hover:bg-secondary/30 transition-colors"
+                          className={`flex items-center justify-between p-3 rounded-lg bg-secondary/20 hover:bg-secondary/30 transition-colors ${!sub.isAvailable ? 'opacity-60' : ''}`}
                         >
                           <div className="flex items-center gap-2">
-                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                            {sub.image ? (
+                              <img 
+                                src={sub.image} 
+                                alt={sub.name}
+                                className="w-8 h-8 rounded-md object-cover"
+                              />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                            )}
                             <span>{sub.name}</span>
+                            {!sub.isAvailable && (
+                              <span className="px-2 py-0.5 text-xs bg-muted text-muted-foreground rounded">
+                                Hidden
+                              </span>
+                            )}
                           </div>
                           <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => toggleSubAvailability(sub)}
+                              title={sub.isAvailable ? 'Hide from menu' : 'Show in menu'}
+                            >
+                              {sub.isAvailable ? (
+                                <Eye className="h-3 w-3" />
+                              ) : (
+                                <EyeOff className="h-3 w-3" />
+                              )}
+                            </Button>
                             <Button
                               variant="ghost"
                               size="icon"
