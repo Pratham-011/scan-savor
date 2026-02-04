@@ -173,6 +173,20 @@ export const menuItemApi = {
     }),
 };
 
+// Menu Analytics API
+export interface MenuAnalytics {
+  today: number;
+  week: number;
+  month: number;
+  year: number;
+  total: number;
+}
+
+export const menuAnalyticsApi = {
+  get: (restaurantId: string) =>
+    apiRequest<MenuAnalytics>(`/menu/admin/menu-analytics/${restaurantId}`),
+};
+
 // Public Menu API
 export const publicMenuApi = {
   getBySlug: (slug: string) =>

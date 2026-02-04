@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { restaurantApi, mainCategoryApi, categoryApi, menuItemApi } from '@/lib/api';
-import type { Restaurant, MainCategory, Category, MenuItem } from '@/lib/api';
+import { restaurantApi, mainCategoryApi, categoryApi, menuItemApi, menuAnalyticsApi } from '@/lib/api';
+import type { Restaurant, MenuAnalytics } from '@/lib/api';
 import { 
   UtensilsCrossed, 
   FolderTree, 
@@ -10,8 +10,16 @@ import {
   Plus,
   ArrowRight,
   TrendingUp,
-  Eye
+  Eye,
+  ScanLine
 } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 export default function Dashboard() {
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
@@ -21,6 +29,8 @@ export default function Dashboard() {
     menuItems: 0,
     availableItems: 0,
   });
+  const [analytics, setAnalytics] = useState<MenuAnalytics | null>(null);
+  const [analyticsPeriod, setAnalyticsPeriod] = useState<'today' | 'week' | 'month' | 'year'>('today');
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -40,6 +50,12 @@ export default function Dashboard() {
           menuItems: items.length,
           availableItems: items.filter(i => i.isAvailable).length,
         });
+
+        // Fetch analytics if restaurant exists
+        if (rest?._id) {
+          const analyticsData = await menuAnalyticsApi.get(rest._id).catch(() => null);
+          setAnalytics(analyticsData);
+        }
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
       } finally {
@@ -133,6 +149,54 @@ export default function Dashboard() {
           color="green"
         />
       </div>
+
+      {/* Menu Scans Analytics */}
+      {analytics && (
+        <div className="glass rounded-xl sm:rounded-2xl p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+            <h2 className="font-display text-lg sm:text-xl font-semibold">Menu Scans</h2>
+            <Select value={analyticsPeriod} onValueChange={(v) => setAnalyticsPeriod(v as typeof analyticsPeriod)}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="today">Today</SelectItem>
+                <SelectItem value="week">This Week</SelectItem>
+                <SelectItem value="month">This Month</SelectItem>
+                <SelectItem value="year">This Year</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="glass glass-hover rounded-xl p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    {analyticsPeriod === 'today' ? "Today's Scans" : 
+                     analyticsPeriod === 'week' ? "This Week" :
+                     analyticsPeriod === 'month' ? "This Month" : "This Year"}
+                  </p>
+                  <p className="text-3xl font-bold mt-1">{analytics[analyticsPeriod]}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-primary/10">
+                  <ScanLine className="h-6 w-6 text-primary" />
+                </div>
+              </div>
+            </div>
+            <div className="glass glass-hover rounded-xl p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Scans</p>
+                  <p className="text-3xl font-bold mt-1">{analytics.total}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-green-500/10">
+                  <ScanLine className="h-6 w-6 text-green-500" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Quick Actions */}
       <div className="glass rounded-xl sm:rounded-2xl p-4 sm:p-6">
