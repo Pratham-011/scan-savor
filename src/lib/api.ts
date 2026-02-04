@@ -184,7 +184,15 @@ export interface MenuAnalytics {
 
 export const menuAnalyticsApi = {
   get: (restaurantId: string) =>
-    apiRequest<MenuAnalytics>(`/menu/admin/menu-analytics/${restaurantId}`),
+    fetch(`https://oneqr.onrender.com/menu/admin/menu-analytics/${restaurantId}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('authToken')}`,
+      },
+    }).then(res => {
+      if (!res.ok) throw new Error('Failed to fetch analytics');
+      return res.json() as Promise<MenuAnalytics>;
+    }),
 };
 
 // Public Menu API
