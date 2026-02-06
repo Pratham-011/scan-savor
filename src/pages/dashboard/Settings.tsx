@@ -3,6 +3,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { restaurantApi, Restaurant, menuApi } from '@/lib/api';
 import { Loader2, Save, Upload, Download, Trash2, Leaf, Drumstick, Sparkles, Salad } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -97,10 +108,6 @@ export default function Settings() {
   };
 
   const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete your restaurant? This action cannot be undone.')) {
-      return;
-    }
-
     setIsDeleting(true);
     try {
       await restaurantApi.delete();
@@ -323,18 +330,38 @@ export default function Settings() {
         <p className="text-muted-foreground text-sm">
           Permanently delete your restaurant and all associated data.
         </p>
-        <Button 
-          variant="destructive" 
-          onClick={handleDelete}
-          disabled={isDeleting}
-        >
-          {isDeleting ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Trash2 className="mr-2 h-4 w-4" />
-          )}
-          Delete Restaurant
-        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button 
+              variant="destructive" 
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="mr-2 h-4 w-4" />
+              )}
+              Delete Restaurant
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Restaurant?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently delete your restaurant "{formData.name}" and all associated data including menu items, categories, and settings. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleDelete} 
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Yes, Delete Restaurant
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

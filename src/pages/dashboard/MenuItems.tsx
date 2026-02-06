@@ -108,22 +108,36 @@ export default function MenuItems() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this menu item?')) return;
+  const handleDelete = async (id: string, itemName: string) => {
+    // Optimistic update - remove from UI immediately
+    const previousItems = items;
+    setItems(prev => prev.filter(item => item._id !== id));
+    
     try {
       await menuItemApi.delete(id);
       toast({ title: 'Item deleted!' });
-      fetchData();
     } catch (error) {
+      // Rollback on error
+      setItems(previousItems);
       toast({ title: 'Failed to delete', variant: 'destructive' });
     }
   };
 
   const handleToggleAvailability = async (item: MenuItem) => {
+    const newAvailability = !item.isAvailable;
+    
+    // Optimistic update
+    setItems(prev => 
+      prev.map(i => i._id === item._id ? { ...i, isAvailable: newAvailability } : i)
+    );
+    
     try {
-      await menuItemApi.update(item._id, { isAvailable: !item.isAvailable });
-      fetchData();
+      await menuItemApi.update(item._id, { isAvailable: newAvailability });
     } catch (error) {
+      // Rollback on error
+      setItems(prev => 
+        prev.map(i => i._id === item._id ? { ...i, isAvailable: !newAvailability } : i)
+      );
       toast({ title: 'Failed to update', variant: 'destructive' });
     }
   };
@@ -605,14 +619,34 @@ export default function MenuItems() {
                       <Button variant="ghost" size="icon" onClick={() => openEdit(item)}>
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => handleDelete(item._id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Menu Item?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently delete "{item.name}". This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction 
+                              onClick={() => handleDelete(item._id, item.name)} 
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Yes, Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </div>
                 </div>
