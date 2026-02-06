@@ -188,21 +188,41 @@ export default function Categories() {
   };
 
   const toggleMainAvailability = async (cat: MainCategory) => {
+    const newAvailability = !cat.isAvailable;
+    
+    // Optimistic update - update UI immediately
+    setMainCategories(prev => 
+      prev.map(c => c._id === cat._id ? { ...c, isAvailable: newAvailability } : c)
+    );
+    
     try {
-      await mainCategoryApi.update(cat._id, { isAvailable: !cat.isAvailable });
-      toast({ title: `Category ${!cat.isAvailable ? 'shown' : 'hidden'}!` });
-      fetchData();
+      await mainCategoryApi.update(cat._id, { isAvailable: newAvailability });
+      toast({ title: `Category ${newAvailability ? 'shown' : 'hidden'}!` });
     } catch (error) {
+      // Revert on error
+      setMainCategories(prev => 
+        prev.map(c => c._id === cat._id ? { ...c, isAvailable: !newAvailability } : c)
+      );
       toast({ title: 'Failed to update', variant: 'destructive' });
     }
   };
 
   const toggleSubAvailability = async (cat: Category) => {
+    const newAvailability = !cat.isAvailable;
+    
+    // Optimistic update - update UI immediately
+    setCategories(prev => 
+      prev.map(c => c._id === cat._id ? { ...c, isAvailable: newAvailability } : c)
+    );
+    
     try {
-      await categoryApi.update(cat._id, { isAvailable: !cat.isAvailable });
-      toast({ title: `Subcategory ${!cat.isAvailable ? 'shown' : 'hidden'}!` });
-      fetchData();
+      await categoryApi.update(cat._id, { isAvailable: newAvailability });
+      toast({ title: `Subcategory ${newAvailability ? 'shown' : 'hidden'}!` });
     } catch (error) {
+      // Revert on error
+      setCategories(prev => 
+        prev.map(c => c._id === cat._id ? { ...c, isAvailable: !newAvailability } : c)
+      );
       toast({ title: 'Failed to update', variant: 'destructive' });
     }
   };
