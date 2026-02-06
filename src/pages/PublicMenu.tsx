@@ -348,12 +348,19 @@ export default function PublicMenu() {
                 setSelectedSubCategory(null);
               }}
               className={cn(
-                "px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors",
+                "flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors",
                 selectedMainCategory === cat._id 
                   ? "bg-primary text-primary-foreground" 
                   : "bg-secondary text-secondary-foreground"
               )}
             >
+              {cat.image && (
+                <img 
+                  src={cat.image} 
+                  alt={cat.name}
+                  className="w-5 h-5 rounded-full object-cover"
+                />
+              )}
               {cat.name}
             </button>
           ))}
@@ -378,12 +385,19 @@ export default function PublicMenu() {
                 key={cat._id}
                 onClick={() => setSelectedSubCategory(cat._id)}
                 className={cn(
-                  "px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors",
+                  "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors",
                   selectedSubCategory === cat._id 
                     ? "bg-accent text-accent-foreground" 
                     : "bg-muted text-muted-foreground"
                 )}
               >
+                {cat.image && (
+                  <img 
+                    src={cat.image} 
+                    alt={cat.name}
+                    className="w-4 h-4 rounded-full object-cover"
+                  />
+                )}
                 {cat.name}
               </button>
             ))}
@@ -398,17 +412,41 @@ export default function PublicMenu() {
             <p className="text-muted-foreground">No items found</p>
           </div>
         ) : (
-          groupedItems.map(mainCat => (
+          groupedItems.map(mainCat => {
+            // Find main category image from the original data
+            const mainCatData = mainCategories.find(c => c._id === mainCat._id);
+            return (
             <div key={mainCat._id}>
-              <h2 className="font-display text-xl font-bold mb-4 text-gradient-gold">
-                {mainCat.name}
-              </h2>
+              <div className="flex items-center gap-3 mb-4">
+                {mainCatData?.image && (
+                  <img 
+                    src={mainCatData.image} 
+                    alt={mainCat.name}
+                    className="w-12 h-12 rounded-xl object-cover"
+                  />
+                )}
+                <h2 className="font-display text-xl font-bold text-gradient-gold">
+                  {mainCat.name}
+                </h2>
+              </div>
               
-              {mainCat.subCategories.map(subCat => (
+              {mainCat.subCategories.map(subCat => {
+                // Find subcategory image from the original data
+                const subCatData = subCategories.find(c => c._id === subCat._id);
+                return (
                 <div key={subCat._id} className="mb-6">
-                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                    {subCat.name}
-                  </h3>
+                  <div className="flex items-center gap-2 mb-3">
+                    {subCatData?.image && (
+                      <img 
+                        src={subCatData.image} 
+                        alt={subCat.name}
+                        className="w-8 h-8 rounded-lg object-cover"
+                      />
+                    )}
+                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                      {subCat.name}
+                    </h3>
+                  </div>
                   
                   <div className="space-y-3">
                     {subCat.items.map(item => (
@@ -461,9 +499,11 @@ export default function PublicMenu() {
                     ))}
                   </div>
                 </div>
-              ))}
+              );
+              })}
             </div>
-          ))
+          );
+          })
         )}
       </div>
 
