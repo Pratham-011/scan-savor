@@ -30,11 +30,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { menuItemApi, mainCategoryApi, categoryApi, restaurantApi } from '@/lib/api';
-import type { MenuItem, MainCategory, Category, CreateMenuItemData, Restaurant } from '@/lib/api';
-import { Plus, Pencil, Trash2, UtensilsCrossed, Loader2, Search, Leaf, Drumstick, Sparkles, Salad } from 'lucide-react';
+import { menuItemApi, mainCategoryApi, categoryApi, restaurantApi, defaultAvailability } from '@/lib/api';
+import type { MenuItem, MainCategory, Category, CreateMenuItemData, Restaurant, Availability } from '@/lib/api';
+import { Plus, Pencil, Trash2, UtensilsCrossed, Loader2, Search, Leaf, Drumstick, Sparkles, Salad, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
+import AvailabilityPicker from '@/components/AvailabilityPicker';
 
 const emptyForm: CreateMenuItemData = {
   mainCategory: '',
@@ -45,9 +46,17 @@ const emptyForm: CreateMenuItemData = {
   isVeg: true,
   isJain: false,
   isVegan: false,
-  isAvailable: true,
+  availability: { type: 'always' },
   image: '',
 };
+
+function getShortAvailabilityLabel(a: Availability): string {
+  if (a.type === 'always') return 'Always';
+  if (a.type === 'daily') return `Daily ${a.startTime || ''}–${a.endTime || ''}`;
+  if (a.type === 'once') return 'Date range';
+  if (a.type === 'weekly') return 'Weekly';
+  return 'Always';
+}
 
 export default function MenuItems() {
   const [items, setItems] = useState<MenuItem[]>([]);
@@ -109,62 +118,31 @@ export default function MenuItems() {
   };
 
   const handleDelete = async (id: string, itemName: string) => {
-    // Optimistic update - remove from UI immediately
     const previousItems = items;
     setItems(prev => prev.filter(item => item._id !== id));
-    
     try {
       await menuItemApi.delete(id);
       toast({ title: 'Item deleted!' });
     } catch (error) {
-      // Rollback on error
       setItems(previousItems);
       toast({ title: 'Failed to delete', variant: 'destructive' });
-    }
-  };
-
-  const handleToggleAvailability = async (item: MenuItem) => {
-    const newAvailability = !item.isAvailable;
-    
-    // Optimistic update
-    setItems(prev => 
-      prev.map(i => i._id === item._id ? { ...i, isAvailable: newAvailability } : i)
-    );
-    
-    try {
-      await menuItemApi.update(item._id, { isAvailable: newAvailability });
-    } catch (error) {
-      // Rollback on error
-      setItems(prev => 
-        prev.map(i => i._id === item._id ? { ...i, isAvailable: !newAvailability } : i)
-      );
-      toast({ title: 'Failed to update', variant: 'destructive' });
     }
   };
 
   const openEdit = (item: MenuItem) => {
     setEditingItem(item);
     setFormData({
-      mainCategory:
-        typeof item.mainCategory === 'string'
-          ? item.mainCategory
-          : item.mainCategory._id,
-    
-      category:
-        typeof item.category === 'string'
-          ? item.category
-          : item.category._id,
-    
+      mainCategory: typeof item.mainCategory === 'string' ? item.mainCategory : item.mainCategory._id,
+      category: typeof item.category === 'string' ? item.category : item.category._id,
       name: item.name,
       description: item.description || '',
       price: item.price,
       isVeg: item.isVeg,
       isJain: item.isJain || false,
       isVegan: item.isVegan || false,
-      isAvailable: item.isAvailable,
+      availability: item.availability || defaultAvailability,
       image: item.image || '',
     });
-    
     setDialogOpen(true);
   };
 
@@ -174,11 +152,7 @@ export default function MenuItems() {
       toast({ title: 'All menu items deleted!' });
       fetchData();
     } catch (error) {
-      toast({ 
-        title: 'Failed to delete menu', 
-        description: error instanceof Error ? error.message : 'Please try again',
-        variant: 'destructive' 
-      });
+      toast({ title: 'Failed to delete menu', description: error instanceof Error ? error.message : 'Please try again', variant: 'destructive' });
     }
   };
 
@@ -188,47 +162,23 @@ export default function MenuItems() {
     setDialogOpen(true);
   };
 
-  // const filteredItems = items.filter(item => {
-  //   const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
-  //   const matchesCategory = filterCategory === 'all' || item.mainCategory === filterCategory;
-  //   return matchesSearch && matchesCategory;
-  // });
   const [filterSubCategory, setFilterSubCategory] = useState('all');
 
   const filteredItems = items.filter(item => {
-    const matchesSearch = item.name
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase());
-  
-    const itemMainCategoryId =
-      typeof item.mainCategory === 'string'
-        ? item.mainCategory
-        : item.mainCategory._id;
-  
-    const itemCategoryId =
-      typeof item.category === 'string'
-        ? item.category
-        : item.category._id;
-  
-    const matchesMainCategory =
-      filterCategory === 'all' || itemMainCategoryId === filterCategory;
-  
-    const matchesSubCategory =
-      filterSubCategory === 'all' || itemCategoryId === filterSubCategory;
-
-    // Food type filter
+    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const itemMainCategoryId = typeof item.mainCategory === 'string' ? item.mainCategory : item.mainCategory._id;
+    const itemCategoryId = typeof item.category === 'string' ? item.category : item.category._id;
+    const matchesMainCategory = filterCategory === 'all' || itemMainCategoryId === filterCategory;
+    const matchesSubCategory = filterSubCategory === 'all' || itemCategoryId === filterSubCategory;
     let matchesFoodType = true;
     if (filterFoodType === 'veg') matchesFoodType = item.isVeg;
     else if (filterFoodType === 'non-veg') matchesFoodType = !item.isVeg;
     else if (filterFoodType === 'jain') matchesFoodType = item.isJain || false;
     else if (filterFoodType === 'vegan') matchesFoodType = item.isVegan || false;
-  
     return matchesSearch && matchesMainCategory && matchesSubCategory && matchesFoodType;
   });
   
-  const availableSubCategories = categories.filter(
-    c => c.mainCategory._id === formData.mainCategory
-  );
+  const availableSubCategories = categories.filter(c => c.mainCategory._id === formData.mainCategory);
   
   if (isLoading) {
     return (
@@ -245,7 +195,7 @@ export default function MenuItems() {
         <div>
           <h1 className="font-display text-2xl sm:text-3xl font-bold">Menu Items</h1>
           <p className="text-muted-foreground mt-1 text-sm sm:text-base">
-            {items.length} items • {items.filter(i => i.isAvailable).length} available
+            {items.length} items • {items.filter(i => i.isCurrentlyAvailable !== false).length} available
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -291,37 +241,22 @@ export default function MenuItems() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Main Category</Label>
-                  <Select 
-                    value={formData.mainCategory} 
-                    onValueChange={(v) => setFormData(prev => ({ ...prev, mainCategory: v, category: '' }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
+                  <Select value={formData.mainCategory} onValueChange={(v) => setFormData(prev => ({ ...prev, mainCategory: v, category: '' }))}>
+                    <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
                     <SelectContent>
                       {mainCategories.map((cat) => (
-                        <SelectItem key={cat._id} value={cat._id}>
-                          {cat.name}
-                        </SelectItem>
+                        <SelectItem key={cat._id} value={cat._id}>{cat.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Subcategory</Label>
-                  <Select 
-                    value={formData.category} 
-                    onValueChange={(v) => setFormData(prev => ({ ...prev, category: v }))}
-                    disabled={!formData.mainCategory}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select subcategory" />
-                    </SelectTrigger>
+                  <Select value={formData.category} onValueChange={(v) => setFormData(prev => ({ ...prev, category: v }))} disabled={!formData.mainCategory}>
+                    <SelectTrigger><SelectValue placeholder="Select subcategory" /></SelectTrigger>
                     <SelectContent>
                       {availableSubCategories.map((cat) => (
-                        <SelectItem key={cat._id} value={cat._id}>
-                          {cat.name}
-                        </SelectItem>
+                        <SelectItem key={cat._id} value={cat._id}>{cat.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -330,65 +265,31 @@ export default function MenuItems() {
 
               <div className="space-y-2">
                 <Label>Item Name</Label>
-                <Input
-                  value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="e.g., Dal Makhani"
-                />
+                <Input value={formData.name} onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))} placeholder="e.g., Dal Makhani" />
               </div>
 
               <div className="space-y-2">
                 <Label>Description</Label>
-                <Textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Short description..."
-                  rows={2}
-                />
+                <Textarea value={formData.description} onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))} placeholder="Short description..." rows={2} />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Price (₹)</Label>
-                  <Input
-                    type="number"
-                    value={formData.price === 0 ? '' : formData.price}
-                    onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value === '' ? '' as unknown as number : parseFloat(e.target.value) }))}
-                    min={0}
-                    placeholder="Enter price"
-                  />
+                  <Input type="number" value={formData.price === 0 ? '' : formData.price} onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value === '' ? '' as unknown as number : parseFloat(e.target.value) }))} min={0} placeholder="Enter price" />
                 </div>
                 <div className="space-y-2">
                   <Label>Image URL</Label>
-                  <Input
-                    value={formData.image}
-                    onChange={(e) => setFormData(prev => ({ ...prev, image: e.target.value }))}
-                    placeholder="https://..."
-                  />
+                  <Input value={formData.image} onChange={(e) => setFormData(prev => ({ ...prev, image: e.target.value }))} placeholder="https://..." />
                 </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-4">
-                {/* Veg/Non-veg toggle - always show, but only if restaurant supports non-veg */}
                 {restaurant?.foodTypes?.includes('non-veg') ? (
                   <div className="flex items-center gap-3">
-                    <Switch
-                      checked={formData.isVeg}
-                      onCheckedChange={(checked) => {
-                        // If switching to non-veg, disable jain as jain food must be veg
-                        setFormData(prev => ({ 
-                          ...prev, 
-                          isVeg: checked,
-                          isJain: checked ? prev.isJain : false 
-                        }));
-                      }}
-                    />
+                    <Switch checked={formData.isVeg} onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isVeg: checked, isJain: checked ? prev.isJain : false }))} />
                     <Label className="flex items-center gap-2">
-                      {formData.isVeg ? (
-                        <><Leaf className="h-4 w-4 text-veg" /> Vegetarian</>
-                      ) : (
-                        <><Drumstick className="h-4 w-4 text-non-veg" /> Non-Veg</>
-                      )}
+                      {formData.isVeg ? (<><Leaf className="h-4 w-4 text-veg" /> Vegetarian</>) : (<><Drumstick className="h-4 w-4 text-non-veg" /> Non-Veg</>)}
                     </Label>
                   </div>
                 ) : (
@@ -397,45 +298,27 @@ export default function MenuItems() {
                     <span className="text-sm font-medium">Vegetarian</span>
                   </div>
                 )}
-                
-                {/* Jain toggle - show only if restaurant supports jain, disabled when non-veg */}
                 {restaurant?.foodTypes?.includes('jain') && (
                   <div className="flex items-center gap-3">
-                    <Switch
-                      checked={formData.isJain || false}
-                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isJain: checked }))}
-                      disabled={!formData.isVeg}
-                    />
+                    <Switch checked={formData.isJain || false} onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isJain: checked }))} disabled={!formData.isVeg} />
                     <Label className={`flex items-center gap-2 ${!formData.isVeg ? 'opacity-50' : ''}`}>
-                      <Sparkles className="h-4 w-4 text-amber-500" />
-                      Jain
+                      <Sparkles className="h-4 w-4 text-amber-500" /> Jain
                       {!formData.isVeg && <span className="text-xs text-muted-foreground">(Veg only)</span>}
                     </Label>
                   </div>
                 )}
-
-                {/* Vegan toggle - show only if restaurant supports vegan */}
                 {restaurant?.foodTypes?.includes('vegan') && (
                   <div className="flex items-center gap-3">
-                    <Switch
-                      checked={formData.isVegan || false}
-                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isVegan: checked }))}
-                    />
-                    <Label className="flex items-center gap-2">
-                      <Salad className="h-4 w-4 text-emerald-500" />
-                      Vegan
-                    </Label>
+                    <Switch checked={formData.isVegan || false} onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isVegan: checked }))} />
+                    <Label className="flex items-center gap-2"><Salad className="h-4 w-4 text-emerald-500" /> Vegan</Label>
                   </div>
                 )}
-
-                <div className="flex items-center gap-3">
-                  <Switch
-                    checked={formData.isAvailable}
-                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isAvailable: checked }))}
-                  />
-                  <Label>Available</Label>
-                </div>
               </div>
+
+              <AvailabilityPicker 
+                value={formData.availability} 
+                onChange={(a) => setFormData(prev => ({ ...prev, availability: a }))} 
+              />
 
               <Button onClick={handleSubmit} variant="gold" className="w-full">
                 {editingItem ? 'Update' : 'Create'} Item
@@ -450,86 +333,40 @@ export default function MenuItems() {
       <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
         <div className="relative flex-1 sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search items..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
+          <Input placeholder="Search items..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10" />
         </div>
         <div className="flex gap-2 sm:gap-4 flex-wrap">
-          <Select
-            value={filterCategory}
-            onValueChange={(v) => {
-              setFilterCategory(v);
-              setFilterSubCategory('all');
-            }}
-          >
-            <SelectTrigger className="w-full sm:w-48">
-              <SelectValue placeholder="All Categories" />
-            </SelectTrigger>
+          <Select value={filterCategory} onValueChange={(v) => { setFilterCategory(v); setFilterSubCategory('all'); }}>
+            <SelectTrigger className="w-full sm:w-48"><SelectValue placeholder="All Categories" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
               {mainCategories.map((cat) => (
-                <SelectItem key={cat._id} value={cat._id}>
-                  {cat.name}
-                </SelectItem>
+                <SelectItem key={cat._id} value={cat._id}>{cat.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <Select
-            value={filterSubCategory}
-            onValueChange={setFilterSubCategory}
-            disabled={filterCategory === 'all'}
-          >
-            <SelectTrigger className="w-full sm:w-48">
-              <SelectValue placeholder="All Subcategories" />
-            </SelectTrigger>
+          <Select value={filterSubCategory} onValueChange={setFilterSubCategory} disabled={filterCategory === 'all'}>
+            <SelectTrigger className="w-full sm:w-48"><SelectValue placeholder="All Subcategories" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Subcategories</SelectItem>
-              {categories
-                .filter(c => c.mainCategory._id === filterCategory)
-                .map(cat => (
-                  <SelectItem key={cat._id} value={cat._id}>
-                    {cat.name}
-                  </SelectItem>
-                ))}
+              {categories.filter(c => c.mainCategory._id === filterCategory).map(cat => (
+                <SelectItem key={cat._id} value={cat._id}>{cat.name}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
-          <Select
-            value={filterFoodType}
-            onValueChange={setFilterFoodType}
-          >
-            <SelectTrigger className="w-full sm:w-40">
-              <SelectValue placeholder="All Types" />
-            </SelectTrigger>
+          <Select value={filterFoodType} onValueChange={setFilterFoodType}>
+            <SelectTrigger className="w-full sm:w-40"><SelectValue placeholder="All Types" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="veg">
-                <span className="flex items-center gap-2">
-                  <Leaf className="h-3 w-3 text-veg" /> Veg
-                </span>
-              </SelectItem>
+              <SelectItem value="veg"><span className="flex items-center gap-2"><Leaf className="h-3 w-3 text-veg" /> Veg</span></SelectItem>
               {restaurant?.foodTypes?.includes('non-veg') && (
-                <SelectItem value="non-veg">
-                  <span className="flex items-center gap-2">
-                    <Drumstick className="h-3 w-3 text-non-veg" /> Non-Veg
-                  </span>
-                </SelectItem>
+                <SelectItem value="non-veg"><span className="flex items-center gap-2"><Drumstick className="h-3 w-3 text-non-veg" /> Non-Veg</span></SelectItem>
               )}
               {restaurant?.foodTypes?.includes('jain') && (
-                <SelectItem value="jain">
-                  <span className="flex items-center gap-2">
-                    <Sparkles className="h-3 w-3 text-amber-500" /> Jain
-                  </span>
-                </SelectItem>
+                <SelectItem value="jain"><span className="flex items-center gap-2"><Sparkles className="h-3 w-3 text-amber-500" /> Jain</span></SelectItem>
               )}
               {restaurant?.foodTypes?.includes('vegan') && (
-                <SelectItem value="vegan">
-                  <span className="flex items-center gap-2">
-                    <Salad className="h-3 w-3 text-emerald-500" /> Vegan
-                  </span>
-                </SelectItem>
+                <SelectItem value="vegan"><span className="flex items-center gap-2"><Salad className="h-3 w-3 text-emerald-500" /> Vegan</span></SelectItem>
               )}
             </SelectContent>
           </Select>
@@ -546,86 +383,67 @@ export default function MenuItems() {
             {items.length === 0 ? 'No menu items yet' : 'No items found'}
           </h3>
           <p className="text-muted-foreground mb-4">
-            {items.length === 0 
-              ? 'Add your first menu item to get started' 
-              : 'Try adjusting your search or filters'}
+            {items.length === 0 ? 'Add your first menu item to get started' : 'Try adjusting your search or filters'}
           </p>
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredItems.map((item) => {
-            const mainCat = mainCategories.find(c => c._id === item.mainCategory);
-            const subCat = categories.find(c => c._id === item.category);
+            const mainCat = mainCategories.find(c => c._id === (typeof item.mainCategory === 'string' ? item.mainCategory : item.mainCategory._id));
+            const subCat = categories.find(c => c._id === (typeof item.category === 'string' ? item.category : item.category._id));
+            const isAvailable = item.isCurrentlyAvailable !== false;
             
             return (
-              <div 
-                key={item._id} 
-                className={`glass rounded-xl overflow-hidden ${!item.isAvailable ? 'opacity-60' : ''}`}
-              >
+              <div key={item._id} className={`glass rounded-xl overflow-hidden ${!isAvailable ? 'opacity-60' : ''}`}>
                 {item.image && (
                   <div className="aspect-video bg-secondary">
-                    <img 
-                      src={item.image} 
-                      alt={item.name}
-                      className="w-full h-full object-cover"
-                    />
+                    <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
                   </div>
                 )}
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="flex items-center gap-2">
-                    {item.isVeg ? (
-  <div className="p-1 border-2 border-green-500 rounded">
-    <div className="w-2 h-2 bg-green-500 rounded-full" />
-  </div>
-) : (
-  <div className="p-1 border-2 border-red-500 rounded">
-    <div className="w-2 h-2 bg-red-500 rounded-full" />
-  </div>
-)}
+                      {item.isVeg ? (
+                        <div className="p-1 border-2 border-green-500 rounded"><div className="w-2 h-2 bg-green-500 rounded-full" /></div>
+                      ) : (
+                        <div className="p-1 border-2 border-red-500 rounded"><div className="w-2 h-2 bg-red-500 rounded-full" /></div>
+                      )}
                       <h3 className="font-semibold">{item.name}</h3>
                     </div>
                     <p className="font-bold text-primary">₹{item.price}</p>
                   </div>
                   
                   {item.description && (
-                    <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
-                      {item.description}
-                    </p>
+                    <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{item.description}</p>
                   )}
 
                   <div className="flex flex-wrap gap-1 mb-3">
                     {mainCat && <Badge variant="secondary">{mainCat.name}</Badge>}
                     {subCat && <Badge variant="outline">{subCat.name}</Badge>}
                     {item.isJain && (
-                      <Badge className="bg-amber-500/20 text-amber-600 border-amber-500/30 hover:bg-amber-500/30">
-                        Jain
-                      </Badge>
+                      <Badge className="bg-amber-500/20 text-amber-600 border-amber-500/30 hover:bg-amber-500/30">Jain</Badge>
                     )}
                     {item.isVegan && (
-                      <Badge className="bg-emerald-500/20 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/30">
-                        Vegan
-                      </Badge>
+                      <Badge className="bg-emerald-500/20 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/30">Vegan</Badge>
                     )}
-                    {!item.isAvailable && <Badge variant="destructive">Unavailable</Badge>}
+                    {item.status && item.status !== 'Available' && (
+                      <Badge variant="destructive">{item.status}</Badge>
+                    )}
                   </div>
 
-                  <div className="flex items-center justify-between pt-3 border-t border-border">
-                    <Switch
-                      checked={item.isAvailable}
-                      onCheckedChange={() => handleToggleAvailability(item)}
-                    />
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
+                    <Clock className="h-3 w-3" />
+                    <span>{getShortAvailabilityLabel(item.availability || defaultAvailability)}</span>
+                  </div>
+
+                  <div className="flex items-center justify-end pt-3 border-t border-border">
                     <div className="flex gap-1">
                       <Button variant="ghost" size="icon" onClick={() => openEdit(item)}>
                         <Pencil className="h-4 w-4" />
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            className="text-destructive hover:text-destructive"
-                          >
+                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </AlertDialogTrigger>
@@ -638,10 +456,7 @@ export default function MenuItems() {
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction 
-                              onClick={() => handleDelete(item._id, item.name)} 
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            >
+                            <AlertDialogAction onClick={() => handleDelete(item._id, item.name)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                               Yes, Delete
                             </AlertDialogAction>
                           </AlertDialogFooter>

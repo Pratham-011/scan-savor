@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { 
   Dialog, 
   DialogContent, 
@@ -28,10 +27,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { mainCategoryApi, categoryApi } from '@/lib/api';
-import type { MainCategory, Category } from '@/lib/api';
-import { Plus, Pencil, Trash2, FolderTree, ChevronRight, Loader2, Eye, EyeOff } from 'lucide-react';
+import { mainCategoryApi, categoryApi, defaultAvailability } from '@/lib/api';
+import type { MainCategory, Category, Availability } from '@/lib/api';
+import { Plus, Pencil, Trash2, FolderTree, ChevronRight, Loader2, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import AvailabilityPicker from '@/components/AvailabilityPicker';
+import { Badge } from '@/components/ui/badge';
+
+function getAvailabilityLabel(a: Availability): string {
+  if (a.type === 'always') return 'Always';
+  if (a.type === 'once') return `${a.startDate?.split('T')[0] || ''} → ${a.endDate?.split('T')[0] || ''}`;
+  if (a.type === 'daily') return `Daily ${a.startTime || ''}–${a.endTime || ''}`;
+  if (a.type === 'weekly') {
+    const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const selected = (a.daysOfWeek || []).map(d => days[d]).join(', ');
+    return `${selected} ${a.startTime || ''}–${a.endTime || ''}`;
+  }
+  return 'Always';
+}
 
 export default function Categories() {
   const [mainCategories, setMainCategories] = useState<MainCategory[]>([]);
@@ -46,12 +59,12 @@ export default function Categories() {
   // Form states
   const [mainName, setMainName] = useState('');
   const [mainOrder, setMainOrder] = useState(1);
-  const [mainIsAvailable, setMainIsAvailable] = useState(true);
+  const [mainAvailability, setMainAvailability] = useState<Availability>(defaultAvailability);
   const [mainImage, setMainImage] = useState('');
   
   const [subName, setSubName] = useState('');
   const [selectedMainCat, setSelectedMainCat] = useState('');
-  const [subIsAvailable, setSubIsAvailable] = useState(true);
+  const [subAvailability, setSubAvailability] = useState<Availability>(defaultAvailability);
   const [subImage, setSubImage] = useState('');
 
   useEffect(() => {
@@ -67,10 +80,7 @@ export default function Categories() {
       setMainCategories(mainCats);
       setCategories(cats);
     } catch (error) {
-      toast({
-        title: 'Failed to load categories',
-        variant: 'destructive',
-      });
+      toast({ title: 'Failed to load categories', variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
@@ -82,7 +92,7 @@ export default function Categories() {
         await mainCategoryApi.update(editingMain._id, { 
           name: mainName, 
           order: mainOrder,
-          isAvailable: mainIsAvailable,
+          availability: mainAvailability,
           image: mainImage || undefined
         });
         toast({ title: 'Category updated!' });
@@ -90,7 +100,7 @@ export default function Categories() {
         await mainCategoryApi.create({ 
           name: mainName, 
           order: mainOrder,
-          isAvailable: mainIsAvailable,
+          availability: mainAvailability,
           image: mainImage || undefined
         });
         toast({ title: 'Category created!' });
@@ -111,7 +121,7 @@ export default function Categories() {
     setEditingMain(null);
     setMainName('');
     setMainOrder(1);
-    setMainIsAvailable(true);
+    setMainAvailability(defaultAvailability);
     setMainImage('');
   };
 
@@ -130,7 +140,7 @@ export default function Categories() {
       if (editingSub) {
         await categoryApi.update(editingSub._id, { 
           name: subName,
-          isAvailable: subIsAvailable,
+          availability: subAvailability,
           image: subImage || undefined
         });
         toast({ title: 'Subcategory updated!' });
@@ -138,7 +148,7 @@ export default function Categories() {
         await categoryApi.create({ 
           name: subName, 
           mainCategory: selectedMainCat,
-          isAvailable: subIsAvailable,
+          availability: subAvailability,
           image: subImage || undefined
         });
         toast({ title: 'Subcategory created!' });
@@ -147,10 +157,7 @@ export default function Categories() {
       resetSubForm();
       fetchData();
     } catch (error) {
-      toast({
-        title: 'Failed to save subcategory',
-        variant: 'destructive',
-      });
+      toast({ title: 'Failed to save subcategory', variant: 'destructive' });
     }
   };
 
@@ -158,7 +165,7 @@ export default function Categories() {
     setEditingSub(null);
     setSubName('');
     setSelectedMainCat('');
-    setSubIsAvailable(true);
+    setSubAvailability(defaultAvailability);
     setSubImage('');
   };
 
@@ -176,7 +183,7 @@ export default function Categories() {
     setEditingMain(cat);
     setMainName(cat.name);
     setMainOrder(cat.order);
-    setMainIsAvailable(cat.isAvailable);
+    setMainAvailability(cat.availability || defaultAvailability);
     setMainImage(cat.image || '');
     setDialogOpen(true);
   };
@@ -184,56 +191,11 @@ export default function Categories() {
   const openEditSub = (cat: Category) => {
     setEditingSub(cat);
     setSubName(cat.name);
-    setSubIsAvailable(cat.isAvailable);
+    setSubAvailability(cat.availability || defaultAvailability);
     setSubImage(cat.image || '');
-  
-    const mainCatId =
-      typeof cat.mainCategory === 'string'
-        ? cat.mainCategory
-        : cat.mainCategory._id;
-  
+    const mainCatId = typeof cat.mainCategory === 'string' ? cat.mainCategory : cat.mainCategory._id;
     setSelectedMainCat(mainCatId);
     setSubDialogOpen(true);
-  };
-
-  const toggleMainAvailability = async (cat: MainCategory) => {
-    const newAvailability = !cat.isAvailable;
-    
-    // Optimistic update - update UI immediately
-    setMainCategories(prev => 
-      prev.map(c => c._id === cat._id ? { ...c, isAvailable: newAvailability } : c)
-    );
-    
-    try {
-      await mainCategoryApi.update(cat._id, { isAvailable: newAvailability });
-      toast({ title: `Category ${newAvailability ? 'shown' : 'hidden'}!` });
-    } catch (error) {
-      // Revert on error
-      setMainCategories(prev => 
-        prev.map(c => c._id === cat._id ? { ...c, isAvailable: !newAvailability } : c)
-      );
-      toast({ title: 'Failed to update', variant: 'destructive' });
-    }
-  };
-
-  const toggleSubAvailability = async (cat: Category) => {
-    const newAvailability = !cat.isAvailable;
-    
-    // Optimistic update - update UI immediately
-    setCategories(prev => 
-      prev.map(c => c._id === cat._id ? { ...c, isAvailable: newAvailability } : c)
-    );
-    
-    try {
-      await categoryApi.update(cat._id, { isAvailable: newAvailability });
-      toast({ title: `Subcategory ${newAvailability ? 'shown' : 'hidden'}!` });
-    } catch (error) {
-      // Revert on error
-      setCategories(prev => 
-        prev.map(c => c._id === cat._id ? { ...c, isAvailable: !newAvailability } : c)
-      );
-      toast({ title: 'Failed to update', variant: 'destructive' });
-    }
   };
 
   if (isLoading) {
@@ -276,36 +238,20 @@ export default function Categories() {
                     </SelectTrigger>
                     <SelectContent>
                       {mainCategories.map((cat) => (
-                        <SelectItem key={cat._id} value={cat._id}>
-                          {cat.name}
-                        </SelectItem>
+                        <SelectItem key={cat._id} value={cat._id}>{cat.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Subcategory Name</Label>
-                  <Input
-                    value={subName}
-                    onChange={(e) => setSubName(e.target.value)}
-                    placeholder="e.g., Soups, Starters"
-                  />
+                  <Input value={subName} onChange={(e) => setSubName(e.target.value)} placeholder="e.g., Soups, Starters" />
                 </div>
                 <div className="space-y-2">
                   <Label>Image URL (optional)</Label>
-                  <Input
-                    value={subImage}
-                    onChange={(e) => setSubImage(e.target.value)}
-                    placeholder="https://example.com/image.jpg"
-                  />
+                  <Input value={subImage} onChange={(e) => setSubImage(e.target.value)} placeholder="https://example.com/image.jpg" />
                 </div>
-                <div className="flex items-center justify-between">
-                  <Label>Available in Menu</Label>
-                  <Switch
-                    checked={subIsAvailable}
-                    onCheckedChange={setSubIsAvailable}
-                  />
-                </div>
+                <AvailabilityPicker value={subAvailability} onChange={setSubAvailability} />
                 <Button onClick={handleCreateSubCategory} variant="gold" className="w-full">
                   {editingSub ? 'Update' : 'Create'} Subcategory
                 </Button>
@@ -328,36 +274,17 @@ export default function Categories() {
               <div className="space-y-4 pt-4">
                 <div className="space-y-2">
                   <Label>Category Name</Label>
-                  <Input
-                    value={mainName}
-                    onChange={(e) => setMainName(e.target.value)}
-                    placeholder="e.g., Food, Bar, Desserts"
-                  />
+                  <Input value={mainName} onChange={(e) => setMainName(e.target.value)} placeholder="e.g., Food, Bar, Desserts" />
                 </div>
                 <div className="space-y-2">
                   <Label>Display Order</Label>
-                  <Input
-                    type="number"
-                    value={mainOrder}
-                    onChange={(e) => setMainOrder(parseInt(e.target.value) || 1)}
-                    min={1}
-                  />
+                  <Input type="number" value={mainOrder} onChange={(e) => setMainOrder(parseInt(e.target.value) || 1)} min={1} />
                 </div>
                 <div className="space-y-2">
                   <Label>Image URL (optional)</Label>
-                  <Input
-                    value={mainImage}
-                    onChange={(e) => setMainImage(e.target.value)}
-                    placeholder="https://example.com/image.jpg"
-                  />
+                  <Input value={mainImage} onChange={(e) => setMainImage(e.target.value)} placeholder="https://example.com/image.jpg" />
                 </div>
-                <div className="flex items-center justify-between">
-                  <Label>Available in Menu</Label>
-                  <Switch
-                    checked={mainIsAvailable}
-                    onCheckedChange={setMainIsAvailable}
-                  />
-                </div>
+                <AvailabilityPicker value={mainAvailability} onChange={setMainAvailability} />
                 <Button onClick={handleCreateMainCategory} variant="gold" className="w-full">
                   {editingMain ? 'Update' : 'Create'} Category
                 </Button>
@@ -374,9 +301,7 @@ export default function Categories() {
             <FolderTree className="h-8 w-8 text-primary" />
           </div>
           <h3 className="font-display text-xl font-semibold mb-2">No categories yet</h3>
-          <p className="text-muted-foreground mb-4">
-            Start by creating your first main category
-          </p>
+          <p className="text-muted-foreground mb-4">Start by creating your first main category</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -384,24 +309,17 @@ export default function Categories() {
             .sort((a, b) => a.order - b.order)
             .map((mainCat) => {
               const subCats = categories.filter(c => {
-                const mainCatId =
-                  typeof c.mainCategory === 'string'
-                    ? c.mainCategory
-                    : c.mainCategory._id;
-              
+                const mainCatId = typeof c.mainCategory === 'string' ? c.mainCategory : c.mainCategory._id;
                 return mainCatId === mainCat._id;
               });
+              const isAvailable = mainCat.isCurrentlyAvailable !== false;
               
               return (
-                <div key={mainCat._id} className={`glass rounded-xl overflow-hidden ${!mainCat.isAvailable ? 'opacity-60' : ''}`}>
+                <div key={mainCat._id} className={`glass rounded-xl overflow-hidden ${!isAvailable ? 'opacity-60' : ''}`}>
                   <div className="flex items-center justify-between p-4 bg-secondary/30">
                     <div className="flex items-center gap-3">
                       {mainCat.image ? (
-                        <img 
-                          src={mainCat.image} 
-                          alt={mainCat.name}
-                          className="w-12 h-12 rounded-lg object-cover"
-                        />
+                        <img src={mainCat.image} alt={mainCat.name} className="w-12 h-12 rounded-lg object-cover" />
                       ) : (
                         <div className="p-2 rounded-lg bg-primary/10">
                           <FolderTree className="h-5 w-5 text-primary" />
@@ -410,44 +328,25 @@ export default function Categories() {
                       <div>
                         <div className="flex items-center gap-2">
                           <h3 className="font-semibold">{mainCat.name}</h3>
-                          {!mainCat.isAvailable && (
-                            <span className="px-2 py-0.5 text-xs bg-muted text-muted-foreground rounded">
-                              Hidden
-                            </span>
+                          {mainCat.status && mainCat.status !== 'Available' && (
+                            <Badge variant="secondary" className="text-xs">{mainCat.status}</Badge>
                           )}
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          {subCats.length} subcategories
-                        </p>
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
+                          <Clock className="h-3 w-3" />
+                          <span>{getAvailabilityLabel(mainCat.availability || defaultAvailability)}</span>
+                          <span className="mx-1">•</span>
+                          <span>{subCats.length} subcategories</span>
+                        </div>
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => toggleMainAvailability(mainCat)}
-                        title={mainCat.isAvailable ? 'Hide from menu' : 'Show in menu'}
-                      >
-                        {mainCat.isAvailable ? (
-                          <Eye className="h-4 w-4" />
-                        ) : (
-                          <EyeOff className="h-4 w-4" />
-                        )}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => openEditMain(mainCat)}
-                      >
+                      <Button variant="ghost" size="icon" onClick={() => openEditMain(mainCat)}>
                         <Pencil className="h-4 w-4" />
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-destructive hover:text-destructive"
-                          >
+                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </AlertDialogTrigger>
@@ -460,10 +359,7 @@ export default function Categories() {
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction 
-                              onClick={() => handleDeleteMainCategory(mainCat._id)} 
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            >
+                            <AlertDialogAction onClick={() => handleDeleteMainCategory(mainCat._id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                               Yes, Delete
                             </AlertDialogAction>
                           </AlertDialogFooter>
@@ -474,81 +370,61 @@ export default function Categories() {
                   
                   {subCats.length > 0 && (
                     <div className="p-4 space-y-2">
-                      {subCats.map((sub) => (
-                        <div
-                          key={sub._id}
-                          className={`flex items-center justify-between p-3 rounded-lg bg-secondary/20 hover:bg-secondary/30 transition-colors ${!sub.isAvailable ? 'opacity-60' : ''}`}
-                        >
-                          <div className="flex items-center gap-2">
-                            {sub.image ? (
-                              <img 
-                                src={sub.image} 
-                                alt={sub.name}
-                                className="w-8 h-8 rounded-md object-cover"
-                              />
-                            ) : (
-                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                            )}
-                            <span>{sub.name}</span>
-                            {!sub.isAvailable && (
-                              <span className="px-2 py-0.5 text-xs bg-muted text-muted-foreground rounded">
-                                Hidden
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => toggleSubAvailability(sub)}
-                              title={sub.isAvailable ? 'Hide from menu' : 'Show in menu'}
-                            >
-                              {sub.isAvailable ? (
-                                <Eye className="h-3 w-3" />
+                      {subCats.map((sub) => {
+                        const subAvailable = sub.isCurrentlyAvailable !== false;
+                        return (
+                          <div
+                            key={sub._id}
+                            className={`flex items-center justify-between p-3 rounded-lg bg-secondary/20 hover:bg-secondary/30 transition-colors ${!subAvailable ? 'opacity-60' : ''}`}
+                          >
+                            <div className="flex items-center gap-2">
+                              {sub.image ? (
+                                <img src={sub.image} alt={sub.name} className="w-8 h-8 rounded-md object-cover" />
                               ) : (
-                                <EyeOff className="h-3 w-3" />
+                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
                               )}
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => openEditSub(sub)}
-                            >
-                              <Pencil className="h-3 w-3" />
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-destructive hover:text-destructive"
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Subcategory?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    This will permanently delete "{sub.name}". This action cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction 
-                                    onClick={() => handleDeleteSubCategory(sub._id)} 
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                  >
-                                    Yes, Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span>{sub.name}</span>
+                                  {sub.status && sub.status !== 'Available' && (
+                                    <Badge variant="secondary" className="text-[10px] py-0">{sub.status}</Badge>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                  <Clock className="h-2.5 w-2.5" />
+                                  <span>{getAvailabilityLabel(sub.availability || defaultAvailability)}</span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex gap-1">
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditSub(sub)}>
+                                <Pencil className="h-3 w-3" />
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete Subcategory?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      This will permanently delete "{sub.name}". This action cannot be undone.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleDeleteSubCategory(sub._id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                      Yes, Delete
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
