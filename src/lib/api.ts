@@ -1,8 +1,10 @@
-const API_BASE = 'https://oneqr.onrender.com/api';
+// const API_BASE = 'https://oneqr.onrender.com/api';
+const API_BASE = 'https://oneqrbackend-axhad4hnenejhtek.eastasia-01.azurewebsites.net/api';
 // const API_BASE = 'http://localhost:5000/api';
 // const BASE_URL = 'http://localhost:5000';
-const BASE_URL = 'https://oneqr.onrender.com';
-const frontendBaseUrl = 'https://scan-savor.vercel.app';
+// const BASE_URL = 'https://oneqr.onrender.com';
+const BASE_URL = 'https://oneqrbackend-axhad4hnenejhtek.eastasia-01.azurewebsites.net';
+// const frontendBaseUrl = 'https://scan-savor.vercel.app';
 // Helper to get auth token
 const getToken = () => localStorage.getItem('authToken');
 
