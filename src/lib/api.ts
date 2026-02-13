@@ -104,7 +104,7 @@ export const restaurantApi = {
 
 // Main Category API
 export const mainCategoryApi = {
-  create: (data: { name: string; order: number; isAvailable?: boolean; image?: string }) =>
+  create: (data: { name: string; order: number; availability?: Availability; image?: string }) =>
     apiRequest<MainCategory>('/main-category', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -112,7 +112,7 @@ export const mainCategoryApi = {
 
   getAll: () => apiRequest<MainCategory[]>('/main-category'),
 
-  update: (id: string, data: { name?: string; order?: number; isAvailable?: boolean; image?: string }) =>
+  update: (id: string, data: { name?: string; order?: number; availability?: Availability; image?: string }) =>
     apiRequest<MainCategory>(`/main-category/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -126,7 +126,7 @@ export const mainCategoryApi = {
 
 // Category API
 export const categoryApi = {
-  create: (data: { name: string; mainCategory: string; isAvailable?: boolean; image?: string }) =>
+  create: (data: { name: string; mainCategory: string; availability?: Availability; image?: string }) =>
     apiRequest<Category>('/category', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -134,7 +134,7 @@ export const categoryApi = {
 
   getAll: () => apiRequest<Category[]>('/category'),
 
-  update: (id: string, data: { name?: string; isAvailable?: boolean; image?: string }) =>
+  update: (id: string, data: { name?: string; availability?: Availability; image?: string }) =>
     apiRequest<Category>(`/category/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -248,6 +248,19 @@ export const menuApi = {
 };
 
 // Types
+export type AvailabilityType = 'always' | 'once' | 'daily' | 'weekly';
+
+export interface Availability {
+  type: AvailabilityType;
+  startDate?: string;
+  endDate?: string;
+  daysOfWeek?: number[];
+  startTime?: string;
+  endTime?: string;
+}
+
+export const defaultAvailability: Availability = { type: 'always' };
+
 export interface User {
   _id: string;
   name: string;
@@ -284,7 +297,9 @@ export interface MainCategory {
   name: string;
   order: number;
   restaurant: string;
-  isAvailable: boolean;
+  availability: Availability;
+  isCurrentlyAvailable?: boolean;
+  status?: string;
   image?: string;
 }
 
@@ -294,11 +309,14 @@ export interface Category {
   mainCategory: {
     _id: string;
     name: string;
-    isAvailable?: boolean;
+    availability?: Availability;
+    isCurrentlyAvailable?: boolean;
   };
   restaurant: string;
   order?: number;
-  isAvailable: boolean;
+  availability: Availability;
+  isCurrentlyAvailable?: boolean;
+  status?: string;
   image?: string;
 }
 
@@ -313,7 +331,9 @@ export interface MenuItem {
   isVeg: boolean;
   isJain?: boolean;
   isVegan?: boolean;
-  isAvailable: boolean;
+  availability: Availability;
+  isCurrentlyAvailable?: boolean;
+  status?: string;
   image?: string;
   restaurant: string;
 }
@@ -327,7 +347,7 @@ export interface CreateMenuItemData {
   isVeg: boolean;
   isJain?: boolean;
   isVegan?: boolean;
-  isAvailable: boolean;
+  availability: Availability;
   image?: string;
 }
 
@@ -339,10 +359,11 @@ export interface PublicMenuItem {
   category: {
     _id: string;
     name: string;
-    mainCategory: { _id: string; name: string; isAvailable?: boolean };
+    mainCategory: { _id: string; name: string; availability?: Availability; isCurrentlyAvailable?: boolean };
     restaurant: string;
     order?: number;
-    isAvailable?: boolean;
+    availability?: Availability;
+    isCurrentlyAvailable?: boolean;
     image?: string;
   };
   name: string;
@@ -351,7 +372,9 @@ export interface PublicMenuItem {
   isVeg: boolean;
   isJain?: boolean;
   isVegan?: boolean;
-  isAvailable: boolean;
+  isCurrentlyAvailable?: boolean;
+  status?: string;
+  availability?: Availability;
   image?: string;
   order: number;
 }

@@ -61,27 +61,25 @@ export default function PublicMenu() {
   
   
   
-  // Extract unique main categories from menu items (only available ones)
+  // Extract unique main categories from menu items (only currently available ones)
   const mainCategories = useMemo(() => {
     if (!menuData?.menu) return [];
     const uniqueMainCats = new Map<string, MainCategory>();
     menuData.menu.forEach(item => {
-      // Only include main categories that are available
-      if (item.mainCategory && item.mainCategory.isAvailable !== false && !uniqueMainCats.has(item.mainCategory._id)) {
+      if (item.mainCategory && item.mainCategory.isCurrentlyAvailable !== false && !uniqueMainCats.has(item.mainCategory._id)) {
         uniqueMainCats.set(item.mainCategory._id, item.mainCategory);
       }
     });
     return Array.from(uniqueMainCats.values()).sort((a, b) => a.order - b.order);
   }, [menuData]);
 
-  // Extract subcategories for selected main category (only available ones)
+  // Extract subcategories for selected main category (only currently available ones)
   const subCategories = useMemo(() => {
     if (!menuData?.menu || !selectedMainCategory) return [];
     const uniqueSubCats = new Map<string, { _id: string; name: string; order: number; image?: string }>();
     menuData.menu.forEach(item => {
-      // Only include subcategories that are available and belong to an available main category
-      const mainCatAvailable = item.mainCategory.isAvailable !== false;
-      const subCatAvailable = (item.category as any).isAvailable !== false;
+      const mainCatAvailable = item.mainCategory.isCurrentlyAvailable !== false;
+      const subCatAvailable = (item.category as any).isCurrentlyAvailable !== false;
       
       if (mainCatAvailable && subCatAvailable && item.mainCategory._id === selectedMainCategory && item.category && !uniqueSubCats.has(item.category._id)) {
         uniqueSubCats.set(item.category._id, {
@@ -110,12 +108,12 @@ export default function PublicMenu() {
       const matchesNonVeg = !showNonVegOnly || !item.isVeg;
       const matchesJain = !showJainOnly || item.isJain;
       const matchesVegan = !showVeganOnly || item.isVegan;
-      const isItemAvailable = item.isAvailable;
+      const isItemAvailable = item.isCurrentlyAvailable !== false;
       
-      // Check if main category is available
-      const isMainCatAvailable = item.mainCategory.isAvailable !== false;
-      // Check if subcategory is available
-      const isSubCatAvailable = (item.category as any).isAvailable !== false;
+      // Check if main category is currently available
+      const isMainCatAvailable = item.mainCategory.isCurrentlyAvailable !== false;
+      // Check if subcategory is currently available
+      const isSubCatAvailable = (item.category as any).isCurrentlyAvailable !== false;
       
       return matchesSearch && matchesCategory && matchesSubCategory && matchesVeg && matchesNonVeg && matchesJain && matchesVegan && isItemAvailable && isMainCatAvailable && isSubCatAvailable;
     });
