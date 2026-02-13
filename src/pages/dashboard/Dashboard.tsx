@@ -48,7 +48,7 @@ export default function Dashboard() {
           mainCategories: mainCats.length,
           categories: cats.length,
           menuItems: items.length,
-          availableItems: items.filter(i => i.isAvailable).length,
+          availableItems: items.filter(i => i.isCurrentlyAvailable).length,
         });
 
         // Fetch analytics if restaurant exists
@@ -106,7 +106,7 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           <Button variant="outline" size="sm" className="sm:size-default" asChild>
-            <a href={`https://scan-savor.vercel.app/menu/${(restaurant as any).qrSlug || restaurant.slug}`} target="_blank" rel="noopener noreferrer">
+            <a href={`${window.origin}/menu/${(restaurant as any).qrSlug || restaurant.slug}`} target="_blank" rel="noopener noreferrer">
               <Eye className="mr-1 sm:mr-2 h-4 w-4" />
               <span className="hidden sm:inline">View Menu</span>
               <span className="sm:hidden">View</span>

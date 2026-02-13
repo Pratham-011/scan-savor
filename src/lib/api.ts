@@ -1,5 +1,8 @@
-// const API_BASE = 'https://oneqr.onrender.com/api';
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = 'https://oneqr.onrender.com/api';
+// const API_BASE = 'http://localhost:5000/api';
+// const BASE_URL = 'http://localhost:5000';
+const BASE_URL = 'https://oneqr.onrender.com';
+const frontendBaseUrl = 'https://scan-savor.vercel.app';
 // Helper to get auth token
 const getToken = () => localStorage.getItem('authToken');
 
@@ -184,7 +187,7 @@ export interface MenuAnalytics {
 
 export const menuAnalyticsApi = {
   get: (restaurantId: string) =>
-    fetch(`https://oneqr.onrender.com/menu/admin/menu-analytics/${restaurantId}`, {
+    fetch(`${BASE_URL}/menu/admin/menu-analytics/${restaurantId}`, {
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${localStorage.getItem('authToken')}`,
@@ -198,7 +201,7 @@ export const menuAnalyticsApi = {
 // Public Menu API
 export const publicMenuApi = {
   getBySlug: (slug: string) =>
-    fetch(`https://oneqr.onrender.com/menu/${slug}`).then(res => {
+    fetch(`${BASE_URL}/menu/${slug}`).then(res => {
       if (!res.ok) throw new Error('Menu not found');
       return res.json() as Promise<PublicMenuResponse>;
     }),
@@ -355,15 +358,18 @@ export interface CreateMenuItemData {
 export interface PublicMenuItem {
   _id: string;
   restaurant: string;
-  mainCategory: MainCategory;
+  mainCategory: {
+    _id: string;
+    name: string;
+    order: number;
+    image?: string;
+  };
   category: {
     _id: string;
     name: string;
-    mainCategory: { _id: string; name: string; availability?: Availability; isCurrentlyAvailable?: boolean };
+    mainCategory: string;
     restaurant: string;
     order?: number;
-    availability?: Availability;
-    isCurrentlyAvailable?: boolean;
     image?: string;
   };
   name: string;
@@ -372,12 +378,10 @@ export interface PublicMenuItem {
   isVeg: boolean;
   isJain?: boolean;
   isVegan?: boolean;
-  isCurrentlyAvailable?: boolean;
-  status?: string;
-  availability?: Availability;
   image?: string;
   order: number;
 }
+
 
 // Updated restaurant type for public menu (includes qrSlug)
 export interface PublicRestaurant extends Omit<Restaurant, 'slug'> {

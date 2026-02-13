@@ -70,6 +70,8 @@ export default function MenuItems() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterFoodType, setFilterFoodType] = useState('all');
+  const [filterAvailability, setFilterAvailability] = useState('all');
+
   const { toast } = useToast();
 
   useEffect(() => {
@@ -163,6 +165,49 @@ export default function MenuItems() {
   };
 
   const [filterSubCategory, setFilterSubCategory] = useState('all');
+  // 🔥 O(1) lookup maps (performance optimized)
+const mainCategoryMap = new Map(
+  mainCategories.map(cat => [cat._id, cat])
+);
+
+const categoryMap = new Map(
+  categories.map(cat => [cat._id, cat])
+);
+const getItemAvailability = (item: MenuItem) => {
+  const mainCatId =
+    typeof item.mainCategory === 'string'
+      ? item.mainCategory
+      : item.mainCategory._id;
+
+  const subCatId =
+    typeof item.category === 'string'
+      ? item.category
+      : item.category._id;
+
+  const mainCat = mainCategoryMap.get(mainCatId);
+  const subCat = categoryMap.get(subCatId);
+
+  const isItemAvailable = item.isCurrentlyAvailable !== false;
+  const isMainAvailable = mainCat?.isCurrentlyAvailable !== false;
+  const isSubAvailable = subCat?.isCurrentlyAvailable !== false;
+
+  const isAvailable =
+    isItemAvailable &&
+    isMainAvailable &&
+    isSubAvailable;
+
+  let disabledReason = '';
+  if (!isMainAvailable) disabledReason = 'Main category unavailable';
+  else if (!isSubAvailable) disabledReason = 'Subcategory unavailable';
+  else if (!isItemAvailable) disabledReason = 'Item unavailable';
+
+  return {
+    isAvailable,
+    disabledReason,
+    mainCat,
+    subCat
+  };
+};
 
   const filteredItems = items.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -175,7 +220,22 @@ export default function MenuItems() {
     else if (filterFoodType === 'non-veg') matchesFoodType = !item.isVeg;
     else if (filterFoodType === 'jain') matchesFoodType = item.isJain || false;
     else if (filterFoodType === 'vegan') matchesFoodType = item.isVegan || false;
-    return matchesSearch && matchesMainCategory && matchesSubCategory && matchesFoodType;
+    let matchesAvailability = true;
+
+if (filterAvailability === 'available') {
+  matchesAvailability = item.isCurrentlyAvailable !== false;
+} else if (filterAvailability === 'unavailable') {
+  matchesAvailability = item.isCurrentlyAvailable === false;
+}
+
+return (
+  matchesSearch &&
+  matchesMainCategory &&
+  matchesSubCategory &&
+  matchesFoodType &&
+  matchesAvailability
+);
+
   });
   
   const availableSubCategories = categories.filter(c => c.mainCategory._id === formData.mainCategory);
@@ -195,7 +255,10 @@ export default function MenuItems() {
         <div>
           <h1 className="font-display text-2xl sm:text-3xl font-bold">Menu Items</h1>
           <p className="text-muted-foreground mt-1 text-sm sm:text-base">
-            {items.length} items • {items.filter(i => i.isCurrentlyAvailable !== false).length} available
+           {items.length} items • {
+  items.filter(item => getItemAvailability(item).isAvailable).length
+} available
+
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -370,6 +433,15 @@ export default function MenuItems() {
               )}
             </SelectContent>
           </Select>
+          <Select value={filterAvailability} onValueChange={setFilterAvailability}>
+            <SelectTrigger className="w-full sm:w-40"><SelectValue placeholder="All Availability" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Items</SelectItem>
+              <SelectItem value="available">Available</SelectItem>
+              <SelectItem value="unavailable">Unavailable</SelectItem>
+            </SelectContent>
+          </Select>
+          
         </div>
       </div>
 
@@ -389,9 +461,13 @@ export default function MenuItems() {
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredItems.map((item) => {
-            const mainCat = mainCategories.find(c => c._id === (typeof item.mainCategory === 'string' ? item.mainCategory : item.mainCategory._id));
-            const subCat = categories.find(c => c._id === (typeof item.category === 'string' ? item.category : item.category._id));
-            const isAvailable = item.isCurrentlyAvailable !== false;
+           const {
+  isAvailable,
+  disabledReason,
+  mainCat,
+  subCat
+} = getItemAvailability(item);
+
             
             return (
               <div key={item._id} className={`glass rounded-xl overflow-hidden ${!isAvailable ? 'opacity-60' : ''}`}>
@@ -417,19 +493,29 @@ export default function MenuItems() {
                     <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{item.description}</p>
                   )}
 
-                  <div className="flex flex-wrap gap-1 mb-3">
-                    {mainCat && <Badge variant="secondary">{mainCat.name}</Badge>}
-                    {subCat && <Badge variant="outline">{subCat.name}</Badge>}
-                    {item.isJain && (
-                      <Badge className="bg-amber-500/20 text-amber-600 border-amber-500/30 hover:bg-amber-500/30">Jain</Badge>
-                    )}
-                    {item.isVegan && (
-                      <Badge className="bg-emerald-500/20 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/30">Vegan</Badge>
-                    )}
-                    {item.status && item.status !== 'Available' && (
-                      <Badge variant="destructive">{item.status}</Badge>
-                    )}
-                  </div>
+<div className="flex flex-wrap gap-1 mb-3">
+  {mainCat && <Badge variant="secondary">{mainCat.name}</Badge>}
+  {subCat && <Badge variant="outline">{subCat.name}</Badge>}
+  {item.isJain && (
+    <Badge className="bg-amber-500/20 text-amber-600 border-amber-500/30 hover:bg-amber-500/30">
+      Jain
+    </Badge>
+  )}
+  {item.isVegan && (
+    <Badge className="bg-emerald-500/20 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/30">
+      Vegan
+    </Badge>
+  )}
+  {item.status && item.status !== 'Available' && (
+    <Badge variant="destructive">{item.status}</Badge>
+  )}
+  {!isAvailable && (
+    <Badge variant="destructive">
+      {disabledReason}
+    </Badge>
+  )}
+</div>
+
 
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
                     <Clock className="h-3 w-3" />
