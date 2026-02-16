@@ -285,6 +285,7 @@ export interface Restaurant {
   slug: string;
   user: string;
   foodTypes?: ('jain' | 'veg' | 'non-veg' | 'vegan')[];
+  locationLink?: string;
 }
 
 export interface CreateRestaurantData {
@@ -296,6 +297,7 @@ export interface CreateRestaurantData {
   address?: string;
   phone?: string;
   foodTypes?: ('jain' | 'veg' | 'non-veg' | 'vegan')[];
+  locationLink?: string;
 }
 
 export interface MainCategory {
@@ -390,6 +392,7 @@ export interface PublicMenuItem {
 export interface PublicRestaurant extends Omit<Restaurant, 'slug'> {
   qrSlug: string;
   foodTypes?: ('jain' | 'veg' | 'non-veg' | 'vegan')[];
+  locationLink?: string;
 }
 
 export interface PublicMenuResponse {
