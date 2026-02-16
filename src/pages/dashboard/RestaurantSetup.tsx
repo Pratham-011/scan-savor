@@ -17,6 +17,7 @@ export default function RestaurantSetup() {
     logo: '',
     banner: '',
     Instaurl: '',
+    locationLink: '',
     foodTypes: ['veg'] as ('jain' | 'veg' | 'non-veg' | 'vegan')[],
   });
   const [isLoading, setIsLoading] = useState(false);
@@ -149,6 +150,19 @@ export default function RestaurantSetup() {
               value={formData.Instaurl}
               onChange={handleChange}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="locationLink">Google Maps Location Link</Label>
+            <Input
+              id="locationLink"
+              name="locationLink"
+              type="url"
+              placeholder="https://maps.google.com/..."
+              value={formData.locationLink}
+              onChange={handleChange}
+            />
+            <p className="text-xs text-muted-foreground">Paste your Google Maps link so customers can navigate to your restaurant</p>
           </div>
 
           <div className="space-y-3">

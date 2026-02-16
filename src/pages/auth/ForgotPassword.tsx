@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/PasswordInput';
 import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/Logo';
 import { Loader2, ArrowRight, Check } from 'lucide-react';
@@ -234,8 +235,7 @@ export default function ForgotPassword() {
             <form onSubmit={handleResetPassword} className="space-y-6">
               <div className="space-y-2">
                 <Label>New Password</Label>
-                <Input
-                  type="password"
+                <PasswordInput
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   required

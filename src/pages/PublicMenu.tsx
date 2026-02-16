@@ -238,10 +238,22 @@ const filteredItems = menuData.menu.filter(item => {
 
           <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
             {restaurant.address && (
-              <span className="flex items-center gap-1">
-                <MapPin className="h-3 w-3" />
-                {restaurant.address}
-              </span>
+              restaurant.locationLink ? (
+                <a 
+                  href={restaurant.locationLink} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="flex items-center gap-1 hover:text-primary transition-colors"
+                >
+                  <MapPin className="h-3 w-3" />
+                  {restaurant.address}
+                </a>
+              ) : (
+                <span className="flex items-center gap-1">
+                  <MapPin className="h-3 w-3" />
+                  {restaurant.address}
+                </span>
+              )
             )}
             {restaurant.phone && (
               <a href={`tel:${restaurant.phone}`} className="flex items-center gap-1 hover:text-primary">
