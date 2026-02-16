@@ -29,6 +29,7 @@ export default function Settings() {
     logo: '',
     banner: '',
     Instaurl: '',
+    locationLink: '',
     foodTypes: ['veg'] as ('jain' | 'veg' | 'non-veg' | 'vegan')[],
   });
   const [isLoading, setIsLoading] = useState(true);
@@ -50,6 +51,7 @@ export default function Settings() {
           logo: data.logo || '',
           banner: data.banner || '',
           Instaurl: data.Instaurl || '',
+          locationLink: data.locationLink || '',
           foodTypes: data.foodTypes || ['veg'],
         });
       } catch (error) {
@@ -210,6 +212,18 @@ export default function Settings() {
               value={formData.Instaurl}
               onChange={handleChange}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="locationLink">Google Maps Location Link</Label>
+            <Input
+              id="locationLink"
+              name="locationLink"
+              value={formData.locationLink}
+              onChange={handleChange}
+              placeholder="https://maps.google.com/..."
+            />
+            <p className="text-xs text-muted-foreground">Paste your Google Maps link so customers can navigate to your restaurant</p>
           </div>
 
           <div className="space-y-3">
