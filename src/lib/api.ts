@@ -262,6 +262,7 @@ export interface Availability {
   daysOfWeek?: number[];
   startTime?: string;
   endTime?: string;
+  isAvailable?: boolean;
 }
 
 export const defaultAvailability: Availability = { type: 'always' };

@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/select';
 import { menuItemApi, mainCategoryApi, categoryApi, restaurantApi, defaultAvailability } from '@/lib/api';
 import type { MenuItem, MainCategory, Category, CreateMenuItemData, Restaurant, Availability } from '@/lib/api';
-import { Plus, Pencil, Trash2, UtensilsCrossed, Loader2, Search, Leaf, Drumstick, Sparkles, Salad, Clock } from 'lucide-react';
+import { Plus, Pencil, Trash2, UtensilsCrossed, Loader2, Search, Leaf, Drumstick, Sparkles, Salad, Clock, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import AvailabilityPicker from '@/components/AvailabilityPicker';
@@ -128,6 +128,19 @@ export default function MenuItems() {
     } catch (error) {
       setItems(previousItems);
       toast({ title: 'Failed to delete', variant: 'destructive' });
+    }
+  };
+
+  const handleToggleItemAvailability = async (item: MenuItem) => {
+    const currentlyAvailable = item.availability?.isAvailable !== false;
+    const previousItems = items;
+    setItems(prev => prev.map(i => i._id === item._id ? { ...i, availability: { ...i.availability, isAvailable: !currentlyAvailable }, isCurrentlyAvailable: !currentlyAvailable, status: !currentlyAvailable ? 'Available' : 'Not Available' } : i));
+    try {
+      await menuItemApi.update(item._id, { availability: { ...item.availability, isAvailable: !currentlyAvailable } });
+      toast({ title: currentlyAvailable ? 'Item hidden temporarily' : 'Item made available' });
+    } catch (error) {
+      setItems(previousItems);
+      toast({ title: 'Failed to update', variant: 'destructive' });
     }
   };
 
@@ -524,6 +537,9 @@ return (
 
                   <div className="flex items-center justify-end pt-3 border-t border-border">
                     <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => handleToggleItemAvailability(item)} title={isAvailable ? 'Hide temporarily' : 'Make available'}>
+                        {item.availability?.isAvailable !== false ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4 text-muted-foreground" />}
+                      </Button>
                       <Button variant="ghost" size="icon" onClick={() => openEdit(item)}>
                         <Pencil className="h-4 w-4" />
                       </Button>

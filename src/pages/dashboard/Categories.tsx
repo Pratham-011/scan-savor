@@ -29,7 +29,7 @@ import {
 } from '@/components/ui/select';
 import { mainCategoryApi, categoryApi, defaultAvailability } from '@/lib/api';
 import type { MainCategory, Category, Availability } from '@/lib/api';
-import { Plus, Pencil, Trash2, FolderTree, ChevronRight, Loader2, Clock } from 'lucide-react';
+import { Plus, Pencil, Trash2, FolderTree, ChevronRight, Loader2, Clock, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AvailabilityPicker from '@/components/AvailabilityPicker';
 import { Badge } from '@/components/ui/badge';
@@ -132,6 +132,32 @@ export default function Categories() {
       fetchData();
     } catch (error) {
       toast({ title: 'Failed to delete', variant: 'destructive' });
+    }
+  };
+
+  const handleToggleMainAvailability = async (cat: MainCategory) => {
+    const currentlyAvailable = cat.availability?.isAvailable !== false;
+    const previousCategories = mainCategories;
+    setMainCategories(prev => prev.map(c => c._id === cat._id ? { ...c, availability: { ...c.availability, isAvailable: !currentlyAvailable }, isCurrentlyAvailable: !currentlyAvailable, status: !currentlyAvailable ? 'Available' : 'Not Available' } : c));
+    try {
+      await mainCategoryApi.update(cat._id, { availability: { ...cat.availability, isAvailable: !currentlyAvailable } });
+      toast({ title: currentlyAvailable ? 'Category hidden temporarily' : 'Category made available' });
+    } catch (error) {
+      setMainCategories(previousCategories);
+      toast({ title: 'Failed to update', variant: 'destructive' });
+    }
+  };
+
+  const handleToggleSubAvailability = async (cat: Category) => {
+    const currentlyAvailable = cat.availability?.isAvailable !== false;
+    const previousCategories = categories;
+    setCategories(prev => prev.map(c => c._id === cat._id ? { ...c, availability: { ...c.availability, isAvailable: !currentlyAvailable }, isCurrentlyAvailable: !currentlyAvailable, status: !currentlyAvailable ? 'Available' : 'Not Available' } : c));
+    try {
+      await categoryApi.update(cat._id, { availability: { ...cat.availability, isAvailable: !currentlyAvailable } });
+      toast({ title: currentlyAvailable ? 'Subcategory hidden temporarily' : 'Subcategory made available' });
+    } catch (error) {
+      setCategories(previousCategories);
+      toast({ title: 'Failed to update', variant: 'destructive' });
     }
   };
 
@@ -340,7 +366,10 @@ export default function Categories() {
                         </div>
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => handleToggleMainAvailability(mainCat)} title={isAvailable ? 'Hide temporarily' : 'Make available'}>
+                        {isAvailable ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4 text-muted-foreground" />}
+                      </Button>
                       <Button variant="ghost" size="icon" onClick={() => openEditMain(mainCat)}>
                         <Pencil className="h-4 w-4" />
                       </Button>
@@ -396,7 +425,10 @@ export default function Categories() {
                                 </div>
                               </div>
                             </div>
-                            <div className="flex gap-1">
+                            <div className="flex gap-0.5">
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleToggleSubAvailability(sub)} title={subAvailable ? 'Hide temporarily' : 'Make available'}>
+                                {subAvailable ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3 text-muted-foreground" />}
+                              </Button>
                               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditSub(sub)}>
                                 <Pencil className="h-3 w-3" />
                               </Button>
