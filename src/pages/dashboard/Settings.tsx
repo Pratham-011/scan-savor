@@ -30,7 +30,7 @@ export default function Settings() {
     banner: '',
     Instaurl: '',
     locationLink: '',
-    foodTypes: ['veg'] as ('jain' | 'veg' | 'non-veg' | 'vegan')[],
+    foodTypes: ['veg'] as ('jain' | 'veg' | 'non-veg' | 'vegan' | 'half-jain')[],
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -293,6 +293,22 @@ export default function Settings() {
                 />
                 <Salad className="h-4 w-4 text-emerald-500" />
                 <span className="text-sm">Vegan</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.foodTypes.includes('half-jain')}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setFormData(prev => ({ ...prev, foodTypes: [...prev.foodTypes, 'half-jain'] }));
+                    } else {
+                      setFormData(prev => ({ ...prev, foodTypes: prev.foodTypes.filter(t => t !== 'half-jain') }));
+                    }
+                  }}
+                  className="rounded border-border"
+                />
+                <Sparkles className="h-4 w-4 text-orange-500" />
+                <span className="text-sm">Half Jain</span>
               </label>
             </div>
           </div>

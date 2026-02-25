@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { publicMenuApi, PublicMenuResponse, PublicMenuItem, MainCategory, Category } from '@/lib/api';
 import { demoMenuData } from '@/lib/demoData';
-import { Loader2, MapPin, Phone, Instagram, Leaf, Search, X, Sparkles, Salad, Drumstick } from 'lucide-react';
+import { Loader2, MapPin, Phone, Instagram, Leaf, Search, X, Sparkles, Salad, Drumstick, CookingPot } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
@@ -32,6 +32,7 @@ export default function PublicMenu() {
   const [showNonVegOnly, setShowNonVegOnly] = useState(false);
   const [showJainOnly, setShowJainOnly] = useState(false);
   const [showVeganOnly, setShowVeganOnly] = useState(false);
+  const [showHalfJainOnly, setShowHalfJainOnly] = useState(false);
 
   useEffect(() => {
     const fetchMenu = async () => {
@@ -123,6 +124,7 @@ const filteredItems = menuData.menu.filter(item => {
   const matchesNonVeg = !showNonVegOnly || !item.isVeg;
   const matchesJain = !showJainOnly || item.isJain;
   const matchesVegan = !showVeganOnly || item.isVegan;
+  const matchesHalfJain = !showHalfJainOnly || item.isHalfJain;
 
   return (
     matchesSearch &&
@@ -131,7 +133,8 @@ const filteredItems = menuData.menu.filter(item => {
     matchesVeg &&
     matchesNonVeg &&
     matchesJain &&
-    matchesVegan
+    matchesVegan &&
+    matchesHalfJain
   );
 });
 
@@ -181,7 +184,7 @@ const filteredItems = menuData.menu.filter(item => {
             items: subCat.items.sort((a, b) => a.order - b.order)
           }))
       }));
-  }, [menuData, searchQuery, selectedMainCategory, selectedSubCategory, showVegOnly, showNonVegOnly, showJainOnly, showVeganOnly]);
+  }, [menuData, searchQuery, selectedMainCategory, selectedSubCategory, showVegOnly, showNonVegOnly, showJainOnly, showVeganOnly, showHalfJainOnly]);
 
   if (isLoading) {
     return (
@@ -351,6 +354,20 @@ const filteredItems = menuData.menu.filter(item => {
               Vegan
             </button>
           )}
+          {restaurant.foodTypes?.includes('half-jain') && (
+            <button
+              onClick={() => setShowHalfJainOnly(!showHalfJainOnly)}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors",
+                showHalfJainOnly 
+                  ? "border-orange-500 bg-orange-500/10 text-orange-500" 
+                  : "border-border text-muted-foreground"
+              )}
+            >
+              <CookingPot className="h-4 w-4" />
+              Half Jain
+            </button>
+          )}
         </div>
 
         {/* Category Pills */}
@@ -510,6 +527,11 @@ const filteredItems = menuData.menu.filter(item => {
                               {item.isVegan && (
                                 <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-emerald-500/20 text-emerald-600 rounded border border-emerald-500/30">
                                   VEGAN
+                                </span>
+                              )}
+                              {item.isHalfJain && (
+                                <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-orange-500/20 text-orange-600 rounded border border-orange-500/30">
+                                  HALF JAIN
                                 </span>
                               )}
                               <h4 className="font-semibold">{item.name}</h4>

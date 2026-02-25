@@ -46,6 +46,7 @@ const emptyForm: CreateMenuItemData = {
   isVeg: true,
   isJain: false,
   isVegan: false,
+  isHalfJain: false,
   availability: { type: 'always' },
   image: '',
 };
@@ -155,6 +156,7 @@ export default function MenuItems() {
       isVeg: item.isVeg,
       isJain: item.isJain || false,
       isVegan: item.isVegan || false,
+      isHalfJain: item.isHalfJain || false,
       availability: item.availability || defaultAvailability,
       image: item.image || '',
     });
@@ -233,6 +235,7 @@ const getItemAvailability = (item: MenuItem) => {
     else if (filterFoodType === 'non-veg') matchesFoodType = !item.isVeg;
     else if (filterFoodType === 'jain') matchesFoodType = item.isJain || false;
     else if (filterFoodType === 'vegan') matchesFoodType = item.isVegan || false;
+    else if (filterFoodType === 'half-jain') matchesFoodType = item.isHalfJain || false;
     let matchesAvailability = true;
 
 if (filterAvailability === 'available') {
@@ -363,7 +366,7 @@ return (
               <div className="flex flex-wrap items-center gap-4">
                 {restaurant?.foodTypes?.includes('non-veg') ? (
                   <div className="flex items-center gap-3">
-                    <Switch checked={formData.isVeg} onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isVeg: checked, isJain: checked ? prev.isJain : false }))} />
+                    <Switch checked={formData.isVeg} onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isVeg: checked, isJain: checked ? prev.isJain : false, isHalfJain: checked ? prev.isHalfJain : false }))} />
                     <Label className="flex items-center gap-2">
                       {formData.isVeg ? (<><Leaf className="h-4 w-4 text-veg" /> Vegetarian</>) : (<><Drumstick className="h-4 w-4 text-non-veg" /> Non-Veg</>)}
                     </Label>
@@ -387,6 +390,15 @@ return (
                   <div className="flex items-center gap-3">
                     <Switch checked={formData.isVegan || false} onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isVegan: checked }))} />
                     <Label className="flex items-center gap-2"><Salad className="h-4 w-4 text-emerald-500" /> Vegan</Label>
+                  </div>
+                )}
+                {restaurant?.foodTypes?.includes('half-jain') && (
+                  <div className="flex items-center gap-3">
+                    <Switch checked={formData.isHalfJain || false} onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isHalfJain: checked }))} disabled={!formData.isVeg} />
+                    <Label className={`flex items-center gap-2 ${!formData.isVeg ? 'opacity-50' : ''}`}>
+                      <Sparkles className="h-4 w-4 text-orange-500" /> Half Jain
+                      {!formData.isVeg && <span className="text-xs text-muted-foreground">(Veg only)</span>}
+                    </Label>
                   </div>
                 )}
               </div>
@@ -443,6 +455,9 @@ return (
               )}
               {restaurant?.foodTypes?.includes('vegan') && (
                 <SelectItem value="vegan"><span className="flex items-center gap-2"><Salad className="h-3 w-3 text-emerald-500" /> Vegan</span></SelectItem>
+              )}
+              {restaurant?.foodTypes?.includes('half-jain') && (
+                <SelectItem value="half-jain"><span className="flex items-center gap-2"><Sparkles className="h-3 w-3 text-orange-500" /> Half Jain</span></SelectItem>
               )}
             </SelectContent>
           </Select>
@@ -517,6 +532,11 @@ return (
   {item.isVegan && (
     <Badge className="bg-emerald-500/20 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/30">
       Vegan
+    </Badge>
+  )}
+  {item.isHalfJain && (
+    <Badge className="bg-orange-500/20 text-orange-600 border-orange-500/30 hover:bg-orange-500/30">
+      Half Jain
     </Badge>
   )}
   {item.status && item.status !== 'Available' && (
