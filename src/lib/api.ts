@@ -139,7 +139,7 @@ export const categoryApi = {
 
   getAll: () => apiRequest<Category[]>('/category'),
 
-  update: (id: string, data: { name?: string; availability?: Availability; image?: string }) =>
+  update: (id: string, data: { name?: string; order?: number; availability?: Availability; image?: string }) =>
     apiRequest<Category>(`/category/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),

@@ -29,10 +29,27 @@ import {
 } from '@/components/ui/select';
 import { mainCategoryApi, categoryApi, defaultAvailability } from '@/lib/api';
 import type { MainCategory, Category, Availability } from '@/lib/api';
-import { Plus, Pencil, Trash2, FolderTree, ChevronRight, Loader2, Clock, Eye, EyeOff } from 'lucide-react';
+import { Plus, Pencil, Trash2, FolderTree, ChevronRight, Loader2, Clock, Eye, EyeOff, GripVertical } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AvailabilityPicker from '@/components/AvailabilityPicker';
 import { Badge } from '@/components/ui/badge';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 function getAvailabilityLabel(a: Availability): string {
   if (a.type === 'always') return 'Always';
@@ -44,6 +61,187 @@ function getAvailabilityLabel(a: Availability): string {
     return `${selected} ${a.startTime || ''}–${a.endTime || ''}`;
   }
   return 'Always';
+}
+
+// Sortable subcategory row
+function SortableSubCategory({ sub, onToggle, onEdit, onDelete }: {
+  sub: Category;
+  onToggle: (cat: Category) => void;
+  onEdit: (cat: Category) => void;
+  onDelete: (id: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: sub._id });
+  const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 50 : undefined, opacity: isDragging ? 0.5 : undefined };
+  const subAvailable = sub.isCurrentlyAvailable !== false;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center justify-between p-3 rounded-lg bg-secondary/20 hover:bg-secondary/30 transition-colors ${!subAvailable ? 'opacity-60' : ''}`}
+    >
+      <div className="flex items-center gap-2">
+        <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing touch-none text-muted-foreground hover:text-foreground">
+          <GripVertical className="h-4 w-4" />
+        </button>
+        {sub.image ? (
+          <img src={sub.image} alt={sub.name} className="w-8 h-8 rounded-md object-cover" />
+        ) : (
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        )}
+        <div>
+          <div className="flex items-center gap-2">
+            <span>{sub.name}</span>
+            {sub.status && sub.status !== 'Available' && (
+              <Badge variant="secondary" className="text-[10px] py-0">{sub.status}</Badge>
+            )}
+          </div>
+          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+            <Clock className="h-2.5 w-2.5" />
+            <span>{getAvailabilityLabel(sub.availability || defaultAvailability)}</span>
+          </div>
+        </div>
+      </div>
+      <div className="flex gap-0.5">
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onToggle(sub)} title={subAvailable ? 'Hide temporarily' : 'Make available'}>
+          {subAvailable ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3 text-muted-foreground" />}
+        </Button>
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(sub)}>
+          <Pencil className="h-3 w-3" />
+        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Subcategory?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently delete "{sub.name}". This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={() => onDelete(sub._id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Yes, Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    </div>
+  );
+}
+
+// Sortable main category card
+function SortableMainCategory({ mainCat, subCats, onToggleMain, onEditMain, onDeleteMain, onToggleSub, onEditSub, onDeleteSub, onSubReorder }: {
+  mainCat: MainCategory;
+  subCats: Category[];
+  onToggleMain: (cat: MainCategory) => void;
+  onEditMain: (cat: MainCategory) => void;
+  onDeleteMain: (id: string) => void;
+  onToggleSub: (cat: Category) => void;
+  onEditSub: (cat: Category) => void;
+  onDeleteSub: (id: string) => void;
+  onSubReorder: (mainCatId: string, activeId: string, overId: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: mainCat._id });
+  const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 50 : undefined, opacity: isDragging ? 0.5 : undefined };
+  const isAvailable = mainCat.isCurrentlyAvailable !== false;
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleSubDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      onSubReorder(mainCat._id, active.id as string, over.id as string);
+    }
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className={`glass rounded-xl overflow-hidden ${!isAvailable ? 'opacity-60' : ''}`}>
+      <div className="flex items-center justify-between p-4 bg-secondary/30">
+        <div className="flex items-center gap-3">
+          <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing touch-none text-muted-foreground hover:text-foreground">
+            <GripVertical className="h-5 w-5" />
+          </button>
+          {mainCat.image ? (
+            <img src={mainCat.image} alt={mainCat.name} className="w-12 h-12 rounded-lg object-cover" />
+          ) : (
+            <div className="p-2 rounded-lg bg-primary/10">
+              <FolderTree className="h-5 w-5 text-primary" />
+            </div>
+          )}
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold">{mainCat.name}</h3>
+              {mainCat.status && mainCat.status !== 'Available' && (
+                <Badge variant="secondary" className="text-xs">{mainCat.status}</Badge>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
+              <Clock className="h-3 w-3" />
+              <span>{getAvailabilityLabel(mainCat.availability || defaultAvailability)}</span>
+              <span className="mx-1">•</span>
+              <span>{subCats.length} subcategories</span>
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-1">
+          <Button variant="ghost" size="icon" onClick={() => onToggleMain(mainCat)} title={isAvailable ? 'Hide temporarily' : 'Make available'}>
+            {isAvailable ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4 text-muted-foreground" />}
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => onEditMain(mainCat)}>
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Category?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will permanently delete "{mainCat.name}" and all its subcategories. This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={() => onDeleteMain(mainCat._id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Yes, Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      </div>
+
+      {subCats.length > 0 && (
+        <div className="p-4 space-y-2">
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSubDragEnd}>
+            <SortableContext items={subCats.map(s => s._id)} strategy={verticalListSortingStrategy}>
+              {subCats.map((sub) => (
+                <SortableSubCategory
+                  key={sub._id}
+                  sub={sub}
+                  onToggle={onToggleSub}
+                  onEdit={onEditSub}
+                  onDelete={onDeleteSub}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function Categories() {
@@ -67,6 +265,11 @@ export default function Categories() {
   const [subAvailability, setSubAvailability] = useState<Availability>(defaultAvailability);
   const [subImage, setSubImage] = useState('');
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -86,141 +289,136 @@ export default function Categories() {
     }
   };
 
+  // ---- Drag and drop handlers ----
+  const handleMainDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const sorted = [...mainCategories].sort((a, b) => a.order - b.order);
+    const oldIndex = sorted.findIndex(c => c._id === active.id);
+    const newIndex = sorted.findIndex(c => c._id === over.id);
+    const reordered = arrayMove(sorted, oldIndex, newIndex);
+
+    // Optimistic update
+    const updated = reordered.map((cat, i) => ({ ...cat, order: i + 1 }));
+    setMainCategories(updated);
+
+    // Persist all order changes
+    try {
+      await Promise.all(updated.map(cat => mainCategoryApi.update(cat._id, { order: cat.order })));
+    } catch {
+      toast({ title: 'Failed to save order', variant: 'destructive' });
+      fetchData();
+    }
+  };
+
+  const handleSubReorder = async (mainCatId: string, activeId: string, overId: string) => {
+    const subCats = categories
+      .filter(c => {
+        const id = typeof c.mainCategory === 'string' ? c.mainCategory : c.mainCategory._id;
+        return id === mainCatId;
+      })
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+    const oldIndex = subCats.findIndex(c => c._id === activeId);
+    const newIndex = subCats.findIndex(c => c._id === overId);
+    const reordered = arrayMove(subCats, oldIndex, newIndex);
+    const updated = reordered.map((cat, i) => ({ ...cat, order: i + 1 }));
+
+    // Optimistic update
+    setCategories(prev => {
+      const otherCats = prev.filter(c => {
+        const id = typeof c.mainCategory === 'string' ? c.mainCategory : c.mainCategory._id;
+        return id !== mainCatId;
+      });
+      return [...otherCats, ...updated];
+    });
+
+    try {
+      await Promise.all(updated.map(cat => categoryApi.update(cat._id, { order: cat.order })));
+    } catch {
+      toast({ title: 'Failed to save order', variant: 'destructive' });
+      fetchData();
+    }
+  };
+
+  // ---- CRUD handlers (unchanged logic) ----
   const handleCreateMainCategory = async () => {
     try {
       if (editingMain) {
-        await mainCategoryApi.update(editingMain._id, { 
-          name: mainName, 
-          order: mainOrder,
-          availability: mainAvailability,
-          image: mainImage || undefined
-        });
+        await mainCategoryApi.update(editingMain._id, { name: mainName, order: mainOrder, availability: mainAvailability, image: mainImage || undefined });
         toast({ title: 'Category updated!' });
       } else {
-        await mainCategoryApi.create({ 
-          name: mainName, 
-          order: mainOrder,
-          availability: mainAvailability,
-          image: mainImage || undefined
-        });
+        await mainCategoryApi.create({ name: mainName, order: mainOrder, availability: mainAvailability, image: mainImage || undefined });
         toast({ title: 'Category created!' });
       }
       setDialogOpen(false);
       resetMainForm();
       fetchData();
     } catch (error) {
-      toast({
-        title: 'Failed to save category',
-        description: error instanceof Error ? error.message : 'Please try again',
-        variant: 'destructive',
-      });
+      toast({ title: 'Failed to save category', description: error instanceof Error ? error.message : 'Please try again', variant: 'destructive' });
     }
   };
 
-  const resetMainForm = () => {
-    setEditingMain(null);
-    setMainName('');
-    setMainOrder(1);
-    setMainAvailability(defaultAvailability);
-    setMainImage('');
-  };
+  const resetMainForm = () => { setEditingMain(null); setMainName(''); setMainOrder(1); setMainAvailability(defaultAvailability); setMainImage(''); };
 
   const handleDeleteMainCategory = async (id: string) => {
-    try {
-      await mainCategoryApi.delete(id);
-      toast({ title: 'Category deleted!' });
-      fetchData();
-    } catch (error) {
-      toast({ title: 'Failed to delete', variant: 'destructive' });
-    }
+    try { await mainCategoryApi.delete(id); toast({ title: 'Category deleted!' }); fetchData(); }
+    catch { toast({ title: 'Failed to delete', variant: 'destructive' }); }
   };
 
   const handleToggleMainAvailability = async (cat: MainCategory) => {
     const currentlyAvailable = cat.availability?.isAvailable !== false;
-    const previousCategories = mainCategories;
-    setMainCategories(prev => prev.map(c => c._id === cat._id ? { ...c, availability: { ...c.availability, isAvailable: !currentlyAvailable }, isCurrentlyAvailable: !currentlyAvailable, status: !currentlyAvailable ? 'Available' : 'Not Available' } : c));
+    const prev = mainCategories;
+    setMainCategories(p => p.map(c => c._id === cat._id ? { ...c, availability: { ...c.availability, isAvailable: !currentlyAvailable }, isCurrentlyAvailable: !currentlyAvailable, status: !currentlyAvailable ? 'Available' : 'Not Available' } : c));
     try {
       await mainCategoryApi.update(cat._id, { availability: { ...cat.availability, isAvailable: !currentlyAvailable } });
       toast({ title: currentlyAvailable ? 'Category hidden temporarily' : 'Category made available' });
-    } catch (error) {
-      setMainCategories(previousCategories);
-      toast({ title: 'Failed to update', variant: 'destructive' });
-    }
+    } catch { setMainCategories(prev); toast({ title: 'Failed to update', variant: 'destructive' }); }
   };
 
   const handleToggleSubAvailability = async (cat: Category) => {
     const currentlyAvailable = cat.availability?.isAvailable !== false;
-    const previousCategories = categories;
-    setCategories(prev => prev.map(c => c._id === cat._id ? { ...c, availability: { ...c.availability, isAvailable: !currentlyAvailable }, isCurrentlyAvailable: !currentlyAvailable, status: !currentlyAvailable ? 'Available' : 'Not Available' } : c));
+    const prev = categories;
+    setCategories(p => p.map(c => c._id === cat._id ? { ...c, availability: { ...c.availability, isAvailable: !currentlyAvailable }, isCurrentlyAvailable: !currentlyAvailable, status: !currentlyAvailable ? 'Available' : 'Not Available' } : c));
     try {
       await categoryApi.update(cat._id, { availability: { ...cat.availability, isAvailable: !currentlyAvailable } });
       toast({ title: currentlyAvailable ? 'Subcategory hidden temporarily' : 'Subcategory made available' });
-    } catch (error) {
-      setCategories(previousCategories);
-      toast({ title: 'Failed to update', variant: 'destructive' });
-    }
+    } catch { setCategories(prev); toast({ title: 'Failed to update', variant: 'destructive' }); }
   };
 
   const handleCreateSubCategory = async () => {
     try {
       if (editingSub) {
-        await categoryApi.update(editingSub._id, { 
-          name: subName,
-          availability: subAvailability,
-          image: subImage || undefined
-        });
+        await categoryApi.update(editingSub._id, { name: subName, availability: subAvailability, image: subImage || undefined });
         toast({ title: 'Subcategory updated!' });
       } else {
-        await categoryApi.create({ 
-          name: subName, 
-          mainCategory: selectedMainCat,
-          availability: subAvailability,
-          image: subImage || undefined
-        });
+        await categoryApi.create({ name: subName, mainCategory: selectedMainCat, availability: subAvailability, image: subImage || undefined });
         toast({ title: 'Subcategory created!' });
       }
       setSubDialogOpen(false);
       resetSubForm();
       fetchData();
-    } catch (error) {
-      toast({ title: 'Failed to save subcategory', variant: 'destructive' });
-    }
+    } catch { toast({ title: 'Failed to save subcategory', variant: 'destructive' }); }
   };
 
-  const resetSubForm = () => {
-    setEditingSub(null);
-    setSubName('');
-    setSelectedMainCat('');
-    setSubAvailability(defaultAvailability);
-    setSubImage('');
-  };
+  const resetSubForm = () => { setEditingSub(null); setSubName(''); setSelectedMainCat(''); setSubAvailability(defaultAvailability); setSubImage(''); };
 
   const handleDeleteSubCategory = async (id: string) => {
-    try {
-      await categoryApi.delete(id);
-      toast({ title: 'Subcategory deleted!' });
-      fetchData();
-    } catch (error) {
-      toast({ title: 'Failed to delete', variant: 'destructive' });
-    }
+    try { await categoryApi.delete(id); toast({ title: 'Subcategory deleted!' }); fetchData(); }
+    catch { toast({ title: 'Failed to delete', variant: 'destructive' }); }
   };
 
   const openEditMain = (cat: MainCategory) => {
-    setEditingMain(cat);
-    setMainName(cat.name);
-    setMainOrder(cat.order);
-    setMainAvailability(cat.availability || defaultAvailability);
-    setMainImage(cat.image || '');
+    setEditingMain(cat); setMainName(cat.name); setMainOrder(cat.order);
+    setMainAvailability(cat.availability || defaultAvailability); setMainImage(cat.image || '');
     setDialogOpen(true);
   };
 
   const openEditSub = (cat: Category) => {
-    setEditingSub(cat);
-    setSubName(cat.name);
-    setSubAvailability(cat.availability || defaultAvailability);
-    setSubImage(cat.image || '');
-    const mainCatId = typeof cat.mainCategory === 'string' ? cat.mainCategory : cat.mainCategory._id;
-    setSelectedMainCat(mainCatId);
+    setEditingSub(cat); setSubName(cat.name);
+    setSubAvailability(cat.availability || defaultAvailability); setSubImage(cat.image || '');
+    setSelectedMainCat(typeof cat.mainCategory === 'string' ? cat.mainCategory : cat.mainCategory._id);
     setSubDialogOpen(true);
   };
 
@@ -232,6 +430,8 @@ export default function Categories() {
     );
   }
 
+  const sortedMainCategories = [...mainCategories].sort((a, b) => a.order - b.order);
+
   return (
     <div className="space-y-6 sm:space-y-8">
       {/* Header */}
@@ -239,7 +439,7 @@ export default function Categories() {
         <div>
           <h1 className="font-display text-2xl sm:text-3xl font-bold">Categories</h1>
           <p className="text-muted-foreground mt-1 text-sm sm:text-base">
-            Organize your menu with categories and subcategories
+            Organize your menu — drag to reorder categories
           </p>
         </div>
         <div className="flex gap-2 sm:gap-3 flex-wrap">
@@ -259,9 +459,7 @@ export default function Categories() {
                 <div className="space-y-2">
                   <Label>Parent Category</Label>
                   <Select value={selectedMainCat} onValueChange={setSelectedMainCat}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select main category" />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Select main category" /></SelectTrigger>
                     <SelectContent>
                       {mainCategories.map((cat) => (
                         <SelectItem key={cat._id} value={cat._id}>{cat.name}</SelectItem>
@@ -330,139 +528,35 @@ export default function Categories() {
           <p className="text-muted-foreground mb-4">Start by creating your first main category</p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {mainCategories
-            .sort((a, b) => a.order - b.order)
-            .map((mainCat) => {
-              const subCats = categories.filter(c => {
-                const mainCatId = typeof c.mainCategory === 'string' ? c.mainCategory : c.mainCategory._id;
-                return mainCatId === mainCat._id;
-              });
-              const isAvailable = mainCat.isCurrentlyAvailable !== false;
-              
-              return (
-                <div key={mainCat._id} className={`glass rounded-xl overflow-hidden ${!isAvailable ? 'opacity-60' : ''}`}>
-                  <div className="flex items-center justify-between p-4 bg-secondary/30">
-                    <div className="flex items-center gap-3">
-                      {mainCat.image ? (
-                        <img src={mainCat.image} alt={mainCat.name} className="w-12 h-12 rounded-lg object-cover" />
-                      ) : (
-                        <div className="p-2 rounded-lg bg-primary/10">
-                          <FolderTree className="h-5 w-5 text-primary" />
-                        </div>
-                      )}
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold">{mainCat.name}</h3>
-                          {mainCat.status && mainCat.status !== 'Available' && (
-                            <Badge variant="secondary" className="text-xs">{mainCat.status}</Badge>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
-                          <Clock className="h-3 w-3" />
-                          <span>{getAvailabilityLabel(mainCat.availability || defaultAvailability)}</span>
-                          <span className="mx-1">•</span>
-                          <span>{subCats.length} subcategories</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => handleToggleMainAvailability(mainCat)} title={isAvailable ? 'Hide temporarily' : 'Make available'}>
-                        {isAvailable ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4 text-muted-foreground" />}
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => openEditMain(mainCat)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Category?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This will permanently delete "{mainCat.name}" and all its subcategories. This action cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDeleteMainCategory(mainCat._id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                              Yes, Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </div>
-                  
-                  {subCats.length > 0 && (
-                    <div className="p-4 space-y-2">
-                      {subCats.map((sub) => {
-                        const subAvailable = sub.isCurrentlyAvailable !== false;
-                        return (
-                          <div
-                            key={sub._id}
-                            className={`flex items-center justify-between p-3 rounded-lg bg-secondary/20 hover:bg-secondary/30 transition-colors ${!subAvailable ? 'opacity-60' : ''}`}
-                          >
-                            <div className="flex items-center gap-2">
-                              {sub.image ? (
-                                <img src={sub.image} alt={sub.name} className="w-8 h-8 rounded-md object-cover" />
-                              ) : (
-                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                              )}
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <span>{sub.name}</span>
-                                  {sub.status && sub.status !== 'Available' && (
-                                    <Badge variant="secondary" className="text-[10px] py-0">{sub.status}</Badge>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                                  <Clock className="h-2.5 w-2.5" />
-                                  <span>{getAvailabilityLabel(sub.availability || defaultAvailability)}</span>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex gap-0.5">
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleToggleSubAvailability(sub)} title={subAvailable ? 'Hide temporarily' : 'Make available'}>
-                                {subAvailable ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3 text-muted-foreground" />}
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditSub(sub)}>
-                                <Pencil className="h-3 w-3" />
-                              </Button>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Delete Subcategory?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      This will permanently delete "{sub.name}". This action cannot be undone.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDeleteSubCategory(sub._id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                      Yes, Delete
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-        </div>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleMainDragEnd}>
+          <SortableContext items={sortedMainCategories.map(c => c._id)} strategy={verticalListSortingStrategy}>
+            <div className="space-y-4">
+              {sortedMainCategories.map((mainCat) => {
+                const subCats = categories
+                  .filter(c => {
+                    const mainCatId = typeof c.mainCategory === 'string' ? c.mainCategory : c.mainCategory._id;
+                    return mainCatId === mainCat._id;
+                  })
+                  .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+                return (
+                  <SortableMainCategory
+                    key={mainCat._id}
+                    mainCat={mainCat}
+                    subCats={subCats}
+                    onToggleMain={handleToggleMainAvailability}
+                    onEditMain={openEditMain}
+                    onDeleteMain={handleDeleteMainCategory}
+                    onToggleSub={handleToggleSubAvailability}
+                    onEditSub={openEditSub}
+                    onDeleteSub={handleDeleteSubCategory}
+                    onSubReorder={handleSubReorder}
+                  />
+                );
+              })}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
     </div>
   );
