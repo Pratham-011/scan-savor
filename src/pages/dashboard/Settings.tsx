@@ -15,7 +15,8 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { restaurantApi, Restaurant, menuApi } from '@/lib/api';
-import { Loader2, Save, Upload, Download, Trash2, Leaf, Drumstick, Sparkles, Salad } from 'lucide-react';
+import { Loader2, Save, Upload, Download, Trash2, Leaf, Drumstick, Sparkles, Salad, CheckCircle2 } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 
@@ -35,6 +36,10 @@ export default function Settings() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
+  const [exportProgress, setExportProgress] = useState(0);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -83,12 +88,26 @@ export default function Settings() {
     }
   };
 
+  const simulateProgress = (setter: React.Dispatch<React.SetStateAction<number>>) => {
+    setter(0);
+    const interval = setInterval(() => {
+      setter(prev => {
+        if (prev >= 90) { clearInterval(interval); return 90; }
+        return prev + Math.random() * 15 + 5;
+      });
+    }, 300);
+    return () => { clearInterval(interval); setter(100); };
+  };
+
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setIsImporting(true);
+    const finish = simulateProgress(setImportProgress);
     try {
       await menuApi.import(file);
+      finish();
       toast({ title: 'Menu imported successfully!' });
     } catch (error) {
       toast({ 
@@ -96,16 +115,23 @@ export default function Settings() {
         description: error instanceof Error ? error.message : 'Please check your CSV file',
         variant: 'destructive' 
       });
+    } finally {
+      setTimeout(() => { setIsImporting(false); setImportProgress(0); }, 1000);
     }
     e.target.value = '';
   };
 
   const handleExport = async () => {
+    setIsExporting(true);
+    const finish = simulateProgress(setExportProgress);
     try {
       await menuApi.export();
+      finish();
       toast({ title: 'Menu exported!' });
     } catch (error) {
       toast({ title: 'Export failed', variant: 'destructive' });
+    } finally {
+      setTimeout(() => { setIsExporting(false); setExportProgress(0); }, 1000);
     }
   };
 
@@ -339,19 +365,62 @@ export default function Settings() {
               onChange={handleImport}
               className="hidden"
               id="import-file"
+              disabled={isImporting}
             />
-            <Button variant="outline" asChild>
+            <Button variant="outline" asChild disabled={isImporting}>
               <label htmlFor="import-file" className="cursor-pointer">
-                <Upload className="mr-2 h-4 w-4" />
-                Import CSV
+                {isImporting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="mr-2 h-4 w-4" />
+                )}
+                {isImporting ? 'Importing...' : 'Import CSV'}
               </label>
             </Button>
           </div>
-          <Button variant="outline" onClick={handleExport}>
-            <Download className="mr-2 h-4 w-4" />
-            Export CSV
+          <Button variant="outline" onClick={handleExport} disabled={isExporting}>
+            {isExporting ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="mr-2 h-4 w-4" />
+            )}
+            {isExporting ? 'Exporting...' : 'Export CSV'}
           </Button>
         </div>
+
+        {/* Import Progress */}
+        {isImporting && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Importing menu...</span>
+              <span className="font-medium">{Math.round(importProgress)}%</span>
+            </div>
+            <Progress value={importProgress} className="h-2" />
+            {importProgress >= 100 && (
+              <div className="flex items-center gap-2 text-sm text-emerald-500">
+                <CheckCircle2 className="h-4 w-4" />
+                Import complete!
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Export Progress */}
+        {isExporting && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Exporting menu...</span>
+              <span className="font-medium">{Math.round(exportProgress)}%</span>
+            </div>
+            <Progress value={exportProgress} className="h-2" />
+            {exportProgress >= 100 && (
+              <div className="flex items-center gap-2 text-sm text-emerald-500">
+                <CheckCircle2 className="h-4 w-4" />
+                Export complete!
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Danger Zone */}
