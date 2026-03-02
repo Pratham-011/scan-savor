@@ -2,7 +2,8 @@ import { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { publicMenuApi, PublicMenuResponse, PublicMenuItem, MainCategory, Category } from '@/lib/api';
 import { demoMenuData } from '@/lib/demoData';
-import { Loader2, MapPin, Phone, Instagram, Leaf, Search, X, Sparkles, Salad, Drumstick, CookingPot } from 'lucide-react';
+import { MapPin, Phone, Instagram, Leaf, Search, X, Sparkles, Salad, Drumstick, CookingPot } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
@@ -188,8 +189,60 @@ const filteredItems = menuData.menu.filter(item => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="min-h-screen bg-background pb-24">
+        {/* Header Skeleton */}
+        <div className="relative">
+          <Skeleton className="h-48 w-full" />
+          <div className="px-4 -mt-16 relative z-10">
+            <div className="flex items-end gap-4 mb-4">
+              <Skeleton className="w-20 h-20 rounded-2xl flex-shrink-0" />
+              <div className="flex-1 pb-1 space-y-2">
+                <Skeleton className="h-7 w-48" />
+                <Skeleton className="h-4 w-64" />
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-4 w-24" />
+            </div>
+          </div>
+        </div>
+
+        {/* Search & Filter Skeleton */}
+        <div className="px-4 py-3 mt-4 border-b border-border">
+          <div className="flex items-center gap-3 mb-3">
+            <Skeleton className="h-10 flex-1 rounded-md" />
+            <Skeleton className="h-10 w-16 rounded-lg" />
+            <Skeleton className="h-10 w-24 rounded-lg" />
+          </div>
+          <div className="flex gap-2">
+            {[1, 2, 3, 4].map(i => (
+              <Skeleton key={i} className="h-8 w-20 rounded-full" />
+            ))}
+          </div>
+        </div>
+
+        {/* Menu Items Skeleton */}
+        <div className="px-4 py-6 space-y-8">
+          {[1, 2].map(section => (
+            <div key={section}>
+              <Skeleton className="h-6 w-36 mb-4" />
+              <Skeleton className="h-4 w-24 mb-3" />
+              <div className="space-y-3">
+                {[1, 2, 3].map(item => (
+                  <div key={item} className="flex gap-4 p-3 rounded-xl">
+                    <Skeleton className="w-20 h-20 rounded-lg flex-shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-5 w-3/4" />
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-1/2" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
