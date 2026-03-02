@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { restaurantApi, Restaurant } from '@/lib/api';
 import { QrCode, Download, Copy, ExternalLink, Loader2 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 
 export default function QRCodePage() {
@@ -76,8 +77,27 @@ export default function QRCodePage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="w-full max-w-2xl mx-auto space-y-6 sm:space-y-8">
+        <div className="text-center space-y-2">
+          <Skeleton className="h-8 w-48 mx-auto" />
+          <Skeleton className="h-4 w-72 mx-auto" />
+        </div>
+        <div className="glass rounded-2xl sm:rounded-3xl p-6 sm:p-12 flex flex-col items-center">
+          <Skeleton className="w-48 h-48 sm:w-64 sm:h-64 rounded-2xl mb-6" />
+          <Skeleton className="h-6 w-40 mb-2" />
+          <Skeleton className="h-4 w-56 mb-6" />
+          <div className="flex gap-3">
+            <Skeleton className="h-10 w-32 rounded-lg" />
+            <Skeleton className="h-10 w-28 rounded-lg" />
+            <Skeleton className="h-10 w-28 rounded-lg" />
+          </div>
+        </div>
+        <div className="glass rounded-xl p-4 sm:p-6 space-y-3">
+          <Skeleton className="h-5 w-48" />
+          {[1, 2, 3].map(i => (
+            <Skeleton key={i} className="h-4 w-full" />
+          ))}
+        </div>
       </div>
     );
   }
