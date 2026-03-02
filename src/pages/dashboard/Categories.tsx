@@ -30,6 +30,7 @@ import {
 import { mainCategoryApi, categoryApi, defaultAvailability } from '@/lib/api';
 import type { MainCategory, Category, Availability } from '@/lib/api';
 import { Plus, Pencil, Trash2, FolderTree, ChevronRight, Loader2, Clock, Eye, EyeOff, GripVertical } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import AvailabilityPicker from '@/components/AvailabilityPicker';
 import { Badge } from '@/components/ui/badge';
@@ -424,8 +425,45 @@ export default function Categories() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="space-y-6 sm:space-y-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-40" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-9 w-24 rounded-lg" />
+            <Skeleton className="h-9 w-32 rounded-lg" />
+          </div>
+        </div>
+        {[1, 2, 3].map(i => (
+          <div key={i} className="glass rounded-xl overflow-hidden">
+            <div className="flex items-center justify-between p-4 bg-secondary/30">
+              <div className="flex items-center gap-3">
+                <Skeleton className="w-12 h-12 rounded-lg" />
+                <div className="space-y-2">
+                  <Skeleton className="h-5 w-32" />
+                  <Skeleton className="h-3 w-48" />
+                </div>
+              </div>
+              <div className="flex gap-1">
+                <Skeleton className="h-8 w-8 rounded" />
+                <Skeleton className="h-8 w-8 rounded" />
+              </div>
+            </div>
+            <div className="p-4 space-y-2">
+              {[1, 2].map(j => (
+                <div key={j} className="flex items-center justify-between p-3 rounded-lg bg-secondary/20">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="w-8 h-8 rounded-md" />
+                    <Skeleton className="h-4 w-24" />
+                  </div>
+                  <Skeleton className="h-6 w-16 rounded" />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     );
   }

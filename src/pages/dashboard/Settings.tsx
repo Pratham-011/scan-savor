@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { restaurantApi, Restaurant, menuApi } from '@/lib/api';
 import { Loader2, Save, Upload, Download, Trash2, Leaf, Drumstick, Sparkles, Salad, CheckCircle2 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
@@ -150,8 +151,31 @@ export default function Settings() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="w-full max-w-2xl space-y-6 sm:space-y-8">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-32" />
+          <Skeleton className="h-4 w-56" />
+        </div>
+        <div className="glass rounded-xl sm:rounded-2xl p-4 sm:p-6 space-y-4 sm:space-y-6">
+          <Skeleton className="h-6 w-40" />
+          <div className="space-y-4">
+            {[1, 2, 3, 4, 5, 6].map(i => (
+              <div key={i} className="space-y-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-10 w-full rounded-md" />
+              </div>
+            ))}
+          </div>
+          <Skeleton className="h-10 w-32 rounded-lg" />
+        </div>
+        <div className="glass rounded-2xl p-6 space-y-4">
+          <Skeleton className="h-6 w-36" />
+          <Skeleton className="h-4 w-72" />
+          <div className="flex gap-4">
+            <Skeleton className="h-10 w-32 rounded-lg" />
+            <Skeleton className="h-10 w-32 rounded-lg" />
+          </div>
+        </div>
       </div>
     );
   }
