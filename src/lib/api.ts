@@ -345,6 +345,7 @@ export interface MenuItem {
   status?: string;
   image?: string;
   restaurant: string;
+  order?: number;
 }
 
 export interface CreateMenuItemData {
