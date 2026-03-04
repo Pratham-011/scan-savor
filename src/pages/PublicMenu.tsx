@@ -75,7 +75,7 @@ const mainCategories = useMemo(() => {
     }
   });
 
-  return Array.from(uniqueMainCats.values()).sort((a, b) => a.order - b.order);
+  return Array.from(uniqueMainCats.values()).sort((a, b) => (a.order || 0) - (b.order || 0));
 }, [menuData]);
 
 
@@ -100,7 +100,7 @@ const subCategories = useMemo(() => {
     }
   });
 
-  return Array.from(uniqueSubCats.values()).sort((a, b) => a.order - b.order);
+  return Array.from(uniqueSubCats.values()).sort((a, b) => (a.order || 0) - (b.order || 0));
 }, [menuData, selectedMainCategory]);
 
 
@@ -173,16 +173,16 @@ const filteredItems = menuData.menu.filter(item => {
       subCatGroup.items.push(item);
     });
 
-    // Sort everything
+    // Sort everything by admin-defined order
     return Array.from(mainCatMap.values())
-      .sort((a, b) => a.order - b.order)
+      .sort((a, b) => (a.order || 0) - (b.order || 0))
       .map(mainCat => ({
         ...mainCat,
         subCategories: mainCat.subCategories
-          .sort((a, b) => a.order - b.order)
+          .sort((a, b) => (a.order || 0) - (b.order || 0))
           .map(subCat => ({
             ...subCat,
-            items: subCat.items.sort((a, b) => a.order - b.order)
+            items: subCat.items.sort((a, b) => (a.order || 0) - (b.order || 0))
           }))
       }));
   }, [menuData, searchQuery, selectedMainCategory, selectedSubCategory, showVegOnly, showNonVegOnly, showJainOnly, showVeganOnly, showHalfJainOnly]);
