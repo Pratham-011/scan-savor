@@ -562,7 +562,7 @@ const filteredItems = menuData.menu.filter(item => {
                         )}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1.5">
                               {item.isVeg ? (
                                 <div className="p-0.5 border border-veg rounded flex-shrink-0">
                                   <div className="w-1.5 h-1.5 bg-veg rounded-full" />
@@ -572,6 +572,9 @@ const filteredItems = menuData.menu.filter(item => {
                                   <div className="w-1.5 h-1.5 bg-non-veg rounded-full" />
                                 </div>
                               )}
+                              <h4 className="font-semibold">{item.name}</h4>
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
                               {item.isJain && (
                                 <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-amber-500/20 text-amber-600 rounded border border-amber-500/30">
                                   JAIN
@@ -587,11 +590,10 @@ const filteredItems = menuData.menu.filter(item => {
                                   HALF JAIN
                                 </span>
                               )}
-                              <h4 className="font-semibold">{item.name}</h4>
+                              <span className="font-bold text-primary">
+                                ₹{item.price}
+                              </span>
                             </div>
-                            <span className="font-bold text-primary flex-shrink-0">
-                              ₹{item.price}
-                            </span>
                           </div>
                           {item.description && (
                             <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
