@@ -32,11 +32,28 @@ import {
 } from '@/components/ui/select';
 import { menuItemApi, mainCategoryApi, categoryApi, restaurantApi, defaultAvailability } from '@/lib/api';
 import type { MenuItem, MainCategory, Category, CreateMenuItemData, Restaurant, Availability } from '@/lib/api';
-import { Plus, Pencil, Trash2, UtensilsCrossed, Loader2, Search, Leaf, Drumstick, Sparkles, Salad, Clock, Eye, EyeOff } from 'lucide-react';
+import { Plus, Pencil, Trash2, UtensilsCrossed, Loader2, Search, Leaf, Drumstick, Sparkles, Salad, Clock, Eye, EyeOff, GripVertical } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import AvailabilityPicker from '@/components/AvailabilityPicker';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  rectSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 const emptyForm: CreateMenuItemData = {
   mainCategory: '',
@@ -60,6 +77,118 @@ function getShortAvailabilityLabel(a: Availability): string {
   return 'Always';
 }
 
+// Sortable menu item card
+function SortableMenuItem({ item, isAvailable, disabledReason, mainCat, subCat, onToggle, onEdit, onDelete }: {
+  item: MenuItem;
+  isAvailable: boolean;
+  disabledReason: string;
+  mainCat: MainCategory | undefined;
+  subCat: Category | undefined;
+  onToggle: (item: MenuItem) => void;
+  onEdit: (item: MenuItem) => void;
+  onDelete: (id: string, name: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item._id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : undefined,
+    opacity: isDragging ? 0.5 : undefined,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className={`glass rounded-xl overflow-hidden ${!isAvailable ? 'opacity-60' : ''}`}>
+      {item.image && (
+        <div className="aspect-video bg-secondary relative">
+          <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+          <button {...attributes} {...listeners} className="absolute top-2 right-2 p-1.5 rounded-md bg-background/80 backdrop-blur cursor-grab active:cursor-grabbing touch-none text-muted-foreground hover:text-foreground">
+            <GripVertical className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+      <div className="p-4">
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <div className="flex items-center gap-2">
+            {!item.image && (
+              <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing touch-none text-muted-foreground hover:text-foreground">
+                <GripVertical className="h-4 w-4" />
+              </button>
+            )}
+            {item.isVeg ? (
+              <div className="p-1 border-2 border-green-500 rounded"><div className="w-2 h-2 bg-green-500 rounded-full" /></div>
+            ) : (
+              <div className="p-1 border-2 border-red-500 rounded"><div className="w-2 h-2 bg-red-500 rounded-full" /></div>
+            )}
+            <h3 className="font-semibold">{item.name}</h3>
+          </div>
+          <p className="font-bold text-primary">₹{item.price}</p>
+        </div>
+        
+        {item.description && (
+          <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{item.description}</p>
+        )}
+
+        <div className="flex flex-wrap gap-1 mb-3">
+          {mainCat && <Badge variant="secondary">{mainCat.name}</Badge>}
+          {subCat && <Badge variant="outline">{subCat.name}</Badge>}
+          {item.isJain && (
+            <Badge className="bg-amber-500/20 text-amber-600 border-amber-500/30 hover:bg-amber-500/30">Jain</Badge>
+          )}
+          {item.isVegan && (
+            <Badge className="bg-emerald-500/20 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/30">Vegan</Badge>
+          )}
+          {item.isHalfJain && (
+            <Badge className="bg-orange-500/20 text-orange-600 border-orange-500/30 hover:bg-orange-500/30">Half Jain</Badge>
+          )}
+          {item.status && item.status !== 'Available' && (
+            <Badge variant="destructive">{item.status}</Badge>
+          )}
+          {!isAvailable && (
+            <Badge variant="destructive">{disabledReason}</Badge>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
+          <Clock className="h-3 w-3" />
+          <span>{getShortAvailabilityLabel(item.availability || defaultAvailability)}</span>
+        </div>
+
+        <div className="flex items-center justify-end pt-3 border-t border-border">
+          <div className="flex gap-1">
+            <Button variant="ghost" size="icon" onClick={() => onToggle(item)} title={isAvailable ? 'Hide temporarily' : 'Make available'}>
+              {item.availability?.isAvailable !== false ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4 text-muted-foreground" />}
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => onEdit(item)}>
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Menu Item?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete "{item.name}". This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => onDelete(item._id, item.name)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    Yes, Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function MenuItems() {
   const [items, setItems] = useState<MenuItem[]>([]);
   const [mainCategories, setMainCategories] = useState<MainCategory[]>([]);
@@ -73,8 +202,14 @@ export default function MenuItems() {
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterFoodType, setFilterFoodType] = useState('all');
   const [filterAvailability, setFilterAvailability] = useState('all');
+  const [filterSubCategory, setFilterSubCategory] = useState('all');
 
   const { toast } = useToast();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
   useEffect(() => {
     fetchData();
@@ -146,6 +281,32 @@ export default function MenuItems() {
     }
   };
 
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const sorted = [...filteredItems].sort((a, b) => (a.order || 0) - (b.order || 0));
+    const oldIndex = sorted.findIndex(i => i._id === active.id);
+    const newIndex = sorted.findIndex(i => i._id === over.id);
+    const reordered = arrayMove(sorted, oldIndex, newIndex);
+    const updated = reordered.map((item, i) => ({ ...item, order: i + 1 }));
+
+    // Optimistic update
+    setItems(prev => {
+      const filteredIds = new Set(updated.map(i => i._id));
+      const otherItems = prev.filter(i => !filteredIds.has(i._id));
+      return [...otherItems, ...updated];
+    });
+
+    // Persist
+    try {
+      await Promise.all(updated.map(item => menuItemApi.update(item._id, { order: item.order } as any)));
+    } catch {
+      toast({ title: 'Failed to save order', variant: 'destructive' });
+      fetchData();
+    }
+  };
+
   const openEdit = (item: MenuItem) => {
     setEditingItem(item);
     setFormData({
@@ -180,50 +341,25 @@ export default function MenuItems() {
     setDialogOpen(true);
   };
 
-  const [filterSubCategory, setFilterSubCategory] = useState('all');
-  // 🔥 O(1) lookup maps (performance optimized)
-const mainCategoryMap = new Map(
-  mainCategories.map(cat => [cat._id, cat])
-);
+  // 🔥 O(1) lookup maps
+  const mainCategoryMap = new Map(mainCategories.map(cat => [cat._id, cat]));
+  const categoryMap = new Map(categories.map(cat => [cat._id, cat]));
 
-const categoryMap = new Map(
-  categories.map(cat => [cat._id, cat])
-);
-const getItemAvailability = (item: MenuItem) => {
-  const mainCatId =
-    typeof item.mainCategory === 'string'
-      ? item.mainCategory
-      : item.mainCategory._id;
-
-  const subCatId =
-    typeof item.category === 'string'
-      ? item.category
-      : item.category._id;
-
-  const mainCat = mainCategoryMap.get(mainCatId);
-  const subCat = categoryMap.get(subCatId);
-
-  const isItemAvailable = item.isCurrentlyAvailable !== false;
-  const isMainAvailable = mainCat?.isCurrentlyAvailable !== false;
-  const isSubAvailable = subCat?.isCurrentlyAvailable !== false;
-
-  const isAvailable =
-    isItemAvailable &&
-    isMainAvailable &&
-    isSubAvailable;
-
-  let disabledReason = '';
-  if (!isMainAvailable) disabledReason = 'Main category unavailable';
-  else if (!isSubAvailable) disabledReason = 'Subcategory unavailable';
-  else if (!isItemAvailable) disabledReason = 'Item unavailable';
-
-  return {
-    isAvailable,
-    disabledReason,
-    mainCat,
-    subCat
+  const getItemAvailability = (item: MenuItem) => {
+    const mainCatId = typeof item.mainCategory === 'string' ? item.mainCategory : item.mainCategory._id;
+    const subCatId = typeof item.category === 'string' ? item.category : item.category._id;
+    const mainCat = mainCategoryMap.get(mainCatId);
+    const subCat = categoryMap.get(subCatId);
+    const isItemAvailable = item.isCurrentlyAvailable !== false;
+    const isMainAvailable = mainCat?.isCurrentlyAvailable !== false;
+    const isSubAvailable = subCat?.isCurrentlyAvailable !== false;
+    const isAvailable = isItemAvailable && isMainAvailable && isSubAvailable;
+    let disabledReason = '';
+    if (!isMainAvailable) disabledReason = 'Main category unavailable';
+    else if (!isSubAvailable) disabledReason = 'Subcategory unavailable';
+    else if (!isItemAvailable) disabledReason = 'Item unavailable';
+    return { isAvailable, disabledReason, mainCat, subCat };
   };
-};
 
   const filteredItems = items.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -238,22 +374,10 @@ const getItemAvailability = (item: MenuItem) => {
     else if (filterFoodType === 'vegan') matchesFoodType = item.isVegan || false;
     else if (filterFoodType === 'half-jain') matchesFoodType = item.isHalfJain || false;
     let matchesAvailability = true;
-
-if (filterAvailability === 'available') {
-  matchesAvailability = item.isCurrentlyAvailable !== false;
-} else if (filterAvailability === 'unavailable') {
-  matchesAvailability = item.isCurrentlyAvailable === false;
-}
-
-return (
-  matchesSearch &&
-  matchesMainCategory &&
-  matchesSubCategory &&
-  matchesFoodType &&
-  matchesAvailability
-);
-
-  });
+    if (filterAvailability === 'available') matchesAvailability = item.isCurrentlyAvailable !== false;
+    else if (filterAvailability === 'unavailable') matchesAvailability = item.isCurrentlyAvailable === false;
+    return matchesSearch && matchesMainCategory && matchesSubCategory && matchesFoodType && matchesAvailability;
+  }).sort((a, b) => (a.order || 0) - (b.order || 0));
   
   const availableSubCategories = categories.filter(c => c.mainCategory._id === formData.mainCategory);
   
@@ -298,10 +422,7 @@ return (
         <div>
           <h1 className="font-display text-2xl sm:text-3xl font-bold">Menu Items</h1>
           <p className="text-muted-foreground mt-1 text-sm sm:text-base">
-           {items.length} items • {
-  items.filter(item => getItemAvailability(item).isAvailable).length
-} available
-
+           {items.length} items • {items.filter(item => getItemAvailability(item).isAvailable).length} available
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -496,7 +617,6 @@ return (
               <SelectItem value="unavailable">Unavailable</SelectItem>
             </SelectContent>
           </Select>
-          
         </div>
       </div>
 
@@ -514,110 +634,28 @@ return (
           </p>
         </div>
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredItems.map((item) => {
-           const {
-  isAvailable,
-  disabledReason,
-  mainCat,
-  subCat
-} = getItemAvailability(item);
-
-            
-            return (
-              <div key={item._id} className={`glass rounded-xl overflow-hidden ${!isAvailable ? 'opacity-60' : ''}`}>
-                {item.image && (
-                  <div className="aspect-video bg-secondary">
-                    <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
-                  </div>
-                )}
-                <div className="p-4">
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="flex items-center gap-2">
-                      {item.isVeg ? (
-                        <div className="p-1 border-2 border-green-500 rounded"><div className="w-2 h-2 bg-green-500 rounded-full" /></div>
-                      ) : (
-                        <div className="p-1 border-2 border-red-500 rounded"><div className="w-2 h-2 bg-red-500 rounded-full" /></div>
-                      )}
-                      <h3 className="font-semibold">{item.name}</h3>
-                    </div>
-                    <p className="font-bold text-primary">₹{item.price}</p>
-                  </div>
-                  
-                  {item.description && (
-                    <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{item.description}</p>
-                  )}
-
-<div className="flex flex-wrap gap-1 mb-3">
-  {mainCat && <Badge variant="secondary">{mainCat.name}</Badge>}
-  {subCat && <Badge variant="outline">{subCat.name}</Badge>}
-  {item.isJain && (
-    <Badge className="bg-amber-500/20 text-amber-600 border-amber-500/30 hover:bg-amber-500/30">
-      Jain
-    </Badge>
-  )}
-  {item.isVegan && (
-    <Badge className="bg-emerald-500/20 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/30">
-      Vegan
-    </Badge>
-  )}
-  {item.isHalfJain && (
-    <Badge className="bg-orange-500/20 text-orange-600 border-orange-500/30 hover:bg-orange-500/30">
-      Half Jain
-    </Badge>
-  )}
-  {item.status && item.status !== 'Available' && (
-    <Badge variant="destructive">{item.status}</Badge>
-  )}
-  {!isAvailable && (
-    <Badge variant="destructive">
-      {disabledReason}
-    </Badge>
-  )}
-</div>
-
-
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
-                    <Clock className="h-3 w-3" />
-                    <span>{getShortAvailabilityLabel(item.availability || defaultAvailability)}</span>
-                  </div>
-
-                  <div className="flex items-center justify-end pt-3 border-t border-border">
-                    <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => handleToggleItemAvailability(item)} title={isAvailable ? 'Hide temporarily' : 'Make available'}>
-                        {item.availability?.isAvailable !== false ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4 text-muted-foreground" />}
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(item)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Menu Item?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This will permanently delete "{item.name}". This action cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDelete(item._id, item.name)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                              Yes, Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={filteredItems.map(i => i._id)} strategy={rectSortingStrategy}>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredItems.map((item) => {
+                const { isAvailable, disabledReason, mainCat, subCat } = getItemAvailability(item);
+                return (
+                  <SortableMenuItem
+                    key={item._id}
+                    item={item}
+                    isAvailable={isAvailable}
+                    disabledReason={disabledReason}
+                    mainCat={mainCat}
+                    subCat={subCat}
+                    onToggle={handleToggleItemAvailability}
+                    onEdit={openEdit}
+                    onDelete={handleDelete}
+                  />
+                );
+              })}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
     </div>
   );
