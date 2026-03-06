@@ -577,7 +577,8 @@ const filteredItems = menuData.menu.filter(item => {
                           <img 
                             src={item.image}
                             alt={item.name}
-                            className="w-20 h-20 rounded-lg object-cover flex-shrink-0"
+                            className="w-20 h-20 rounded-lg object-cover flex-shrink-0 cursor-pointer active:scale-95 transition-transform"
+                            onClick={() => setLightboxImage(item.image!)}
                           />
                         )}
                         <div className="flex-1 min-w-0">
@@ -614,9 +615,22 @@ const filteredItems = menuData.menu.filter(item => {
                             </span>
                           </div>
                           {item.description && (
-                            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                              {item.description}
-                            </p>
+                            <div className="mt-1">
+                              <p className={cn(
+                                "text-xs text-muted-foreground",
+                                !expandedDescriptions.has(item._id) && "line-clamp-2"
+                              )}>
+                                {item.description}
+                              </p>
+                              {item.description.length > 80 && (
+                                <button
+                                  onClick={() => toggleDescription(item._id)}
+                                  className="text-xs text-primary font-medium mt-0.5"
+                                >
+                                  {expandedDescriptions.has(item._id) ? 'Show less' : 'Read more'}
+                                </button>
+                              )}
+                            </div>
                           )}
                         </div>
                       </div>
