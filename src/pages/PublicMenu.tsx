@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { publicMenuApi, PublicMenuResponse, PublicMenuItem, MainCategory, Category } from '@/lib/api';
 import { demoMenuData } from '@/lib/demoData';
@@ -34,6 +34,17 @@ export default function PublicMenu() {
   const [showJainOnly, setShowJainOnly] = useState(false);
   const [showVeganOnly, setShowVeganOnly] = useState(false);
   const [showHalfJainOnly, setShowHalfJainOnly] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
+
+  const toggleDescription = useCallback((itemId: string) => {
+    setExpandedDescriptions(prev => {
+      const next = new Set(prev);
+      if (next.has(itemId)) next.delete(itemId);
+      else next.add(itemId);
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     const fetchMenu = async () => {
@@ -281,7 +292,8 @@ const filteredItems = menuData.menu.filter(item => {
               <img 
                 src={restaurant.logo}
                 alt={restaurant.name}
-                className="w-20 h-20 rounded-2xl border-4 border-background object-cover bg-card"
+                className="w-20 h-20 rounded-2xl border-4 border-background object-cover bg-card cursor-pointer active:scale-95 transition-transform"
+                onClick={() => setLightboxImage(restaurant.logo!)}
               />
             )}
             <div className="flex-1 pb-1">
@@ -565,7 +577,8 @@ const filteredItems = menuData.menu.filter(item => {
                           <img 
                             src={item.image}
                             alt={item.name}
-                            className="w-20 h-20 rounded-lg object-cover flex-shrink-0"
+                            className="w-20 h-20 rounded-lg object-cover flex-shrink-0 cursor-pointer active:scale-95 transition-transform"
+                            onClick={() => setLightboxImage(item.image!)}
                           />
                         )}
                         <div className="flex-1 min-w-0">
@@ -602,9 +615,22 @@ const filteredItems = menuData.menu.filter(item => {
                             </span>
                           </div>
                           {item.description && (
-                            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                              {item.description}
-                            </p>
+                            <div className="mt-1">
+                              <p className={cn(
+                                "text-xs text-muted-foreground",
+                                !expandedDescriptions.has(item._id) && "line-clamp-2"
+                              )}>
+                                {item.description}
+                              </p>
+                              {item.description.length > 80 && (
+                                <button
+                                  onClick={() => toggleDescription(item._id)}
+                                  className="text-xs text-primary font-medium mt-0.5"
+                                >
+                                  {expandedDescriptions.has(item._id) ? 'Show less' : 'Read more'}
+                                </button>
+                              )}
+                            </div>
                           )}
                         </div>
                       </div>
@@ -625,6 +651,27 @@ const filteredItems = menuData.menu.filter(item => {
           Powered by <span className="text-gradient-gold font-semibold">oneQr</span>
         </p>
       </div>
+
+      {/* Fullscreen Image Lightbox */}
+      {lightboxImage && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setLightboxImage(null)}
+        >
+          <button
+            onClick={() => setLightboxImage(null)}
+            className="absolute top-4 right-4 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
+          >
+            <X className="h-6 w-6" />
+          </button>
+          <img
+            src={lightboxImage}
+            alt="Full view"
+            className="max-w-full max-h-[85vh] object-contain rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }
