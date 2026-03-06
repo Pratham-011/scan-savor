@@ -329,37 +329,40 @@ const filteredItems = menuData.menu.filter(item => {
 
       {/* Search & Filters */}
       <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-lg border-b border-border px-4 py-3 mt-4">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search menu..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-9"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2"
-              >
-                <X className="h-4 w-4 text-muted-foreground" />
-              </button>
-            )}
-          </div>
+        {/* Search */}
+        <div className="relative mb-3">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search menu..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 pr-9 bg-secondary/50 border-border/50"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2"
+            >
+              <X className="h-4 w-4 text-muted-foreground" />
+            </button>
+          )}
+        </div>
+
+        {/* Diet Filters - horizontal scroll on mobile */}
+        <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
           <button
             onClick={() => {
               setShowVegOnly(!showVegOnly);
               if (!showVegOnly) setShowNonVegOnly(false);
             }}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors",
-              showVegOnly 
-                ? "border-veg bg-veg/10 text-veg" 
-                : "border-border text-muted-foreground"
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200",
+              showVegOnly
+                ? "bg-veg/15 text-veg ring-1 ring-veg/40 shadow-[0_0_12px_hsl(var(--veg)/0.2)]"
+                : "bg-secondary/60 text-muted-foreground hover:bg-secondary"
             )}
           >
-            <Leaf className="h-4 w-4" />
+            <Leaf className="h-3.5 w-3.5" />
             Veg
           </button>
           {restaurant.foodTypes?.includes('non-veg') && (
@@ -369,13 +372,13 @@ const filteredItems = menuData.menu.filter(item => {
                 if (!showNonVegOnly) setShowVegOnly(false);
               }}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors",
-                showNonVegOnly 
-                  ? "border-non-veg bg-non-veg/10 text-non-veg" 
-                  : "border-border text-muted-foreground"
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200",
+                showNonVegOnly
+                  ? "bg-non-veg/15 text-non-veg ring-1 ring-non-veg/40 shadow-[0_0_12px_hsl(var(--non-veg)/0.2)]"
+                  : "bg-secondary/60 text-muted-foreground hover:bg-secondary"
               )}
             >
-              <Drumstick className="h-4 w-4" />
+              <Drumstick className="h-3.5 w-3.5" />
               Non-Veg
             </button>
           )}
@@ -383,13 +386,13 @@ const filteredItems = menuData.menu.filter(item => {
             <button
               onClick={() => setShowJainOnly(!showJainOnly)}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors",
-                showJainOnly 
-                  ? "border-amber-500 bg-amber-500/10 text-amber-500" 
-                  : "border-border text-muted-foreground"
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200",
+                showJainOnly
+                  ? "bg-amber-500/15 text-amber-400 ring-1 ring-amber-500/40 shadow-[0_0_12px_rgba(245,158,11,0.2)]"
+                  : "bg-secondary/60 text-muted-foreground hover:bg-secondary"
               )}
             >
-              <Sparkles className="h-4 w-4" />
+              <Sparkles className="h-3.5 w-3.5" />
               Jain
             </button>
           )}
@@ -397,13 +400,13 @@ const filteredItems = menuData.menu.filter(item => {
             <button
               onClick={() => setShowVeganOnly(!showVeganOnly)}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors",
-                showVeganOnly 
-                  ? "border-emerald-500 bg-emerald-500/10 text-emerald-500" 
-                  : "border-border text-muted-foreground"
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200",
+                showVeganOnly
+                  ? "bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/40 shadow-[0_0_12px_rgba(16,185,129,0.2)]"
+                  : "bg-secondary/60 text-muted-foreground hover:bg-secondary"
               )}
             >
-              <Salad className="h-4 w-4" />
+              <Salad className="h-3.5 w-3.5" />
               Vegan
             </button>
           )}
@@ -411,30 +414,30 @@ const filteredItems = menuData.menu.filter(item => {
             <button
               onClick={() => setShowHalfJainOnly(!showHalfJainOnly)}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors",
-                showHalfJainOnly 
-                  ? "border-orange-500 bg-orange-500/10 text-orange-500" 
-                  : "border-border text-muted-foreground"
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200",
+                showHalfJainOnly
+                  ? "bg-orange-500/15 text-orange-400 ring-1 ring-orange-500/40 shadow-[0_0_12px_rgba(249,115,22,0.2)]"
+                  : "bg-secondary/60 text-muted-foreground hover:bg-secondary"
               )}
             >
-              <CookingPot className="h-4 w-4" />
+              <CookingPot className="h-3.5 w-3.5" />
               Half Jain
             </button>
           )}
         </div>
 
-        {/* Category Pills */}
-        <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide">
+        {/* Main Category Tabs - card style */}
+        <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide mt-2">
           <button
             onClick={() => {
               setSelectedMainCategory(null);
               setSelectedSubCategory(null);
             }}
             className={cn(
-              "px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors",
+              "px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all duration-200",
               !selectedMainCategory
-                ? "bg-primary text-primary-foreground" 
-                : "bg-secondary text-secondary-foreground"
+                ? "bg-gradient-gold text-primary-foreground shadow-md"
+                : "bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
             )}
           >
             All
@@ -447,17 +450,17 @@ const filteredItems = menuData.menu.filter(item => {
                 setSelectedSubCategory(null);
               }}
               className={cn(
-                "flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors",
-                selectedMainCategory === cat._id 
-                  ? "bg-primary text-primary-foreground" 
-                  : "bg-secondary text-secondary-foreground"
+                "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all duration-200",
+                selectedMainCategory === cat._id
+                  ? "bg-gradient-gold text-primary-foreground shadow-md"
+                  : "bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
               )}
             >
               {cat.image && (
-                <img 
-                  src={cat.image} 
+                <img
+                  src={cat.image}
                   alt={cat.name}
-                  className="w-5 h-5 rounded-full object-cover"
+                  className="w-6 h-6 rounded-lg object-cover"
                 />
               )}
               {cat.name}
@@ -465,16 +468,16 @@ const filteredItems = menuData.menu.filter(item => {
           ))}
         </div>
 
-        {/* Subcategory Pills - show only when main category is selected */}
+        {/* Subcategory Pills - underline style */}
         {selectedMainCategory && subCategories.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide mt-2">
+          <div className="flex gap-3 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide mt-2 border-t border-border/30 pt-2">
             <button
               onClick={() => setSelectedSubCategory(null)}
               className={cn(
-                "px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors",
+                "px-3 py-1 text-xs font-medium whitespace-nowrap transition-all duration-200 border-b-2",
                 !selectedSubCategory
-                  ? "bg-accent text-accent-foreground" 
-                  : "bg-muted text-muted-foreground"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
               )}
             >
               All
@@ -484,17 +487,17 @@ const filteredItems = menuData.menu.filter(item => {
                 key={cat._id}
                 onClick={() => setSelectedSubCategory(cat._id)}
                 className={cn(
-                  "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors",
-                  selectedSubCategory === cat._id 
-                    ? "bg-accent text-accent-foreground" 
-                    : "bg-muted text-muted-foreground"
+                  "flex items-center gap-1.5 px-3 py-1 text-xs font-medium whitespace-nowrap transition-all duration-200 border-b-2",
+                  selectedSubCategory === cat._id
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
                 )}
               >
                 {cat.image && (
-                  <img 
-                    src={cat.image} 
+                  <img
+                    src={cat.image}
                     alt={cat.name}
-                    className="w-4 h-4 rounded-full object-cover"
+                    className="w-4 h-4 rounded object-cover"
                   />
                 )}
                 {cat.name}
@@ -516,42 +519,47 @@ const filteredItems = menuData.menu.filter(item => {
             const mainCatData = mainCategories.find(c => c._id === mainCat._id);
             return (
             <div key={mainCat._id}>
-              <div className="flex items-center gap-3 mb-4">
+              {/* Main Category Header */}
+              <div className="flex items-center gap-3 mb-5 pb-2 border-b border-border/40">
                 {mainCatData?.image && (
                   <img 
                     src={mainCatData.image} 
                     alt={mainCat.name}
-                    className="w-12 h-12 rounded-xl object-cover"
+                    className="w-10 h-10 rounded-xl object-cover ring-2 ring-primary/20"
                   />
                 )}
-                <h2 className="font-display text-xl font-bold text-gradient-gold">
-                  {mainCat.name}
-                </h2>
+                <div>
+                  <h2 className="font-display text-lg font-bold text-gradient-gold">
+                    {mainCat.name}
+                  </h2>
+                  <div className="h-0.5 w-8 bg-gradient-gold rounded-full mt-1" />
+                </div>
               </div>
               
               {mainCat.subCategories.map(subCat => {
-                // Find subcategory image from the original data
                 const subCatData = subCategories.find(c => c._id === subCat._id);
                 return (
                 <div key={subCat._id} className="mb-6">
-                  <div className="flex items-center gap-2 mb-3">
+                  {/* Subcategory Header */}
+                  <div className="flex items-center gap-2 mb-3 ml-1">
                     {subCatData?.image && (
                       <img 
                         src={subCatData.image} 
                         alt={subCat.name}
-                        className="w-8 h-8 rounded-lg object-cover"
+                        className="w-6 h-6 rounded-md object-cover"
                       />
                     )}
-                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                    <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
                       {subCat.name}
                     </h3>
+                    <div className="flex-1 h-px bg-border/30 ml-2" />
                   </div>
                   
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {subCat.items.map(item => (
                       <div 
                         key={item._id}
-                        className="flex gap-4 p-3 rounded-xl bg-card/50 hover:bg-card transition-colors"
+                        className="flex gap-3 p-3 rounded-xl bg-card/50 hover:bg-card transition-colors"
                       >
                         {item.image && (
                           <img 
@@ -562,7 +570,7 @@ const filteredItems = menuData.menu.filter(item => {
                         )}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2">
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-1.5 flex-wrap">
                               {item.isVeg ? (
                                 <div className="p-0.5 border border-veg rounded flex-shrink-0">
                                   <div className="w-1.5 h-1.5 bg-veg rounded-full" />
@@ -572,31 +580,29 @@ const filteredItems = menuData.menu.filter(item => {
                                   <div className="w-1.5 h-1.5 bg-non-veg rounded-full" />
                                 </div>
                               )}
-                              <h4 className="font-semibold">{item.name}</h4>
-                            </div>
-                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              <h4 className="font-semibold text-sm">{item.name}</h4>
                               {item.isJain && (
-                                <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-amber-500/20 text-amber-600 rounded border border-amber-500/30">
+                                <span className="px-1.5 py-0.5 text-[9px] font-bold bg-amber-500/15 text-amber-400 rounded-full">
                                   JAIN
                                 </span>
                               )}
                               {item.isVegan && (
-                                <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-emerald-500/20 text-emerald-600 rounded border border-emerald-500/30">
+                                <span className="px-1.5 py-0.5 text-[9px] font-bold bg-emerald-500/15 text-emerald-400 rounded-full">
                                   VEGAN
                                 </span>
                               )}
                               {item.isHalfJain && (
-                                <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-orange-500/20 text-orange-600 rounded border border-orange-500/30">
+                                <span className="px-1.5 py-0.5 text-[9px] font-bold bg-orange-500/15 text-orange-400 rounded-full">
                                   HALF JAIN
                                 </span>
                               )}
-                              <span className="font-bold text-primary">
-                                ₹{item.price}
-                              </span>
                             </div>
+                            <span className="font-bold text-primary text-sm flex-shrink-0">
+                              ₹{item.price}
+                            </span>
                           </div>
                           {item.description && (
-                            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
                               {item.description}
                             </p>
                           )}
