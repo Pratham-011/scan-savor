@@ -519,42 +519,47 @@ const filteredItems = menuData.menu.filter(item => {
             const mainCatData = mainCategories.find(c => c._id === mainCat._id);
             return (
             <div key={mainCat._id}>
-              <div className="flex items-center gap-3 mb-4">
+              {/* Main Category Header */}
+              <div className="flex items-center gap-3 mb-5 pb-2 border-b border-border/40">
                 {mainCatData?.image && (
                   <img 
                     src={mainCatData.image} 
                     alt={mainCat.name}
-                    className="w-12 h-12 rounded-xl object-cover"
+                    className="w-10 h-10 rounded-xl object-cover ring-2 ring-primary/20"
                   />
                 )}
-                <h2 className="font-display text-xl font-bold text-gradient-gold">
-                  {mainCat.name}
-                </h2>
+                <div>
+                  <h2 className="font-display text-lg font-bold text-gradient-gold">
+                    {mainCat.name}
+                  </h2>
+                  <div className="h-0.5 w-8 bg-gradient-gold rounded-full mt-1" />
+                </div>
               </div>
               
               {mainCat.subCategories.map(subCat => {
-                // Find subcategory image from the original data
                 const subCatData = subCategories.find(c => c._id === subCat._id);
                 return (
                 <div key={subCat._id} className="mb-6">
-                  <div className="flex items-center gap-2 mb-3">
+                  {/* Subcategory Header */}
+                  <div className="flex items-center gap-2 mb-3 ml-1">
                     {subCatData?.image && (
                       <img 
                         src={subCatData.image} 
                         alt={subCat.name}
-                        className="w-8 h-8 rounded-lg object-cover"
+                        className="w-6 h-6 rounded-md object-cover"
                       />
                     )}
-                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                    <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
                       {subCat.name}
                     </h3>
+                    <div className="flex-1 h-px bg-border/30 ml-2" />
                   </div>
                   
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {subCat.items.map(item => (
                       <div 
                         key={item._id}
-                        className="flex gap-4 p-3 rounded-xl bg-card/50 hover:bg-card transition-colors"
+                        className="flex gap-3 p-3 rounded-xl bg-card/50 hover:bg-card transition-colors"
                       >
                         {item.image && (
                           <img 
@@ -565,7 +570,7 @@ const filteredItems = menuData.menu.filter(item => {
                         )}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2">
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-1.5 flex-wrap">
                               {item.isVeg ? (
                                 <div className="p-0.5 border border-veg rounded flex-shrink-0">
                                   <div className="w-1.5 h-1.5 bg-veg rounded-full" />
@@ -575,31 +580,29 @@ const filteredItems = menuData.menu.filter(item => {
                                   <div className="w-1.5 h-1.5 bg-non-veg rounded-full" />
                                 </div>
                               )}
-                              <h4 className="font-semibold">{item.name}</h4>
-                            </div>
-                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              <h4 className="font-semibold text-sm">{item.name}</h4>
                               {item.isJain && (
-                                <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-amber-500/20 text-amber-600 rounded border border-amber-500/30">
+                                <span className="px-1.5 py-0.5 text-[9px] font-bold bg-amber-500/15 text-amber-400 rounded-full">
                                   JAIN
                                 </span>
                               )}
                               {item.isVegan && (
-                                <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-emerald-500/20 text-emerald-600 rounded border border-emerald-500/30">
+                                <span className="px-1.5 py-0.5 text-[9px] font-bold bg-emerald-500/15 text-emerald-400 rounded-full">
                                   VEGAN
                                 </span>
                               )}
                               {item.isHalfJain && (
-                                <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-orange-500/20 text-orange-600 rounded border border-orange-500/30">
+                                <span className="px-1.5 py-0.5 text-[9px] font-bold bg-orange-500/15 text-orange-400 rounded-full">
                                   HALF JAIN
                                 </span>
                               )}
-                              <span className="font-bold text-primary">
-                                ₹{item.price}
-                              </span>
                             </div>
+                            <span className="font-bold text-primary text-sm flex-shrink-0">
+                              ₹{item.price}
+                            </span>
                           </div>
                           {item.description && (
-                            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
                               {item.description}
                             </p>
                           )}
