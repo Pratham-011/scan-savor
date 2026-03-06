@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { publicMenuApi, PublicMenuResponse, PublicMenuItem, MainCategory, Category } from '@/lib/api';
 import { demoMenuData } from '@/lib/demoData';
@@ -34,6 +34,17 @@ export default function PublicMenu() {
   const [showJainOnly, setShowJainOnly] = useState(false);
   const [showVeganOnly, setShowVeganOnly] = useState(false);
   const [showHalfJainOnly, setShowHalfJainOnly] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
+
+  const toggleDescription = useCallback((itemId: string) => {
+    setExpandedDescriptions(prev => {
+      const next = new Set(prev);
+      if (next.has(itemId)) next.delete(itemId);
+      else next.add(itemId);
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     const fetchMenu = async () => {
@@ -281,7 +292,8 @@ const filteredItems = menuData.menu.filter(item => {
               <img 
                 src={restaurant.logo}
                 alt={restaurant.name}
-                className="w-20 h-20 rounded-2xl border-4 border-background object-cover bg-card"
+                className="w-20 h-20 rounded-2xl border-4 border-background object-cover bg-card cursor-pointer active:scale-95 transition-transform"
+                onClick={() => setLightboxImage(restaurant.logo!)}
               />
             )}
             <div className="flex-1 pb-1">
