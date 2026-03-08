@@ -36,6 +36,7 @@ export default function PublicMenu() {
   const [showHalfJainOnly, setShowHalfJainOnly] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
+  const [addressExpanded, setAddressExpanded] = useState(false);
 
   const toggleDescription = useCallback((itemId: string) => {
     setExpandedDescriptions(prev => {
