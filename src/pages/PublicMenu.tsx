@@ -36,6 +36,7 @@ export default function PublicMenu() {
   const [showHalfJainOnly, setShowHalfJainOnly] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
+  const [addressExpanded, setAddressExpanded] = useState(false);
 
   const toggleDescription = useCallback((itemId: string) => {
     setExpandedDescriptions(prev => {
@@ -306,22 +307,33 @@ const filteredItems = menuData.menu.filter(item => {
 
           <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
             {restaurant.address && (
-              restaurant.locationLink ? (
-                <a 
-                  href={restaurant.locationLink} 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="flex items-center gap-1 hover:text-primary transition-colors"
-                >
-                  <MapPin className="h-3 w-3" />
-                  {restaurant.address}
-                </a>
-              ) : (
-                <span className="flex items-center gap-1">
-                  <MapPin className="h-3 w-3" />
-                  {restaurant.address}
-                </span>
-              )
+              <div className="flex items-start gap-1">
+                <MapPin className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                <div>
+                  {restaurant.locationLink ? (
+                    <a 
+                      href={restaurant.locationLink} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className={cn("hover:text-primary transition-colors", !addressExpanded && restaurant.address.length > 40 && "line-clamp-1")}
+                    >
+                      {restaurant.address}
+                    </a>
+                  ) : (
+                    <span className={cn(!addressExpanded && restaurant.address.length > 40 && "line-clamp-1")}>
+                      {restaurant.address}
+                    </span>
+                  )}
+                  {restaurant.address.length > 40 && (
+                    <button 
+                      onClick={() => setAddressExpanded(!addressExpanded)} 
+                      className="text-xs text-primary font-medium mt-0.5 block"
+                    >
+                      {addressExpanded ? 'Show less' : 'Read more'}
+                    </button>
+                  )}
+                </div>
+              </div>
             )}
             {restaurant.phone && (
               <a href={`tel:${restaurant.phone}`} className="flex items-center gap-1 hover:text-primary">
