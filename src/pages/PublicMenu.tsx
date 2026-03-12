@@ -332,6 +332,34 @@ const filteredItems = menuData.menu.filter(item => {
 
   const { restaurant } = menuData;
 
+  const mapsUrl = (() => {
+    const raw = restaurant.locationLink?.trim();
+
+    if (raw) {
+      if (/^https?:\/\//i.test(raw)) return raw;
+      if (raw.includes('google.') || raw.includes('maps.app.goo.gl') || raw.startsWith('www.')) {
+        return `https://${raw.replace(/^\/+/, '')}`;
+      }
+    }
+
+    if (restaurant.address) {
+      return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(restaurant.address)}`;
+    }
+
+    return null;
+  })();
+
+  const instagramUrl = (() => {
+    const raw = restaurant.Instaurl?.trim();
+    if (!raw) return null;
+
+    if (/^https?:\/\//i.test(raw)) return raw;
+    if (raw.startsWith('@')) return `https://instagram.com/${raw.slice(1)}`;
+    if (raw.includes('instagram.com/')) return `https://${raw.replace(/^https?:\/\//i, '')}`;
+
+    return `https://instagram.com/${raw}`;
+  })();
+
   return (
     <div className="min-h-screen bg-background pb-24">
       {/* Header */}
@@ -367,42 +395,55 @@ const filteredItems = menuData.menu.filter(item => {
 
           <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
             {restaurant.address && (
-              <div className="flex items-start gap-1.5 min-h-[36px] py-1">
-                <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                <div>
-                  {restaurant.locationLink ? (
-                    <a 
-                      href={restaurant.locationLink} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className={cn("active:text-primary transition-colors", !addressExpanded && restaurant.address.length > 40 && "line-clamp-1")}
-                    >
-                      {restaurant.address}
-                    </a>
-                  ) : (
+              <div className="flex items-start gap-1.5 min-h-[40px] py-1">
+                {mapsUrl ? (
+                  <a
+                    href={mapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-start gap-1.5 min-w-0 rounded-md px-1 py-1 -mx-1 active:text-primary transition-colors touch-manipulation"
+                  >
+                    <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
                     <span className={cn(!addressExpanded && restaurant.address.length > 40 && "line-clamp-1")}>
                       {restaurant.address}
                     </span>
-                  )}
-                  {restaurant.address.length > 40 && (
-                    <button 
-                      onClick={() => setAddressExpanded(!addressExpanded)} 
-                      className="text-xs text-primary font-medium mt-0.5 block"
-                    >
-                      {addressExpanded ? 'Show less' : 'Read more'}
-                    </button>
-                  )}
-                </div>
+                  </a>
+                ) : (
+                  <div className="flex items-start gap-1.5 min-w-0">
+                    <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                    <span className={cn(!addressExpanded && restaurant.address.length > 40 && "line-clamp-1")}>
+                      {restaurant.address}
+                    </span>
+                  </div>
+                )}
+
+                {restaurant.address.length > 40 && (
+                  <button
+                    onClick={() => setAddressExpanded(!addressExpanded)}
+                    className="text-xs text-primary font-medium mt-1"
+                    type="button"
+                  >
+                    {addressExpanded ? 'Show less' : 'Read more'}
+                  </button>
+                )}
               </div>
             )}
             {restaurant.phone && (
-              <a href={`tel:${restaurant.phone}`} className="flex items-center gap-1.5 min-h-[36px] py-1 active:text-primary transition-colors">
+              <a
+                href={`tel:${restaurant.phone}`}
+                className="flex items-center gap-1.5 min-h-[40px] px-2 -mx-2 py-1 rounded-md active:text-primary transition-colors touch-manipulation"
+              >
                 <Phone className="h-4 w-4" />
                 {restaurant.phone}
               </a>
             )}
-            {restaurant.Instaurl && (
-              <a href={restaurant.Instaurl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 min-h-[36px] py-1 active:text-primary transition-colors">
+            {instagramUrl && (
+              <a
+                href={instagramUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 min-h-[40px] px-2 -mx-2 py-1 rounded-md active:text-primary transition-colors touch-manipulation"
+              >
                 <Instagram className="h-4 w-4" />
                 Instagram
               </a>
