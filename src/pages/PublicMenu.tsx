@@ -365,17 +365,17 @@ const filteredItems = menuData.menu.filter(item => {
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+          <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
             {restaurant.address && (
-              <div className="flex items-start gap-1">
-                <MapPin className="h-3 w-3 mt-0.5 flex-shrink-0" />
+              <div className="flex items-start gap-1.5 min-h-[36px] py-1">
+                <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
                 <div>
                   {restaurant.locationLink ? (
                     <a 
                       href={restaurant.locationLink} 
                       target="_blank" 
                       rel="noopener noreferrer" 
-                      className={cn("hover:text-primary transition-colors", !addressExpanded && restaurant.address.length > 40 && "line-clamp-1")}
+                      className={cn("active:text-primary transition-colors", !addressExpanded && restaurant.address.length > 40 && "line-clamp-1")}
                     >
                       {restaurant.address}
                     </a>
@@ -396,14 +396,14 @@ const filteredItems = menuData.menu.filter(item => {
               </div>
             )}
             {restaurant.phone && (
-              <a href={`tel:${restaurant.phone}`} className="flex items-center gap-1 hover:text-primary">
-                <Phone className="h-3 w-3" />
+              <a href={`tel:${restaurant.phone}`} className="flex items-center gap-1.5 min-h-[36px] py-1 active:text-primary transition-colors">
+                <Phone className="h-4 w-4" />
                 {restaurant.phone}
               </a>
             )}
             {restaurant.Instaurl && (
-              <a href={restaurant.Instaurl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-primary">
-                <Instagram className="h-3 w-3" />
+              <a href={restaurant.Instaurl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 min-h-[36px] py-1 active:text-primary transition-colors">
+                <Instagram className="h-4 w-4" />
                 Instagram
               </a>
             )}
