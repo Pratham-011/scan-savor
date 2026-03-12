@@ -332,7 +332,7 @@ const filteredItems = menuData.menu.filter(item => {
 
   const { restaurant } = menuData;
 
-  const mapsUrl = useMemo(() => {
+  const mapsUrl = (() => {
     const raw = restaurant.locationLink?.trim();
 
     if (raw) {
@@ -347,9 +347,9 @@ const filteredItems = menuData.menu.filter(item => {
     }
 
     return null;
-  }, [restaurant.locationLink, restaurant.address]);
+  })();
 
-  const instagramUrl = useMemo(() => {
+  const instagramUrl = (() => {
     const raw = restaurant.Instaurl?.trim();
     if (!raw) return null;
 
@@ -358,7 +358,7 @@ const filteredItems = menuData.menu.filter(item => {
     if (raw.includes('instagram.com/')) return `https://${raw.replace(/^https?:\/\//i, '')}`;
 
     return `https://instagram.com/${raw}`;
-  }, [restaurant.Instaurl]);
+  })();
 
   return (
     <div className="min-h-screen bg-background pb-24">
