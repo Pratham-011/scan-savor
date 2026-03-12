@@ -18,7 +18,7 @@ import Dashboard from "./pages/dashboard/Dashboard";
 import RestaurantSetup from "./pages/dashboard/RestaurantSetup";
 import Categories from "./pages/dashboard/Categories";
 import MenuItems from "./pages/dashboard/MenuItems";
-import QRCodePage from "./pages/dashboard/QRCode";
+import Tags from "./pages/dashboard/Tags";import AddOns from './pages/dashboard/AddOns';import QRCodePage from "./pages/dashboard/QRCode";
 import Settings from "./pages/dashboard/Settings";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 
@@ -44,6 +44,8 @@ const App = () => (
               <Route index element={<Dashboard />} />
               <Route path="setup" element={<RestaurantSetup />} />
               <Route path="categories" element={<Categories />} />
+              <Route path="tags" element={<Tags />} />
+              <Route path="add-ons" element={<AddOns />} />
               <Route path="items" element={<MenuItems />} />
               <Route path="items/new" element={<MenuItems />} />
               <Route path="qr" element={<QRCodePage />} />

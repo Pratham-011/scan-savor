@@ -1,10 +1,11 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { publicMenuApi, PublicMenuResponse, PublicMenuItem, MainCategory, Category } from '@/lib/api';
 import { demoMenuData } from '@/lib/demoData';
-import { MapPin, Phone, Instagram, Leaf, Search, X, Sparkles, Salad, Drumstick, CookingPot } from 'lucide-react';
+import { MapPin, Phone, Instagram, Leaf, Search, X, Sparkles, Salad, Drumstick, CookingPot, TagIcon, Check } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
+import { Drawer, DrawerClose, DrawerContent, DrawerTitle } from '@/components/ui/drawer';
 import { cn } from '@/lib/utils';
 
 interface GroupedCategory {
@@ -34,9 +35,14 @@ export default function PublicMenu() {
   const [showJainOnly, setShowJainOnly] = useState(false);
   const [showVeganOnly, setShowVeganOnly] = useState(false);
   const [showHalfJainOnly, setShowHalfJainOnly] = useState(false);
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
+  const [showTagFilter, setShowTagFilter] = useState(false);
+  const [tagSearchQuery, setTagSearchQuery] = useState('');
+  const [selectedItem, setSelectedItem] = useState<PublicMenuItem | null>(null);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
   const [addressExpanded, setAddressExpanded] = useState(false);
+  const tagFilterRef = useRef<HTMLDivElement>(null);
 
   const toggleDescription = useCallback((itemId: string) => {
     setExpandedDescriptions(prev => {
@@ -46,6 +52,34 @@ export default function PublicMenu() {
       return next;
     });
   }, []);
+
+  useEffect(() => {
+    if (!showTagFilter) return;
+
+    const handleOutsideClick = (event: MouseEvent | TouchEvent) => {
+      if (!tagFilterRef.current) return;
+      const targetNode = event.target as Node;
+      if (!tagFilterRef.current.contains(targetNode)) {
+        setShowTagFilter(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowTagFilter(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('touchstart', handleOutsideClick);
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('touchstart', handleOutsideClick);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [showTagFilter]);
 
   useEffect(() => {
     const fetchMenu = async () => {
@@ -115,6 +149,30 @@ const subCategories = useMemo(() => {
   return Array.from(uniqueSubCats.values()).sort((a, b) => (a.order || 0) - (b.order || 0));
 }, [menuData, selectedMainCategory]);
 
+// Extract unique tags from menu items
+const uniqueTags = useMemo(() => {
+  if (!menuData?.menu) return [];
+
+  const tagsMap = new Map<string, { _id: string; name: string; color: string }>();
+
+  menuData.menu.forEach(item => {
+    item.tags?.forEach(tag => {
+      if (!tagsMap.has(tag._id)) {
+        tagsMap.set(tag._id, { _id: tag._id, name: tag.name, color: tag.color });
+      }
+    });
+  });
+
+  return Array.from(tagsMap.values());
+}, [menuData]);
+
+const visibleTags = useMemo(() => {
+  if (!tagSearchQuery.trim()) return uniqueTags;
+
+  const query = tagSearchQuery.toLowerCase();
+  return uniqueTags.filter(tag => tag.name.toLowerCase().includes(query));
+}, [uniqueTags, tagSearchQuery]);
+
 
 
   // Filter and group items
@@ -138,6 +196,7 @@ const filteredItems = menuData.menu.filter(item => {
   const matchesJain = !showJainOnly || item.isJain;
   const matchesVegan = !showVeganOnly || item.isVegan;
   const matchesHalfJain = !showHalfJainOnly || item.isHalfJain;
+  const matchesTag = selectedTags.size === 0 || item.tags?.some(t => selectedTags.has(t._id));
 
   return (
     matchesSearch &&
@@ -147,7 +206,8 @@ const filteredItems = menuData.menu.filter(item => {
     matchesNonVeg &&
     matchesJain &&
     matchesVegan &&
-    matchesHalfJain
+    matchesHalfJain &&
+    matchesTag
   );
 });
 
@@ -197,7 +257,7 @@ const filteredItems = menuData.menu.filter(item => {
             items: subCat.items.sort((a, b) => (a.order || 0) - (b.order || 0))
           }))
       }));
-  }, [menuData, searchQuery, selectedMainCategory, selectedSubCategory, showVegOnly, showNonVegOnly, showJainOnly, showVeganOnly, showHalfJainOnly]);
+  }, [menuData, searchQuery, selectedMainCategory, selectedSubCategory, showVegOnly, showNonVegOnly, showJainOnly, showVeganOnly, showHalfJainOnly, selectedTags]);
 
   if (isLoading) {
     return (
@@ -450,6 +510,109 @@ const filteredItems = menuData.menu.filter(item => {
           )}
         </div>
 
+        {/* Tag Filter - compact icon toggle with multi-select */}
+        {uniqueTags.length > 0 && (
+          <div ref={tagFilterRef} className="mt-3 relative">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowTagFilter(!showTagFilter)}
+                aria-label="Filter by tags"
+                aria-expanded={showTagFilter}
+                className={cn(
+                  "relative inline-flex items-center gap-2 h-9 px-3 rounded-xl border transition-all duration-200",
+                  showTagFilter || selectedTags.size > 0
+                    ? "border-primary/40 bg-secondary text-foreground shadow-sm"
+                    : "border-border/60 bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                )}
+              >
+                <TagIcon className="h-4 w-4" />
+                <span className="text-xs font-semibold">Tags</span>
+                {selectedTags.size > 0 && (
+                  <span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold leading-none">
+                    {selectedTags.size}
+                  </span>
+                )}
+              </button>
+
+              {selectedTags.size > 0 && (
+                <button
+                  onClick={() => setSelectedTags(new Set())}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+
+            {showTagFilter && (
+              <div className="absolute right-0 top-full mt-2 z-30 w-full sm:w-[340px] rounded-xl border border-border/70 bg-card/95 backdrop-blur-md shadow-xl p-2.5">
+                <div className="relative mb-2">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Search tags..."
+                    value={tagSearchQuery}
+                    onChange={(e) => setTagSearchQuery(e.target.value)}
+                    className="h-8 pl-8 text-xs bg-secondary/50 border-border/50"
+                  />
+                </div>
+
+                <div className="max-h-56 overflow-y-auto pr-1 space-y-1">
+                  {visibleTags.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-2 px-1">No tags found</p>
+                  ) : (
+                    visibleTags.map(tag => {
+                      const isSelected = selectedTags.has(tag._id);
+
+                      return (
+                        <label
+                          key={tag._id}
+                          className={cn(
+                            "flex items-center gap-2 rounded-lg px-2 py-1.5 cursor-pointer transition-colors",
+                            isSelected ? "bg-secondary" : "hover:bg-secondary/60"
+                          )}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => {
+                              const newSelected = new Set(selectedTags);
+                              if (isSelected) {
+                                newSelected.delete(tag._id);
+                              } else {
+                                newSelected.add(tag._id);
+                              }
+                              setSelectedTags(newSelected);
+                            }}
+                            className="sr-only"
+                          />
+
+                          <span
+                            className={cn(
+                              "h-4 w-4 rounded-md border flex items-center justify-center transition-colors",
+                              isSelected
+                                ? "bg-primary border-primary text-primary-foreground"
+                                : "bg-background border-border/70"
+                            )}
+                          >
+                            {isSelected && <Check className="h-3 w-3" />}
+                          </span>
+
+                          <span
+                            className="h-2.5 w-2.5 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: tag.color }}
+                          />
+
+                          <span className="text-xs text-foreground truncate">{tag.name}</span>
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Main Category Tabs - card style */}
         <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide mt-2">
           <button
@@ -581,21 +744,26 @@ const filteredItems = menuData.menu.filter(item => {
                   
                   <div className="space-y-2">
                     {subCat.items.map(item => (
-                      <div 
+                      <div
                         key={item._id}
-                        className="flex gap-3 p-3 rounded-xl bg-card/50 hover:bg-card transition-colors"
+                        className="flex gap-3 p-3 rounded-xl bg-card/50 hover:bg-card transition-colors cursor-pointer border border-border/30"
+                        onClick={() => setSelectedItem(item)}
                       >
                         {item.image && (
-                          <img 
+                          <img
                             src={item.image}
                             alt={item.name}
-                            className="w-20 h-20 rounded-lg object-cover flex-shrink-0 cursor-pointer active:scale-95 transition-transform"
-                            onClick={() => setLightboxImage(item.image!)}
+                            className="w-24 h-24 rounded-xl object-cover flex-shrink-0 cursor-pointer active:scale-95 transition-transform"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setLightboxImage(item.image!);
+                            }}
                           />
                         )}
-                        <div className="flex-1 min-w-0">
+                        <div className="flex-1 min-w-0 flex flex-col gap-1">
+                          {/* Row 1: veg dot + name + price */}
                           <div className="flex items-start justify-between gap-2">
-                            <div className="flex items-center gap-1.5 flex-wrap">
+                            <div className="flex items-center gap-1.5 min-w-0">
                               {item.isVeg ? (
                                 <div className="p-0.5 border border-veg rounded flex-shrink-0">
                                   <div className="w-1.5 h-1.5 bg-veg rounded-full" />
@@ -605,7 +773,25 @@ const filteredItems = menuData.menu.filter(item => {
                                   <div className="w-1.5 h-1.5 bg-non-veg rounded-full" />
                                 </div>
                               )}
-                              <h4 className="font-semibold text-sm">{item.name}</h4>
+                              <h4 className="font-semibold text-sm leading-snug truncate">{item.name}</h4>
+                            </div>
+                            <span className="font-bold text-primary text-sm flex-shrink-0">
+                              ₹{item.price}
+                            </span>
+                          </div>
+
+                          {/* Row 2: badges (tags + dietary) */}
+                          {(item.tags?.length || item.isJain || item.isVegan || item.isHalfJain) ? (
+                            <div className="flex flex-wrap gap-1">
+                              {item.tags?.map(tag => (
+                                <span
+                                  key={tag._id}
+                                  className="px-1.5 py-0.5 text-[9px] font-bold text-white rounded-full"
+                                  style={{ backgroundColor: tag.color }}
+                                >
+                                  {tag.name}
+                                </span>
+                              ))}
                               {item.isJain && (
                                 <span className="px-1.5 py-0.5 text-[9px] font-bold bg-amber-500/15 text-amber-400 rounded-full">
                                   JAIN
@@ -622,26 +808,39 @@ const filteredItems = menuData.menu.filter(item => {
                                 </span>
                               )}
                             </div>
-                            <span className="font-bold text-primary text-sm flex-shrink-0">
-                              ₹{item.price}
-                            </span>
-                          </div>
+                          ) : null}
+
+                          {/* Row 3: description */}
                           {item.description && (
-                            <div className="mt-1">
+                            <div>
                               <p className={cn(
-                                "text-xs text-muted-foreground",
+                                "text-xs text-muted-foreground leading-relaxed",
                                 !expandedDescriptions.has(item._id) && "line-clamp-2"
                               )}>
                                 {item.description}
                               </p>
                               {item.description.length > 80 && (
                                 <button
-                                  onClick={() => toggleDescription(item._id)}
+                                  onClick={(e) => { e.stopPropagation(); toggleDescription(item._id); }}
                                   className="text-xs text-primary font-medium mt-0.5"
                                 >
                                   {expandedDescriptions.has(item._id) ? 'Show less' : 'Read more'}
                                 </button>
                               )}
+                            </div>
+                          )}
+
+                          {/* Row 4: add-ons */}
+                          {item.effectiveAddOns && item.effectiveAddOns.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-auto pt-1">
+                              {item.effectiveAddOns.map(addOn => (
+                                <span
+                                  key={addOn._id}
+                                  className="px-2 py-0.5 text-[10px] font-medium bg-secondary/60 text-muted-foreground rounded-full border border-border/50"
+                                >
+                                  +{addOn.name} ₹{addOn.price}
+                                </span>
+                              ))}
                             </div>
                           )}
                         </div>
@@ -663,6 +862,96 @@ const filteredItems = menuData.menu.filter(item => {
           Powered by <span className="text-gradient-gold font-semibold">oneQr</span>
         </p>
       </div>
+
+      {/* Item Details Drawer */}
+      <Drawer
+        open={!!selectedItem}
+        onOpenChange={(open) => {
+          if (!open) setSelectedItem(null);
+        }}
+      >
+        <DrawerContent className="max-h-[88vh]">
+          {selectedItem && (
+            <div className="relative overflow-y-auto pb-6">
+              <DrawerTitle className="sr-only">{selectedItem.name} details</DrawerTitle>
+
+              {/* Extra top tap area to close quickly */}
+              <DrawerClose asChild>
+                <button className="w-full h-3" aria-label="Close" />
+              </DrawerClose>
+
+              {selectedItem.image && (
+                <img
+                  src={selectedItem.image}
+                  alt={selectedItem.name}
+                  className="w-full h-52 object-cover"
+                  onClick={() => setLightboxImage(selectedItem.image!)}
+                />
+              )}
+
+              <div className="px-4 pt-4 space-y-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-2">
+                    <h3 className="text-lg font-bold leading-tight">{selectedItem.name}</h3>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {selectedItem.isVeg ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-veg/15 text-veg border border-veg/40">
+                          <span className="h-1.5 w-1.5 rounded-full bg-veg" />
+                          VEG
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-non-veg/15 text-non-veg border border-non-veg/40">
+                          <span className="h-1.5 w-1.5 rounded-full bg-non-veg" />
+                          NON-VEG
+                        </span>
+                      )}
+                      {selectedItem.isJain && (
+                        <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-500/15 text-amber-400 rounded-full">JAIN</span>
+                      )}
+                      {selectedItem.isVegan && (
+                        <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-500/15 text-emerald-400 rounded-full">VEGAN</span>
+                      )}
+                      {selectedItem.isHalfJain && (
+                        <span className="px-2 py-0.5 text-[10px] font-bold bg-orange-500/15 text-orange-400 rounded-full">HALF JAIN</span>
+                      )}
+                      {selectedItem.tags?.map(tag => (
+                        <span
+                          key={tag._id}
+                          className="px-2 py-0.5 text-[10px] font-bold text-white rounded-full"
+                          style={{ backgroundColor: tag.color }}
+                        >
+                          {tag.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <span className="text-xl font-bold text-primary whitespace-nowrap">₹{selectedItem.price}</span>
+                </div>
+
+                {selectedItem.description && (
+                  <div className="rounded-xl border border-border/50 bg-secondary/30 p-3">
+                    <p className="text-sm text-muted-foreground leading-relaxed">{selectedItem.description}</p>
+                  </div>
+                )}
+
+                {selectedItem.effectiveAddOns && selectedItem.effectiveAddOns.length > 0 && (
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Available Add-ons</h4>
+                    <div className="space-y-2">
+                      {selectedItem.effectiveAddOns.map(addOn => (
+                        <div key={addOn._id} className="flex items-center justify-between rounded-lg border border-border/50 bg-card/60 px-3 py-2">
+                          <span className="text-sm">{addOn.name}</span>
+                          <span className="text-sm font-semibold text-primary">+₹{addOn.price}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </DrawerContent>
+      </Drawer>
 
       {/* Fullscreen Image Lightbox */}
       {lightboxImage && (

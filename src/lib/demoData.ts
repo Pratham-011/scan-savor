@@ -2,6 +2,13 @@ import { PublicMenuResponse } from './api';
 
 const alwaysAvailable = { type: 'always' as const, daysOfWeek: [] };
 
+// Demo tags
+const demoTags = [
+  { _id: 'tag1', name: 'Best Seller', color: '#ef4444', order: 1, restaurant: 'demo' },
+  { _id: 'tag2', name: 'Chef\'s Special', color: '#f59e0b', order: 2, restaurant: 'demo' },
+  { _id: 'tag3', name: 'New', color: '#3b82f6', order: 3, restaurant: 'demo' },
+];
+
 export const demoMenuData: PublicMenuResponse = {
   restaurant: {
     _id: 'demo',
@@ -14,6 +21,7 @@ export const demoMenuData: PublicMenuResponse = {
     address: 'Bandra West, Mumbai, India',
     phone: '+91 98765 43210',
     qrSlug: 'demo',
+    foodTypes: ['veg', 'non-veg', 'jain', 'vegan', 'half-jain'],
   },
   menu: [
     // Food - Starters
@@ -24,6 +32,7 @@ export const demoMenuData: PublicMenuResponse = {
       name: 'Paneer Tikka', description: 'Marinated cottage cheese cubes grilled to perfection in tandoor',
       price: 320, isVeg: true,
       image: 'https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=300&h=200&fit=crop', order: 1,
+      tags: [{ ...demoTags[0] }, { ...demoTags[2] }],
     },
     {
       _id: '2', restaurant: 'demo',
@@ -32,6 +41,7 @@ export const demoMenuData: PublicMenuResponse = {
       name: 'Chicken Malai Kebab', description: 'Creamy and tender chicken kebabs with aromatic spices',
       price: 380, isVeg: false,
       image: 'https://images.unsplash.com/photo-1599487488170-d11ec9c172f0?w=300&h=200&fit=crop', order: 2,
+      tags: [{ ...demoTags[1] }],
     },
     {
       _id: '3', restaurant: 'demo',
@@ -48,6 +58,7 @@ export const demoMenuData: PublicMenuResponse = {
       name: 'Dal Makhani', description: 'Slow-cooked black lentils with butter and cream',
       price: 280, isVeg: true,
       image: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=300&h=200&fit=crop', order: 1,
+      tags: [{ ...demoTags[0] }],
     },
     {
       _id: '5', restaurant: 'demo',
@@ -56,6 +67,7 @@ export const demoMenuData: PublicMenuResponse = {
       name: 'Butter Chicken', description: 'Tender chicken in rich tomato-butter gravy',
       price: 360, isVeg: false,
       image: 'https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?w=300&h=200&fit=crop', order: 2,
+      tags: [{ ...demoTags[0] }, { ...demoTags[1] }],
     },
     {
       _id: '6', restaurant: 'demo',
@@ -63,6 +75,7 @@ export const demoMenuData: PublicMenuResponse = {
       category: { _id: 'c2', name: 'Main Course', mainCategory: 'mc1', restaurant: 'demo', order: 2 },
       name: 'Paneer Butter Masala', description: 'Cottage cheese cubes in creamy tomato gravy',
       price: 300, isVeg: true, order: 3,
+      tags: [{ ...demoTags[2] }],
     },
     // Food - Breads
     {
@@ -117,6 +130,7 @@ export const demoMenuData: PublicMenuResponse = {
       name: 'Virgin Mojito', description: 'Refreshing mint and lime cooler',
       price: 180, isVeg: true,
       image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?w=300&h=200&fit=crop', order: 1,
+      tags: [{ ...demoTags[2] }],
     },
     {
       _id: '14', restaurant: 'demo',
@@ -124,6 +138,7 @@ export const demoMenuData: PublicMenuResponse = {
       category: { _id: 'c6', name: 'Mocktails', mainCategory: 'mc3', restaurant: 'demo', order: 1 },
       name: 'Blue Lagoon', description: 'Blue curacao syrup with lemonade',
       price: 200, isVeg: true, order: 2,
+      tags: [{ ...demoTags[1] }],
     },
     // Beverages - Soft Drinks
     {

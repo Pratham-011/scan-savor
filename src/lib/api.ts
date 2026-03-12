@@ -1,9 +1,18 @@
 // const API_BASE = 'https://oneqr.onrender.com/api';
-const API_BASE = 'https://oneqrbackend-axhad4hnenejhtek.eastasia-01.azurewebsites.net/api';
+// const BASE_URL = 'https://oneqr.onrender.com';
+
+//LOCAL DEV BACKEND LINK
 // const API_BASE = 'http://localhost:5000/api';
 // const BASE_URL = 'http://localhost:5000';
-// const BASE_URL = 'https://oneqr.onrender.com';
-const BASE_URL = 'https://oneqrbackend-axhad4hnenejhtek.eastasia-01.azurewebsites.net';
+
+//DEV BACKEND LINK(main branch)
+// const API_BASE = 'https://oneqrbackend-axhad4hnenejhtek.eastasia-01.azurewebsites.net/api';
+// const BASE_URL = 'https://oneqrbackend-axhad4hnenejhtek.eastasia-01.azurewebsites.net';
+
+//PROD BACKEND LINK(prod branch)
+const API_BASE = 'https://oneqrprod-dag2b3cmg0gsa7br.eastasia-01.azurewebsites.net/api';
+const BASE_URL = 'https://oneqrprod-dag2b3cmg0gsa7br.eastasia-01.azurewebsites.net/';
+
 // const frontendBaseUrl = 'https://scan-savor.vercel.app';
 // Helper to get auth token
 const getToken = () => localStorage.getItem('authToken');
@@ -151,6 +160,94 @@ export const categoryApi = {
     }),
 };
 
+// Tag API
+export interface Tag {
+  _id: string;
+  name: string;
+  color: string;
+  order: number;
+  restaurant: string;
+  restaurantName?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// AddOn
+export interface AddOn {
+  _id: string;
+  name: string;
+  price: number;
+  order: number;
+  restaurant: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export const tagApi = {
+  create: (data: { name: string; color: string; order: number }) =>
+    apiRequest<Tag>('/tag', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  getAll: () => apiRequest<Tag[]>('/tag'),
+
+  get: (id: string) => apiRequest<Tag>(`/tag/${id}`),
+
+  update: (id: string, data: { name?: string; color?: string; order?: number }) =>
+    apiRequest<Tag>(`/tag/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    apiRequest<{ message: string }>(`/tag/${id}`, {
+      method: 'DELETE',
+    }),
+};
+
+// AddOn API
+export const addOnApi = {
+  create: (data: { name: string; price: number; order?: number }) =>
+    apiRequest<AddOn>('/add-on', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  getAll: () => apiRequest<AddOn[]>('/add-on'),
+
+  get: (id: string) => apiRequest<AddOn>(`/add-on/${id}`),
+
+  update: (id: string, data: { name?: string; price?: number; order?: number }) =>
+    apiRequest<AddOn>(`/add-on/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    apiRequest<{ message: string }>(`/add-on/${id}`, {
+      method: 'DELETE',
+    }),
+
+  assignToMainCategory: (mainCategoryId: string, addOnIds: string[]) =>
+    apiRequest<MainCategory>(`/add-on/main-category/${mainCategoryId}/add-ons`, {
+      method: 'PUT',
+      body: JSON.stringify({ addOns: addOnIds }),
+    }),
+
+  assignToCategory: (categoryId: string, addOnIds: string[]) =>
+    apiRequest<Category>(`/add-on/category/${categoryId}/add-ons`, {
+      method: 'PUT',
+      body: JSON.stringify({ addOns: addOnIds }),
+    }),
+
+  assignToMenuItem: (menuItemId: string, addOnIds: string[]) =>
+    apiRequest<MenuItem>(`/add-on/menu-item/${menuItemId}/add-ons`, {
+      method: 'PUT',
+      body: JSON.stringify({ addOns: addOnIds }),
+    }),
+};
+
 // Menu Item API
 export const menuItemApi = {
   create: (data: CreateMenuItemData) =>
@@ -207,6 +304,30 @@ export const publicMenuApi = {
       if (!res.ok) throw new Error('Menu not found');
       return res.json() as Promise<PublicMenuResponse>;
     }),
+
+  // Fetch tags for a restaurant by slug
+  getTagsBySlug: async (slug: string): Promise<Tag[]> => {
+    // Try known public tag endpoints in order.
+    const endpoints = [
+      `${API_BASE}/tag/${slug}`,
+      `${API_BASE}/tag?slug=${encodeURIComponent(slug)}`,
+      `${API_BASE}/tag/public/${slug}`,
+    ];
+
+    for (const endpoint of endpoints) {
+      try {
+        const res = await fetch(endpoint);
+        if (!res.ok) continue;
+
+        const data = await res.json();
+        if (Array.isArray(data)) return data as Tag[];
+      } catch {
+        // Try next endpoint.
+      }
+    }
+
+    return [];
+  },
 };
 
 // Menu Import/Export
@@ -309,6 +430,7 @@ export interface MainCategory {
   isCurrentlyAvailable?: boolean;
   status?: string;
   image?: string;
+  addOns?: AddOn[];
 }
 
 export interface Category {
@@ -326,6 +448,7 @@ export interface Category {
   isCurrentlyAvailable?: boolean;
   status?: string;
   image?: string;
+  addOns?: AddOn[];
 }
 
 
@@ -346,6 +469,11 @@ export interface MenuItem {
   image?: string;
   restaurant: string;
   order?: number;
+  tags?: Tag[];
+  addOns?: AddOn[];
+  addOnExclusions?: AddOn[];
+  inheritedAddOns?: AddOn[];
+  effectiveAddOns?: AddOn[];
 }
 
 export interface CreateMenuItemData {
@@ -360,6 +488,9 @@ export interface CreateMenuItemData {
   isHalfJain?: boolean;
   availability: Availability;
   image?: string;
+  tags?: Tag[];
+  addOns?: string[];
+  addOnExclusions?: string[];
 }
 
 // Public menu item with embedded category objects
@@ -389,6 +520,8 @@ export interface PublicMenuItem {
   isHalfJain?: boolean;
   image?: string;
   order: number;
+  tags?: Array<{ _id: string; name: string; color: string }>;
+  effectiveAddOns?: Array<{ _id: string; name: string; price: number }>;
 }
 
 

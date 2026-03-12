@@ -27,13 +27,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { mainCategoryApi, categoryApi, defaultAvailability } from '@/lib/api';
-import type { MainCategory, Category, Availability } from '@/lib/api';
+import { mainCategoryApi, categoryApi, defaultAvailability, addOnApi } from '@/lib/api';
+import type { MainCategory, Category, Availability, AddOn } from '@/lib/api';
 import { Plus, Pencil, Trash2, FolderTree, ChevronRight, Loader2, Clock, Eye, EyeOff, GripVertical } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import AvailabilityPicker from '@/components/AvailabilityPicker';
 import { Badge } from '@/components/ui/badge';
+import { AddOnSelector } from '@/components/AddOnSelector';
 import {
   DndContext,
   closestCenter,
@@ -266,6 +267,11 @@ export default function Categories() {
   const [subAvailability, setSubAvailability] = useState<Availability>(defaultAvailability);
   const [subImage, setSubImage] = useState('');
 
+  // Add-ons
+  const [allAddOns, setAllAddOns] = useState<AddOn[]>([]);
+  const [mainAddOnIds, setMainAddOnIds] = useState<string[]>([]);
+  const [subAddOnIds, setSubAddOnIds] = useState<string[]>([]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -277,12 +283,14 @@ export default function Categories() {
 
   const fetchData = async () => {
     try {
-      const [mainCats, cats] = await Promise.all([
+      const [mainCats, cats, addOns] = await Promise.all([
         mainCategoryApi.getAll(),
         categoryApi.getAll(),
+        addOnApi.getAll(),
       ]);
       setMainCategories(mainCats);
       setCategories(cats);
+      setAllAddOns(addOns);
     } catch (error) {
       toast({ title: 'Failed to load categories', variant: 'destructive' });
     } finally {
@@ -346,13 +354,17 @@ export default function Categories() {
   // ---- CRUD handlers (unchanged logic) ----
   const handleCreateMainCategory = async () => {
     try {
+      let savedId: string;
       if (editingMain) {
         await mainCategoryApi.update(editingMain._id, { name: mainName, order: mainOrder, availability: mainAvailability, image: mainImage || undefined });
+        savedId = editingMain._id;
         toast({ title: 'Category updated!' });
       } else {
-        await mainCategoryApi.create({ name: mainName, order: mainOrder, availability: mainAvailability, image: mainImage || undefined });
+        const newCat = await mainCategoryApi.create({ name: mainName, order: mainOrder, availability: mainAvailability, image: mainImage || undefined });
+        savedId = newCat._id;
         toast({ title: 'Category created!' });
       }
+      await addOnApi.assignToMainCategory(savedId, mainAddOnIds);
       setDialogOpen(false);
       resetMainForm();
       fetchData();
@@ -361,7 +373,7 @@ export default function Categories() {
     }
   };
 
-  const resetMainForm = () => { setEditingMain(null); setMainName(''); setMainOrder(1); setMainAvailability(defaultAvailability); setMainImage(''); };
+  const resetMainForm = () => { setEditingMain(null); setMainName(''); setMainOrder(1); setMainAvailability(defaultAvailability); setMainImage(''); setMainAddOnIds([]); };
 
   const handleDeleteMainCategory = async (id: string) => {
     try { await mainCategoryApi.delete(id); toast({ title: 'Category deleted!' }); fetchData(); }
@@ -390,20 +402,24 @@ export default function Categories() {
 
   const handleCreateSubCategory = async () => {
     try {
+      let savedId: string;
       if (editingSub) {
         await categoryApi.update(editingSub._id, { name: subName, availability: subAvailability, image: subImage || undefined });
+        savedId = editingSub._id;
         toast({ title: 'Subcategory updated!' });
       } else {
-        await categoryApi.create({ name: subName, mainCategory: selectedMainCat, availability: subAvailability, image: subImage || undefined });
+        const newCat = await categoryApi.create({ name: subName, mainCategory: selectedMainCat, availability: subAvailability, image: subImage || undefined });
+        savedId = newCat._id;
         toast({ title: 'Subcategory created!' });
       }
+      await addOnApi.assignToCategory(savedId, subAddOnIds);
       setSubDialogOpen(false);
       resetSubForm();
       fetchData();
     } catch { toast({ title: 'Failed to save subcategory', variant: 'destructive' }); }
   };
 
-  const resetSubForm = () => { setEditingSub(null); setSubName(''); setSelectedMainCat(''); setSubAvailability(defaultAvailability); setSubImage(''); };
+  const resetSubForm = () => { setEditingSub(null); setSubName(''); setSelectedMainCat(''); setSubAvailability(defaultAvailability); setSubImage(''); setSubAddOnIds([]); };
 
   const handleDeleteSubCategory = async (id: string) => {
     try { await categoryApi.delete(id); toast({ title: 'Subcategory deleted!' }); fetchData(); }
@@ -413,6 +429,7 @@ export default function Categories() {
   const openEditMain = (cat: MainCategory) => {
     setEditingMain(cat); setMainName(cat.name); setMainOrder(cat.order);
     setMainAvailability(cat.availability || defaultAvailability); setMainImage(cat.image || '');
+    setMainAddOnIds(cat.addOns?.map(a => a._id) || []);
     setDialogOpen(true);
   };
 
@@ -420,6 +437,7 @@ export default function Categories() {
     setEditingSub(cat); setSubName(cat.name);
     setSubAvailability(cat.availability || defaultAvailability); setSubImage(cat.image || '');
     setSelectedMainCat(typeof cat.mainCategory === 'string' ? cat.mainCategory : cat.mainCategory._id);
+    setSubAddOnIds(cat.addOns?.map(a => a._id) || []);
     setSubDialogOpen(true);
   };
 
@@ -514,6 +532,11 @@ export default function Categories() {
                   <Input value={subImage} onChange={(e) => setSubImage(e.target.value)} placeholder="https://example.com/image.jpg" />
                 </div>
                 <AvailabilityPicker value={subAvailability} onChange={setSubAvailability} />
+                <div className="space-y-2">
+                  <Label>Add-Ons</Label>
+                  <AddOnSelector addOns={allAddOns} selectedIds={subAddOnIds} onChange={setSubAddOnIds} />
+                  <p className="text-xs text-muted-foreground">These add-ons will appear for every item in this subcategory</p>
+                </div>
                 <Button onClick={handleCreateSubCategory} variant="gold" className="w-full">
                   {editingSub ? 'Update' : 'Create'} Subcategory
                 </Button>
@@ -547,6 +570,11 @@ export default function Categories() {
                   <Input value={mainImage} onChange={(e) => setMainImage(e.target.value)} placeholder="https://example.com/image.jpg" />
                 </div>
                 <AvailabilityPicker value={mainAvailability} onChange={setMainAvailability} />
+                <div className="space-y-2">
+                  <Label>Add-Ons</Label>
+                  <AddOnSelector addOns={allAddOns} selectedIds={mainAddOnIds} onChange={setMainAddOnIds} />
+                  <p className="text-xs text-muted-foreground">These add-ons will appear for every item in this main category</p>
+                </div>
                 <Button onClick={handleCreateMainCategory} variant="gold" className="w-full">
                   {editingMain ? 'Update' : 'Create'} Category
                 </Button>

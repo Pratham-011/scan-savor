@@ -1,10 +1,10 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Logo } from '@/components/Logo';
-import { 
-  LayoutDashboard, 
-  UtensilsCrossed, 
-  FolderTree, 
-  Settings, 
+import {
+  LayoutDashboard,
+  UtensilsCrossed,
+  FolderTree,
+  Settings,
   QrCode,
   LogOut,
   ChevronLeft,
@@ -12,7 +12,9 @@ import {
   Upload,
   Download,
   Menu,
-  X
+  X,
+  Tag as TagIcon,
+  PlusCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -24,6 +26,8 @@ import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/s
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
   { icon: UtensilsCrossed, label: 'Menu Items', path: '/dashboard/items' },
+  { icon: TagIcon, label: 'Tags', path: '/dashboard/tags' },
+  { icon: PlusCircle, label: 'Add-Ons', path: '/dashboard/add-ons' },
   { icon: FolderTree, label: 'Categories', path: '/dashboard/categories' },
   { icon: QrCode, label: 'QR Code', path: '/dashboard/qr' },
   { icon: Settings, label: 'Settings', path: '/dashboard/settings' },
@@ -81,7 +85,8 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: { collapsed: bool
           })}
         </ul>
 
-        {/* Import/Export Section */}
+        {
+        /* Import/Export Section
         {!collapsed && (
           <div className="mt-6 pt-6 border-t border-sidebar-border">
             <p className="px-3 text-xs font-medium text-sidebar-foreground/50 uppercase tracking-wider mb-2">
@@ -110,7 +115,8 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: { collapsed: bool
               </li>
             </ul>
           </div>
-        )}
+        )} */
+        }
       </nav>
 
       {/* User & Logout */}

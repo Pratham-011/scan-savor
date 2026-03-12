@@ -4,11 +4,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
   DialogTrigger,
   DialogDescription,
 } from '@/components/ui/dialog';
@@ -30,13 +30,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { menuItemApi, mainCategoryApi, categoryApi, restaurantApi, defaultAvailability } from '@/lib/api';
-import type { MenuItem, MainCategory, Category, CreateMenuItemData, Restaurant, Availability } from '@/lib/api';
-import { Plus, Pencil, Trash2, UtensilsCrossed, Loader2, Search, Leaf, Drumstick, Sparkles, Salad, Clock, Eye, EyeOff, GripVertical } from 'lucide-react';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import { menuItemApi, mainCategoryApi, categoryApi, restaurantApi, tagApi, addOnApi, defaultAvailability } from '@/lib/api';
+import type { MenuItem, MainCategory, Category, CreateMenuItemData, Restaurant, Availability, Tag, AddOn } from '@/lib/api';
+import { Plus, Pencil, Trash2, UtensilsCrossed, Loader2, Search, Leaf, Drumstick, Sparkles, Salad, Clock, Eye, EyeOff, GripVertical, Tag as TagIcon, Check, ChevronsUpDown, X } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import AvailabilityPicker from '@/components/AvailabilityPicker';
+import { AddOnSelector } from '@/components/AddOnSelector';
 import {
   DndContext,
   closestCenter,
@@ -55,6 +69,120 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
+// Tag selector for menu item form - dropdown with multi-select
+function TagSelector({ tags, selectedTags, onChange }: {
+  tags: Tag[];
+  selectedTags: Tag[];
+  onChange: (tags: Tag[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const handleToggleTag = (tag: Tag) => {
+    if (selectedTags.some(t => t._id === tag._id)) {
+      onChange(selectedTags.filter(t => t._id !== tag._id));
+    } else {
+      onChange([...selectedTags, tag]);
+    }
+  };
+
+  const handleRemoveTag = (tag: Tag) => {
+    onChange(selectedTags.filter(t => t._id !== tag._id));
+  };
+
+  const filteredTags = tags.filter(tag =>
+    tag.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  if (tags.length === 0) {
+    return (
+      <div className="p-4 text-center text-sm text-muted-foreground border border-dashed rounded-lg">
+        No tags available.{' '}
+        <a href="/dashboard/tags" className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">
+          Create tags first
+        </a>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className="w-full justify-between"
+          >
+            {selectedTags.length === 0
+              ? 'Select tags...'
+              : `${selectedTags.length} tag${selectedTags.length > 1 ? 's' : ''} selected`}
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-full p-0" align="start">
+          <Command>
+            <CommandInput
+              placeholder="Search tags..."
+              value={searchQuery}
+              onValueChange={setSearchQuery}
+            />
+            <CommandList>
+              <CommandEmpty>No tags found.</CommandEmpty>
+              <CommandGroup>
+                {filteredTags.map((tag) => {
+                  const isSelected = selectedTags.some(t => t._id === tag._id);
+                  return (
+                    <CommandItem
+                      key={tag._id}
+                      onSelect={() => handleToggleTag(tag)}
+                    >
+                      <div
+                        className="w-4 h-4 rounded mr-2 border-2"
+                        style={{
+                          backgroundColor: isSelected ? tag.color : 'transparent',
+                          borderColor: tag.color,
+                        }}
+                      >
+                        {isSelected && <Check className="h-3 w-3 text-white" />}
+                      </div>
+                      <span className={isSelected ? 'font-medium' : ''}>{tag.name}</span>
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+
+      {/* Show selected tags as badges */}
+      {selectedTags.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {selectedTags.map((tag) => (
+            <Badge
+              key={tag._id}
+              className="text-white gap-1 pr-1"
+              style={{ backgroundColor: tag.color }}
+            >
+              {tag.name}
+              <button
+                type="button"
+                onClick={() => handleRemoveTag(tag)}
+                className="ml-1 rounded-full hover:bg-black/20 p-0.5"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const emptyForm: CreateMenuItemData = {
   mainCategory: '',
   category: '',
@@ -67,6 +195,9 @@ const emptyForm: CreateMenuItemData = {
   isHalfJain: false,
   availability: { type: 'always' },
   image: '',
+  tags: [],
+  addOns: [],
+  addOnExclusions: [],
 };
 
 function getShortAvailabilityLabel(a: Availability): string {
@@ -131,6 +262,20 @@ function SortableMenuItem({ item, isAvailable, disabledReason, mainCat, subCat, 
         <div className="flex flex-wrap gap-1 mb-3">
           {mainCat && <Badge variant="secondary">{mainCat.name}</Badge>}
           {subCat && <Badge variant="outline">{subCat.name}</Badge>}
+          {item.tags && item.tags.map(tag => (
+            <Badge
+              key={tag._id}
+              className="text-white border-0"
+              style={{ backgroundColor: tag.color }}
+            >
+              {tag.name}
+            </Badge>
+          ))}
+          {(item.effectiveAddOns || item.addOns) && (item.effectiveAddOns || item.addOns)?.length > 0 && (item.effectiveAddOns || item.addOns)?.map(addOn => (
+            <Badge key={addOn._id} variant="outline" className="text-xs">
+              +{addOn.name} ₹{addOn.price}
+            </Badge>
+          ))}
           {item.isJain && (
             <Badge className="bg-amber-500/20 text-amber-600 border-amber-500/30 hover:bg-amber-500/30">Jain</Badge>
           )}
@@ -194,6 +339,8 @@ export default function MenuItems() {
   const [mainCategories, setMainCategories] = useState<MainCategory[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [allAddOns, setAllAddOns] = useState<AddOn[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
@@ -203,6 +350,7 @@ export default function MenuItems() {
   const [filterFoodType, setFilterFoodType] = useState('all');
   const [filterAvailability, setFilterAvailability] = useState('all');
   const [filterSubCategory, setFilterSubCategory] = useState('all');
+  const [filterTag, setFilterTag] = useState('all');
 
   const { toast } = useToast();
 
@@ -215,18 +363,34 @@ export default function MenuItems() {
     fetchData();
   }, []);
 
+  const getInheritedAddOnIds = (mainCategoryId: string, categoryId: string) => {
+    const ids = new Set<string>();
+
+    const mainCat = mainCategories.find((m) => m._id === mainCategoryId);
+    const subCat = categories.find((c) => c._id === categoryId);
+
+    (mainCat?.addOns || []).forEach((a) => ids.add(a._id));
+    (subCat?.addOns || []).forEach((a) => ids.add(a._id));
+
+    return Array.from(ids);
+  };
+
   const fetchData = async () => {
     try {
-      const [itemsData, mainCats, cats, restaurantData] = await Promise.all([
+      const [itemsData, mainCats, cats, restaurantData, tagsData, addOnsData] = await Promise.all([
         menuItemApi.getAll(),
         mainCategoryApi.getAll(),
         categoryApi.getAll(),
         restaurantApi.get(),
+        tagApi.getAll(),
+        addOnApi.getAll(),
       ]);
       setItems(itemsData);
       setMainCategories(mainCats);
       setCategories(cats);
       setRestaurant(restaurantData);
+      setTags(tagsData);
+      setAllAddOns(addOnsData);
     } catch (error) {
       toast({ title: 'Failed to load menu items', variant: 'destructive' });
     } finally {
@@ -236,11 +400,23 @@ export default function MenuItems() {
 
   const handleSubmit = async () => {
     try {
+      const inheritedIds = getInheritedAddOnIds(formData.mainCategory, formData.category);
+      const selectedEffectiveIds = formData.addOns || [];
+
+      const itemLevelAddOns = selectedEffectiveIds.filter((id) => !inheritedIds.includes(id));
+      const addOnExclusions = inheritedIds.filter((id) => !selectedEffectiveIds.includes(id));
+
+      const payload: CreateMenuItemData = {
+        ...formData,
+        addOns: itemLevelAddOns,
+        addOnExclusions,
+      };
+
       if (editingItem) {
-        await menuItemApi.update(editingItem._id, formData);
+        await menuItemApi.update(editingItem._id, payload);
         toast({ title: 'Item updated!' });
       } else {
-        await menuItemApi.create(formData);
+        await menuItemApi.create(payload);
         toast({ title: 'Item created!' });
       }
       setDialogOpen(false);
@@ -321,6 +497,9 @@ export default function MenuItems() {
       isHalfJain: item.isHalfJain || false,
       availability: item.availability || defaultAvailability,
       image: item.image || '',
+      tags: item.tags || [],
+      addOns: item.effectiveAddOns ? item.effectiveAddOns.map(a => a._id) : (item.addOns ? item.addOns.map(a => a._id) : []),
+      addOnExclusions: item.addOnExclusions ? item.addOnExclusions.map(a => a._id) : [],
     });
     setDialogOpen(true);
   };
@@ -376,7 +555,8 @@ export default function MenuItems() {
     let matchesAvailability = true;
     if (filterAvailability === 'available') matchesAvailability = item.isCurrentlyAvailable !== false;
     else if (filterAvailability === 'unavailable') matchesAvailability = item.isCurrentlyAvailable === false;
-    return matchesSearch && matchesMainCategory && matchesSubCategory && matchesFoodType && matchesAvailability;
+    const matchesTag = filterTag === 'all' || (item.tags && item.tags.some(t => t._id === filterTag));
+    return matchesSearch && matchesMainCategory && matchesSubCategory && matchesFoodType && matchesAvailability && matchesTag;
   }).sort((a, b) => (a.order || 0) - (b.order || 0));
   
   const availableSubCategories = categories.filter(c => c.mainCategory._id === formData.mainCategory);
@@ -468,7 +648,7 @@ export default function MenuItems() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Main Category</Label>
-                  <Select value={formData.mainCategory} onValueChange={(v) => setFormData(prev => ({ ...prev, mainCategory: v, category: '' }))}>
+                  <Select value={formData.mainCategory} onValueChange={(v) => setFormData(prev => ({ ...prev, mainCategory: v, category: '', addOns: [] }))}>
                     <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
                     <SelectContent>
                       {mainCategories.map((cat) => (
@@ -479,7 +659,7 @@ export default function MenuItems() {
                 </div>
                 <div className="space-y-2">
                   <Label>Subcategory</Label>
-                  <Select value={formData.category} onValueChange={(v) => setFormData(prev => ({ ...prev, category: v }))} disabled={!formData.mainCategory}>
+                  <Select value={formData.category} onValueChange={(v) => setFormData(prev => ({ ...prev, category: v, addOns: getInheritedAddOnIds(prev.mainCategory, v) }))} disabled={!formData.mainCategory}>
                     <SelectTrigger><SelectValue placeholder="Select subcategory" /></SelectTrigger>
                     <SelectContent>
                       {availableSubCategories.map((cat) => (
@@ -551,10 +731,34 @@ export default function MenuItems() {
                 )}
               </div>
 
-              <AvailabilityPicker 
-                value={formData.availability} 
-                onChange={(a) => setFormData(prev => ({ ...prev, availability: a }))} 
+              <AvailabilityPicker
+                value={formData.availability}
+                onChange={(a) => setFormData(prev => ({ ...prev, availability: a }))}
               />
+
+              <div className="space-y-2">
+                <Label>Tags</Label>
+                <TagSelector
+                  tags={tags.sort((a, b) => a.order - b.order)}
+                  selectedTags={formData.tags || []}
+                  onChange={(tags) => setFormData(prev => ({ ...prev, tags }))}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Select tags to categorize this item
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Add-Ons (item override)</Label>
+                <AddOnSelector
+                  addOns={allAddOns}
+                  selectedIds={formData.addOns || []}
+                  onChange={(ids) => setFormData(prev => ({ ...prev, addOns: ids }))}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Inherited add-ons are preselected. Unselect to remove for this item only, or select extra ones.
+                </p>
+              </div>
 
               <Button onClick={handleSubmit} variant="gold" className="w-full">
                 {editingItem ? 'Update' : 'Create'} Item
@@ -615,6 +819,20 @@ export default function MenuItems() {
               <SelectItem value="all">All Items</SelectItem>
               <SelectItem value="available">Available</SelectItem>
               <SelectItem value="unavailable">Unavailable</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filterTag} onValueChange={setFilterTag}>
+            <SelectTrigger className="w-full sm:w-40"><SelectValue placeholder="All Tags" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Tags</SelectItem>
+              {tags.map((tag) => (
+                <SelectItem key={tag._id} value={tag._id}>
+                  <span className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: tag.color }} />
+                    {tag.name}
+                  </span>
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
