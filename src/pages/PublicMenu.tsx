@@ -332,6 +332,34 @@ const filteredItems = menuData.menu.filter(item => {
 
   const { restaurant } = menuData;
 
+  const mapsUrl = useMemo(() => {
+    const raw = restaurant.locationLink?.trim();
+
+    if (raw) {
+      if (/^https?:\/\//i.test(raw)) return raw;
+      if (raw.includes('google.') || raw.includes('maps.app.goo.gl') || raw.startsWith('www.')) {
+        return `https://${raw.replace(/^\/+/, '')}`;
+      }
+    }
+
+    if (restaurant.address) {
+      return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(restaurant.address)}`;
+    }
+
+    return null;
+  }, [restaurant.locationLink, restaurant.address]);
+
+  const instagramUrl = useMemo(() => {
+    const raw = restaurant.Instaurl?.trim();
+    if (!raw) return null;
+
+    if (/^https?:\/\//i.test(raw)) return raw;
+    if (raw.startsWith('@')) return `https://instagram.com/${raw.slice(1)}`;
+    if (raw.includes('instagram.com/')) return `https://${raw.replace(/^https?:\/\//i, '')}`;
+
+    return `https://instagram.com/${raw}`;
+  }, [restaurant.Instaurl]);
+
   return (
     <div className="min-h-screen bg-background pb-24">
       {/* Header */}
