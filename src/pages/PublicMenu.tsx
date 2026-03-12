@@ -393,34 +393,30 @@ const filteredItems = menuData.menu.filter(item => {
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
+          <div className="flex flex-col gap-1.5 text-sm text-muted-foreground">
             {restaurant.address && (
               <div className="flex items-start gap-1.5 min-h-[40px] py-1">
-                {mapsUrl ? (
-                  <a
-                    href={mapsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-start gap-1.5 min-w-0 rounded-md px-1 py-1 -mx-1 active:text-primary transition-colors touch-manipulation"
-                  >
-                    <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  {mapsUrl ? (
+                    <a
+                      href={mapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={cn("active:text-primary transition-colors touch-manipulation", !addressExpanded && restaurant.address.length > 40 && "line-clamp-1")}
+                    >
+                      {restaurant.address}
+                    </a>
+                  ) : (
                     <span className={cn(!addressExpanded && restaurant.address.length > 40 && "line-clamp-1")}>
                       {restaurant.address}
                     </span>
-                  </a>
-                ) : (
-                  <div className="flex items-start gap-1.5 min-w-0">
-                    <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                    <span className={cn(!addressExpanded && restaurant.address.length > 40 && "line-clamp-1")}>
-                      {restaurant.address}
-                    </span>
-                  </div>
-                )}
-
+                  )}
+                </div>
                 {restaurant.address.length > 40 && (
                   <button
-                    onClick={() => setAddressExpanded(!addressExpanded)}
-                    className="text-xs text-primary font-medium mt-1"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setAddressExpanded(!addressExpanded); }}
+                    className="text-xs text-primary font-medium whitespace-nowrap flex-shrink-0 border border-primary/30 rounded px-1.5 py-0.5"
                     type="button"
                   >
                     {addressExpanded ? 'Show less' : 'Read more'}
@@ -428,26 +424,28 @@ const filteredItems = menuData.menu.filter(item => {
                 )}
               </div>
             )}
-            {restaurant.phone && (
-              <a
-                href={`tel:${restaurant.phone}`}
-                className="flex items-center gap-1.5 min-h-[40px] px-2 -mx-2 py-1 rounded-md active:text-primary transition-colors touch-manipulation"
-              >
-                <Phone className="h-4 w-4" />
-                {restaurant.phone}
-              </a>
-            )}
-            {instagramUrl && (
-              <a
-                href={instagramUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 min-h-[40px] px-2 -mx-2 py-1 rounded-md active:text-primary transition-colors touch-manipulation"
-              >
-                <Instagram className="h-4 w-4" />
-                Instagram
-              </a>
-            )}
+            <div className="flex flex-wrap items-center gap-3">
+              {restaurant.phone && (
+                <a
+                  href={`tel:${restaurant.phone}`}
+                  className="flex items-center gap-1.5 min-h-[36px] py-1 active:text-primary transition-colors touch-manipulation"
+                >
+                  <Phone className="h-4 w-4" />
+                  {restaurant.phone}
+                </a>
+              )}
+              {instagramUrl && (
+                <a
+                  href={instagramUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 min-h-[36px] py-1 active:text-primary transition-colors touch-manipulation"
+                >
+                  <Instagram className="h-4 w-4" />
+                  Instagram
+                </a>
+              )}
+            </div>
           </div>
         </div>
       </div>
