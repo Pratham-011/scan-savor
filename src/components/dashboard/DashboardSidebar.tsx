@@ -14,7 +14,9 @@ import {
   Menu,
   X,
   Tag as TagIcon,
-  PlusCircle
+  PlusCircle,
+  MessageCircle,
+  Megaphone
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -30,6 +32,11 @@ const navItems = [
   { icon: PlusCircle, label: 'Add-Ons', path: '/dashboard/add-ons' },
   { icon: FolderTree, label: 'Categories', path: '/dashboard/categories' },
   { icon: QrCode, label: 'QR Code', path: '/dashboard/qr' },
+  { icon: MessageCircle, label: 'WhatsApp Setup', path: '/dashboard/whatsapp' },
+  { icon: MessageCircle, label: 'Templates', path: '/dashboard/whatsapp-automation' },
+  { icon: MessageCircle, label: 'Quick Replies', path: '/dashboard/whatsapp-quick-replies' },
+  { icon: MessageCircle, label: 'Customers', path: '/dashboard/whatsapp-customers' },
+  { icon: Megaphone, label: 'Broadcast', path: '/dashboard/broadcast' },
   { icon: Settings, label: 'Settings', path: '/dashboard/settings' },
 ];
 

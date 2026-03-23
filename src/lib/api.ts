@@ -1,21 +1,34 @@
 // const API_BASE = 'https://oneqr.onrender.com/api';
 // const BASE_URL = 'https://oneqr.onrender.com';
 
-//LOCAL DEV BACKEND LINK
+// LOCAL DEV BACKEND LINK
 // const API_BASE = 'http://localhost:5000/api';
 // const BASE_URL = 'http://localhost:5000';
 
-//DEV BACKEND LINK(main branch)
+// DEV BACKEND LINK(main branch)
 // const API_BASE = 'https://oneqrbackend-axhad4hnenejhtek.eastasia-01.azurewebsites.net/api';
 // const BASE_URL = 'https://oneqrbackend-axhad4hnenejhtek.eastasia-01.azurewebsites.net';
 
-//PROD BACKEND LINK(prod branch)
+// PROD BACKEND LINK(prod branch)
 const API_BASE = 'https://oneqrprod-dag2b3cmg0gsa7br.eastasia-01.azurewebsites.net/api';
-const BASE_URL = 'https://oneqrprod-dag2b3cmg0gsa7br.eastasia-01.azurewebsites.net/';
+const BASE_URL = 'https://oneqrprod-dag2b3cmg0gsa7br.eastasia-01.azurewebsites.net';
+
+export const getResolvedApiBase = () => API_BASE;
+export const getResolvedBaseUrl = () => BASE_URL;
 
 // const frontendBaseUrl = 'https://scan-savor.vercel.app';
 // Helper to get auth token
 const getToken = () => localStorage.getItem('authToken');
+
+class ApiError extends Error {
+  details?: unknown;
+
+  constructor(message: string, details?: unknown) {
+    super(message);
+    this.name = 'ApiError';
+    this.details = details;
+  }
+}
 
 // Generic fetch wrapper
 async function apiRequest<T>(
@@ -37,7 +50,14 @@ async function apiRequest<T>(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: 'Request failed' }));
-    throw new Error(error.message || 'Request failed');
+    const metaMessage =
+      error?.metaError?.error?.error_user_msg ||
+      error?.metaError?.error?.message ||
+      error?.error ||
+      error?.message ||
+      'Request failed';
+
+    throw new ApiError(metaMessage, error);
   }
 
   return response.json();
@@ -299,11 +319,34 @@ export const menuAnalyticsApi = {
 
 // Public Menu API
 export const publicMenuApi = {
-  getBySlug: (slug: string) =>
-    fetch(`${BASE_URL}/menu/${slug}`).then(res => {
+  getPublicSiteOrigin: () =>
+    typeof window !== 'undefined'
+      ? window.location.origin.replace(/\/$/, '')
+      : BASE_URL,
+
+        getSettings: (slug: string) =>
+    fetch(`${publicMenuApi.getPublicSiteOrigin()}/api/public-menu/${slug}/settings`, {
+      headers: { Accept: 'application/json' },
+    }).then(res => {
+      if (!res.ok) throw new Error('Settings not found');
+      return res.json() as Promise<{
+        whatsappEnabled: boolean;
+        redirectUrl: string | null;
+        menuUrl: string;
+      }>;
+    }),
+
+  getBySlug: (slug: string, source?: string) =>
+    fetch(`${publicMenuApi.getPublicSiteOrigin()}/api/public-menu/${slug}${source ? `?source=${encodeURIComponent(source)}` : ''}`, {
+      headers: {
+        Accept: 'application/json',
+      },
+    }).then(res => {
       if (!res.ok) throw new Error('Menu not found');
       return res.json() as Promise<PublicMenuResponse>;
     }),
+
+  getWhatsAppRedirectUrl: (slug: string) => `${BASE_URL}/api/whatsapp/redirect/${slug}`,
 
   // Fetch tags for a restaurant by slug
   getTagsBySlug: async (slug: string): Promise<Tag[]> => {
@@ -530,9 +573,543 @@ export interface PublicRestaurant extends Omit<Restaurant, 'slug'> {
   qrSlug: string;
   foodTypes?: ('jain' | 'veg' | 'non-veg' | 'vegan' | 'half-jain')[];
   locationLink?: string;
+  whatsapp?: {
+    isEnabled?: boolean;
+    qrRedirectEnabled?: boolean;
+    autoReplyEnabled?: boolean;
+  };
 }
 
 export interface PublicMenuResponse {
-  restaurant: PublicRestaurant;
-  menu: PublicMenuItem[];
+  restaurant?: PublicRestaurant;
+  menu?: PublicMenuItem[];
+  redirectToWhatsapp?: boolean;
+  redirectUrl?: string;
 }
+
+// WhatsApp API
+export interface WhatsAppConfig {
+  wabaId: string;
+  accessToken: string;
+  phoneNumberId: string;
+  phoneNumber: string;
+  qrPrefillMessage?: string;
+  isEnabled?: boolean;
+  qrRedirectEnabled?: boolean;
+  autoReplyEnabled?: boolean;
+  autoReplyTriggerMessage?: string;
+  autoReplyMatchType?: 'contains' | 'equals';
+  autoReplyResponseType?: 'auto' | 'template' | 'text';
+  autoReplyTemplateId?: string | null;
+  autoReplyText?: string;
+}
+
+export interface WhatsAppTemplate {
+  _id: string;
+  restaurant: string;
+  name: string;
+  body: string;
+  category: 'marketing' | 'utility' | 'authentication' | 'custom';
+  status:
+    | 'pending'
+    | 'in_review'
+    | 'approved'
+    | 'rejected'
+    | 'paused'
+    | 'disabled'
+    | 'appeal_requested'
+    | 'pending_deletion'
+    | 'unknown';
+  isActive: boolean;
+  isDefault: boolean;
+  autoSend: boolean;
+  metaTemplateId?: string;
+  language?: string;
+  parameterFormat?: 'named' | 'positional';
+  components?: WhatsAppTemplateComponent[];
+  qualityScore?: 'unknown' | 'green' | 'yellow' | 'red' | string;
+  statusReason?: string;
+  lastStatusCheck?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WhatsAppTemplateComponent {
+  type: 'header' | 'body' | 'footer' | 'buttons';
+  format?: 'text' | 'image' | 'video' | 'document' | 'location';
+  text?: string;
+  buttons?: WhatsAppTemplateButton[];
+  example?: Record<string, unknown>;
+}
+
+export interface WhatsAppTemplateButton {
+  type: 'quick_reply' | 'url' | 'phone_number' | 'copy_code' | 'otp';
+  text: string;
+  url?: string;
+  phone_number?: string;
+  example?: string[] | string;
+  otp_type?: 'copy_code' | 'one_tap' | 'zero_tap';
+}
+
+export interface CreateWhatsAppTemplatePayload {
+  name: string;
+  body: string;
+  category: 'marketing' | 'utility' | 'authentication' | 'custom';
+  language?: string;
+  parameterFormat?: 'named' | 'positional';
+  components?: WhatsAppTemplateComponent[];
+  isActive?: boolean;
+  isDefault?: boolean;
+  autoSend?: boolean;
+}
+
+export interface UpdateWhatsAppTemplatePayload {
+  name?: string;
+  body?: string;
+  category?: 'marketing' | 'utility' | 'authentication' | 'custom';
+  language?: string;
+  parameterFormat?: 'named' | 'positional';
+  components?: WhatsAppTemplateComponent[];
+  isActive?: boolean;
+  isDefault?: boolean;
+  autoSend?: boolean;
+}
+
+export interface QuickReplyStep {
+  order: number;
+  kind: 'template' | 'text';
+  templateId?: string | null;
+  text?: string;
+}
+
+export interface QuickReplyRule {
+  _id: string;
+  restaurant: string;
+  name: string;
+  triggerText: string;
+  matchType: 'contains' | 'equals';
+  priority: number;
+  isActive: boolean;
+  sequence: QuickReplyStep[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CustomerInteraction {
+  _id: string;
+  restaurant: string;
+  whatsappNumber: string;
+  customerName?: string;
+  customerProfileName?: string;
+  customerProfileImage?: string;
+  qrSessionId?: string;
+  qrScanTimestamp?: string;
+  interactionType: 'qr_scan' | 'whatsapp_message' | 'menu_view' | 'whatsapp_auto_reply';
+  message?: string;
+  whatsappMessageId?: string;
+  deliveryStatus?: 'pending' | 'sent' | 'delivered' | 'read' | 'failed';
+  deliveryErrorCode?: string | null;
+  deliveryErrorTitle?: string | null;
+  deliveryErrorMessage?: string | null;
+  deliveryErrorDetails?: string | null;
+  messageTimestamp?: string;
+  waRedirectUrl?: string;
+  menuLinkSent: boolean;
+  menuLinkSentTime?: string;
+  ipAddress?: string;
+  userAgent?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Customer {
+  _id: string;
+  whatsappNumber: string;
+  customerName?: string;
+  customerProfileName?: string;
+  customerProfileImage?: string;
+  lastInteraction: string;
+  interactionCount: number;
+  interactionTypes: string[];
+  latestMessage?: string;
+  latestDeliveryStatus?: 'pending' | 'sent' | 'delivered' | 'read' | 'failed';
+  latestDeliveryErrorMessage?: string | null;
+  latestDeliveryErrorDetails?: string | null;
+}
+
+export const whatsappApi = {
+  // Configure WhatsApp settings
+  configureSettings: (config: WhatsAppConfig) =>
+    apiRequest<{ message: string; restaurant: PublicRestaurant }>('/whatsapp/configure', {
+      method: 'POST',
+      body: JSON.stringify(config),
+    }),
+
+  getSettings: () =>
+    apiRequest<{ whatsapp: Partial<WhatsAppConfig> }>('/whatsapp/settings'),
+
+  updateSettings: (data: Partial<WhatsAppConfig>) =>
+    apiRequest<{ message: string; whatsapp: Partial<WhatsAppConfig> }>('/whatsapp/settings', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  createTemplate: (data: CreateWhatsAppTemplatePayload) =>
+    apiRequest<{ message: string; template: WhatsAppTemplate }>('/whatsapp/templates', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  getTemplates: (forceFresh = false) =>
+    apiRequest<{ templates: WhatsAppTemplate[] }>(`/whatsapp/templates${forceFresh ? `?_ts=${Date.now()}` : ''}`, {
+      cache: 'no-store',
+    }),
+
+  getTemplate: (id: string) =>
+    apiRequest<{ template: WhatsAppTemplate }>(`/whatsapp/templates/${id}`),
+
+  syncTemplates: () =>
+    apiRequest<{ message: string; templates: WhatsAppTemplate[] }>('/whatsapp/templates/sync', {
+      method: 'POST',
+    }),
+
+  updateTemplate: (id: string, data: UpdateWhatsAppTemplatePayload) =>
+    apiRequest<{ message: string; template: WhatsAppTemplate }>(`/whatsapp/templates/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  deleteTemplate: (id: string) =>
+    apiRequest<{ message: string }>(`/whatsapp/templates/${id}`, {
+      method: 'DELETE',
+    }),
+
+  updateTemplateStatus: (id: string, status: 'in_review' | 'approved' | 'rejected') =>
+    apiRequest<{ message: string; template: WhatsAppTemplate }>(`/whatsapp/templates/${id}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    }),
+
+  checkTemplateStatus: (id: string) =>
+    apiRequest<{
+      message: string;
+      template: WhatsAppTemplate;
+      refreshedAt: string;
+      webhookDebug?: {
+        receivedAt: string | null;
+        phoneNumberId: string | null;
+        displayPhone: string | null;
+        hasMessages: boolean;
+        fromPhone: string | null;
+        messageType: string | null;
+        webhookReceived: boolean;
+      };
+    }>(`/whatsapp/templates/${id}/check-status`, {
+      method: 'POST',
+    }),
+
+  createQuickReply: (data: {
+    name: string;
+    triggerText: string;
+    matchType: 'contains' | 'equals';
+    priority: number;
+    isActive: boolean;
+    sequence: QuickReplyStep[];
+  }) =>
+    apiRequest<{ message: string; quickReply: QuickReplyRule }>('/whatsapp/quick-replies', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  getQuickReplies: () =>
+    apiRequest<{ quickReplies: QuickReplyRule[] }>('/whatsapp/quick-replies'),
+
+  updateQuickReply: (
+    id: string,
+    data: Partial<{
+      name: string;
+      triggerText: string;
+      matchType: 'contains' | 'equals';
+      priority: number;
+      isActive: boolean;
+      sequence: QuickReplyStep[];
+    }>
+  ) =>
+    apiRequest<{ message: string; quickReply: QuickReplyRule }>(`/whatsapp/quick-replies/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  deleteQuickReply: (id: string) =>
+    apiRequest<{ message: string }>(`/whatsapp/quick-replies/${id}`, {
+      method: 'DELETE',
+    }),
+
+  // Get customer interactions for analytics
+  getInteractions: (restaurantId: string, page = 1, limit = 20) =>
+    apiRequest<{
+      interactions: CustomerInteraction[];
+      pagination: { page: number; limit: number; total: number; totalPages: number };
+    }>(`/whatsapp/interactions/${restaurantId}?page=${page}&limit=${limit}`),
+
+  // Get unique customers
+  getCustomers: (restaurantId: string, page = 1, limit = 20, search = '') =>
+    apiRequest<{
+      customers: Customer[];
+      pagination: { page: number; limit: number; total: number; totalPages: number };
+    }>(`/whatsapp/customers/${restaurantId}?page=${page}&limit=${limit}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
+
+  // Get customer details
+  getCustomerDetails: (restaurantId: string, phoneNumber: string) =>
+    apiRequest<{
+      customer: {
+        whatsappNumber: string;
+        firstInteraction: string;
+        lastInteraction: string;
+        totalInteractions: number;
+      };
+      interactions: CustomerInteraction[];
+    }>(`/whatsapp/customer/${restaurantId}/${phoneNumber}`),
+
+  // Send menu link to customer
+  sendMenuLink: (restaurantId: string, customerPhone: string, menuUrl: string) =>
+    apiRequest<{
+      message: string;
+      whatsappUrl: string;
+      interaction: CustomerInteraction;
+    }>('/whatsapp/send-menu', {
+      method: 'POST',
+      body: JSON.stringify({
+        restaurantId,
+        customerPhone,
+        menuUrl,
+      }),
+    }),
+};
+
+export interface BroadcastContact {
+  _id: string;
+  restaurant: string;
+  name: string;
+  phone: string;
+  email?: string;
+  tags?: string[];
+  source: 'manual' | 'import' | 'customer_sync';
+  isActive: boolean;
+  lastInteractionAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BroadcastCampaign {
+  _id: string;
+  restaurant: string;
+  name: string;
+  templateId: string;
+  templateName: string;
+  templateLanguage?: string;
+  message: string;
+  status: 'draft' | 'scheduled' | 'running' | 'completed' | 'failed';
+  scheduledAt?: string | null;
+  retryAutomation: {
+    enabled: boolean;
+    maxRetries: number;
+    retryDelayMinutes: number;
+  };
+  stats: {
+    total: number;
+    pending: number;
+    sent: number;
+    delivered: number;
+    read: number;
+    failed: number;
+    successRate: number;
+    deliveryRate: number;
+    readRate: number;
+  };
+  startedAt?: string | null;
+  completedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BroadcastRecipient {
+  _id: string;
+  campaign: string;
+  contact: string;
+  phone: string;
+  name: string;
+  status: 'pending' | 'sent' | 'delivered' | 'read' | 'failed';
+  attempts: number;
+  maxRetries: number;
+  retryAutomationEnabled: boolean;
+  nextRetryAt?: string | null;
+  lastAttemptAt?: string | null;
+  whatsappMessageId?: string | null;
+  errorCode?: string | null;
+  errorMessage?: string | null;
+  history?: Array<{
+    status: string;
+    at: string;
+    errorCode?: string | null;
+    errorMessage?: string | null;
+    whatsappMessageId?: string | null;
+  }>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const downloadCsvWithAuth = async (endpoint: string, filename: string) => {
+  const token = getToken();
+  const response = await fetch(`${API_BASE}${endpoint}`, {
+    headers: {
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Download failed' }));
+    throw new Error(error?.message || 'Download failed');
+  }
+
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  window.URL.revokeObjectURL(url);
+};
+
+export const broadcastApi = {
+  getApprovedTemplates: () =>
+    apiRequest<{ templates: WhatsAppTemplate[] }>('/broadcast/templates/approved'),
+
+  getContacts: (page = 1, limit = 25, search = '') =>
+    apiRequest<{
+      contacts: BroadcastContact[];
+      pagination: { page: number; limit: number; total: number; totalPages: number };
+    }>(`/broadcast/contacts?page=${page}&limit=${limit}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
+
+  createContact: (data: { name: string; phone: string; email?: string; tags?: string[] }) =>
+    apiRequest<{ message: string; contact: BroadcastContact }>('/broadcast/contacts', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  deleteContact: (id: string) =>
+    apiRequest<{ message: string }>(`/broadcast/contacts/${id}`, {
+      method: 'DELETE',
+    }),
+
+  importContacts: async (file: File) => {
+    const token = getToken();
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${API_BASE}/broadcast/contacts/import`, {
+      method: 'POST',
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Import failed' }));
+      throw new Error(error?.message || 'Import failed');
+    }
+
+    return response.json() as Promise<{
+      message: string;
+      summary: {
+        parsed: number;
+        created: number;
+        updated: number;
+      };
+    }>;
+  },
+
+  syncCustomersToContacts: () =>
+    apiRequest<{
+      message: string;
+      summary: {
+        customers: number;
+        created: number;
+        updated: number;
+      };
+    }>('/broadcast/contacts/sync-customers', {
+      method: 'POST',
+    }),
+
+  exportContacts: () => downloadCsvWithAuth('/broadcast/contacts/export', 'broadcast-contacts.csv'),
+
+  createCampaign: (data: {
+    name: string;
+    templateId: string;
+    contactIds?: string[];
+    launch?: boolean;
+    scheduleAt?: string;
+    retryAutomation?: {
+      enabled?: boolean;
+      maxRetries?: number;
+      retryDelayMinutes?: number;
+    };
+  }) =>
+    apiRequest<{ message: string; campaign: BroadcastCampaign }>('/broadcast/campaigns', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  startCampaign: (id: string) =>
+    apiRequest<{ message: string; campaign: BroadcastCampaign }>(`/broadcast/campaigns/${id}/start`, {
+      method: 'POST',
+    }),
+
+  startNowCampaign: (id: string) =>
+    apiRequest<{ message: string; campaign: BroadcastCampaign }>(`/broadcast/campaigns/${id}/start-now`, {
+      method: 'POST',
+    }),
+
+  getCampaigns: (page = 1, limit = 20) =>
+    apiRequest<{
+      campaigns: BroadcastCampaign[];
+      pagination: { page: number; limit: number; total: number; totalPages: number };
+    }>(`/broadcast/campaigns?page=${page}&limit=${limit}`),
+
+  getCampaignDetail: (id: string, options?: { page?: number; limit?: number; status?: string; search?: string }) => {
+    const page = options?.page ?? 1;
+    const limit = options?.limit ?? 25;
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+    });
+
+    if (options?.status) {
+      params.set('status', options.status);
+    }
+    if (options?.search) {
+      params.set('search', options.search);
+    }
+
+    return apiRequest<{
+      campaign: BroadcastCampaign;
+      stats: BroadcastCampaign['stats'] & { status: BroadcastCampaign['status'] };
+      recipients: BroadcastRecipient[];
+      pagination: { page: number; limit: number; total: number; totalPages: number };
+    }>(`/broadcast/campaigns/${id}?${params.toString()}`);
+  },
+
+  updateRetryConfig: (id: string, data: { enabled: boolean; maxRetries: number; retryDelayMinutes: number }) =>
+    apiRequest<{ message: string; campaign: BroadcastCampaign }>(`/broadcast/campaigns/${id}/retry-config`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  retryFailed: (id: string) =>
+    apiRequest<{ message: string; retriedCount: number }>(`/broadcast/campaigns/${id}/retry-failed`, {
+      method: 'POST',
+    }),
+
+  exportCampaignReport: (id: string) => downloadCsvWithAuth(`/broadcast/campaigns/${id}/export`, `broadcast-${id}.csv`),
+};

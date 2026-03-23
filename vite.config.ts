@@ -12,6 +12,12 @@ export default defineConfig(({ mode }) => ({
       overlay: false,
     },
     allowedHosts: ["*"],
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+      },
+    },
 
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
