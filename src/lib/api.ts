@@ -319,13 +319,10 @@ export const menuAnalyticsApi = {
 
 // Public Menu API
 export const publicMenuApi = {
-  getPublicSiteOrigin: () =>
-    typeof window !== 'undefined'
-      ? window.location.origin.replace(/\/$/, '')
-      : BASE_URL,
+  getPublicApiOrigin: () => BASE_URL.replace(/\/$/, ''),
 
-        getSettings: (slug: string) =>
-    fetch(`${publicMenuApi.getPublicSiteOrigin()}/api/public-menu/${slug}/settings`, {
+  getSettings: (slug: string) =>
+    fetch(`${publicMenuApi.getPublicApiOrigin()}/api/public-menu/${slug}/settings`, {
       headers: { Accept: 'application/json' },
     }).then(res => {
       if (!res.ok) throw new Error('Settings not found');
@@ -337,7 +334,7 @@ export const publicMenuApi = {
     }),
 
   getBySlug: (slug: string, source?: string) =>
-    fetch(`${publicMenuApi.getPublicSiteOrigin()}/api/public-menu/${slug}${source ? `?source=${encodeURIComponent(source)}` : ''}`, {
+    fetch(`${publicMenuApi.getPublicApiOrigin()}/api/public-menu/${slug}${source ? `?source=${encodeURIComponent(source)}` : ''}`, {
       headers: {
         Accept: 'application/json',
       },
