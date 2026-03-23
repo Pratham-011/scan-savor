@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
-    allowedHosts: ["louise-situations-invited-enb.trycloudflare.com","www.one-qr.app","proud-pond-08bd04e00.1.azurestaticapps.net","scan-savor.vercel.app"],
+    allowedHosts: ["proud-pond-08bd04e00.1.azurestaticapps.net"],
     proxy: {
       '/api': {
         target: 'https://oneqrprod-dag2b3cmg0gsa7br.eastasia-01.azurewebsites.net',
