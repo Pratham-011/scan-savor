@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
-    allowedHosts: ["*"],
+    allowedHosts: ["louise-situations-invited-enb.trycloudflare.com","www.one-qr.app","proud-pond-08bd04e00.1.azurestaticapps.net","scan-savor.vercel.app"],
     proxy: {
       '/api': {
         target: 'http://localhost:5000',
