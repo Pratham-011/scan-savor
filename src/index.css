@@ -121,6 +121,15 @@
   .glass-hover {
     @apply transition-all duration-300 hover:bg-card/90 hover:border-primary/20;
   }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 /* Hide scrollbar */

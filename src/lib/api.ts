@@ -2,16 +2,20 @@
 // const BASE_URL = 'https://oneqr.onrender.com';
 
 // LOCAL DEV BACKEND LINK
-// const API_BASE = 'http://localhost:5000/api';
-// const BASE_URL = 'http://localhost:5000';
+const API_BASE = 'http://localhost:5000/api';
+const BASE_URL = 'http://localhost:5000';
+
+// LOCAL NGINX DEV BACKEND LINK
+// const API_BASE = 'https://54c2-36-255-170-81.ngrok-free.app/api';
+// const BASE_URL = 'https://54c2-36-255-170-81.ngrok-free.app';
 
 // DEV BACKEND LINK(main branch)
 // const API_BASE = 'https://oneqrbackend-axhad4hnenejhtek.eastasia-01.azurewebsites.net/api';
 // const BASE_URL = 'https://oneqrbackend-axhad4hnenejhtek.eastasia-01.azurewebsites.net';
 
 // PROD BACKEND LINK(prod branch)
-const API_BASE = 'https://oneqrprod-dag2b3cmg0gsa7br.eastasia-01.azurewebsites.net/api';
-const BASE_URL = 'https://oneqrprod-dag2b3cmg0gsa7br.eastasia-01.azurewebsites.net';
+// const API_BASE = 'https://oneqrprod-dag2b3cmg0gsa7br.eastasia-01.azurewebsites.net/api';
+// const BASE_URL = 'https://oneqrprod-dag2b3cmg0gsa7br.eastasia-01.azurewebsites.net';
 
 export const getResolvedApiBase = () => API_BASE;
 export const getResolvedBaseUrl = () => BASE_URL;
@@ -130,8 +134,8 @@ export const restaurantApi = {
       body: JSON.stringify(data),
     }),
 
-  delete: () =>
-    apiRequest<{ message: string }>('/restaurant', {
+  delete: (confirmToken = 'DELETE') =>
+    apiRequest<{ message: string }>(`/restaurant?confirm=${encodeURIComponent(confirmToken)}`, {
       method: 'DELETE',
     }),
 };
@@ -146,7 +150,7 @@ export const mainCategoryApi = {
 
   getAll: () => apiRequest<MainCategory[]>('/main-category'),
 
-  update: (id: string, data: { name?: string; order?: number; availability?: Availability; image?: string }) =>
+  update: (id: string, data: { name?: string; order?: number; availability?: Availability; image?: string | null }) =>
     apiRequest<MainCategory>(`/main-category/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -168,7 +172,7 @@ export const categoryApi = {
 
   getAll: () => apiRequest<Category[]>('/category'),
 
-  update: (id: string, data: { name?: string; order?: number; availability?: Availability; image?: string }) =>
+  update: (id: string, data: { name?: string; order?: number; availability?: Availability; image?: string | null }) =>
     apiRequest<Category>(`/category/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -318,30 +322,111 @@ export const menuAnalyticsApi = {
 };
 
 // Public Menu API
-export const publicMenuApi = {
-  getPublicApiOrigin: () => BASE_URL.replace(/\/$/, ''),
+// export const publicMenuApi = {
+//   getPublicApiOrigin: () => BASE_URL.replace(/\/$/, ''),
 
-  getSettings: (slug: string) =>
-    fetch(`${publicMenuApi.getPublicApiOrigin()}/api/public-menu/${slug}/settings`, {
+//   getSettings: (slug: string) =>
+//     fetch(`${publicMenuApi.getPublicApiOrigin()}/api/public-menu/${slug}/settings`, {
+//       cache: 'no-store',
+//       headers: { Accept: 'application/json' },
+//     }).then(res => {
+//       if (!res.ok) throw new Error('Settings not found');
+//       return res.json() as Promise<{
+//         whatsappEnabled: boolean;
+//         redirectUrl: string | null;
+//         menuUrl: string;
+//       }>;
+//     }),
+
+//   getBySlug: (slug: string, source?: string) =>
+//     fetch(`${publicMenuApi.getPublicApiOrigin()}/api/public-menu/${slug}${source ? `?source=${encodeURIComponent(source)}` : ''}`, {
+//       cache: 'no-store',
+//       headers: {
+//         Accept: 'application/json',
+//       },
+//     }).then(res => {
+//       if (!res.ok) throw new Error('Menu not found');
+//       return res.json() as Promise<PublicMenuResponse>;
+//     }),
+
+//   getWhatsAppRedirectUrl: (slug: string) => `${BASE_URL}/api/whatsapp/redirect/${slug}`,
+
+//   // Fetch tags for a restaurant by slug
+//   getTagsBySlug: async (slug: string): Promise<Tag[]> => {
+//     // Try known public tag endpoints in order.
+//     const endpoints = [
+//       `${API_BASE}/tag/${slug}`,
+//       `${API_BASE}/tag?slug=${encodeURIComponent(slug)}`,
+//       `${API_BASE}/tag/public/${slug}`,
+//     ];
+
+//     for (const endpoint of endpoints) {
+//       try {
+//         const res = await fetch(endpoint);
+//         if (!res.ok) continue;
+
+//         const data = await res.json();
+//         if (Array.isArray(data)) return data as Tag[];
+//       } catch {
+//         // Try next endpoint.
+//       }
+//     }
+
+//     return [];
+//   },
+// };
+
+
+export const publicMenuApi = {
+  getPublicApiOrigin: () => {
+    if (typeof window !== 'undefined' && import.meta.env.DEV) {
+      return window.location.origin.replace(/\/$/, '');
+    }
+
+    return BASE_URL.replace(/\/$/, '');
+  },
+
+  getSettings: async (slug: string) => {
+    const url = `${publicMenuApi.getPublicApiOrigin()}/api/public-menu/${slug}/settings`;
+
+
+    const res = await fetch(url, {
       headers: { Accept: 'application/json' },
-    }).then(res => {
-      if (!res.ok) throw new Error('Settings not found');
-      return res.json() as Promise<{
+    });
+
+
+
+    if (!res.ok) throw new Error('Settings not found');
+
+    const data = await res.json() as {
         whatsappEnabled: boolean;
         redirectUrl: string | null;
         menuUrl: string;
-      }>;
-    }),
+      };
 
-  getBySlug: (slug: string, source?: string) =>
-    fetch(`${publicMenuApi.getPublicApiOrigin()}/api/public-menu/${slug}${source ? `?source=${encodeURIComponent(source)}` : ''}`, {
+
+    return data;
+  },
+
+  getBySlug: async (slug: string, source?: string) => {
+    const url = `${publicMenuApi.getPublicApiOrigin()}/api/public-menu/${slug}${source ? `?source=${encodeURIComponent(source)}` : ''}`;
+ 
+
+    const res = await fetch(url, {
       headers: {
         Accept: 'application/json',
       },
-    }).then(res => {
-      if (!res.ok) throw new Error('Menu not found');
-      return res.json() as Promise<PublicMenuResponse>;
-    }),
+    });
+
+
+
+    if (!res.ok) throw new Error('Menu not found');
+
+    const data = await res.json() as PublicMenuResponse;
+
+
+    return data;
+  },
 
   getWhatsAppRedirectUrl: (slug: string) => `${BASE_URL}/api/whatsapp/redirect/${slug}`,
 
@@ -369,6 +454,8 @@ export const publicMenuApi = {
     return [];
   },
 };
+
+
 
 // Menu Import/Export
 export const menuApi = {
@@ -586,6 +673,7 @@ export interface PublicMenuResponse {
 
 // WhatsApp API
 export interface WhatsAppConfig {
+  businessId?: string;
   wabaId: string;
   accessToken: string;
   phoneNumberId: string;
@@ -734,6 +822,99 @@ export interface Customer {
   latestDeliveryErrorDetails?: string | null;
 }
 
+export interface WhatsAppWalletSpendBySource {
+  sourceType: 'broadcast' | 'quick_reply' | 'chat' | 'manual_sync' | 'meta_adjustment' | 'other' | string;
+  count: number;
+  billableCount: number;
+  totalAmount: number;
+}
+
+export interface WhatsAppWalletSnapshot {
+  balance: number | null;
+  currency: string | null;
+  lastSyncedAt: string | null;
+  lastSyncError: string | null;
+  totalCredited: number;
+  totalDebited: number;
+  creditCount: number;
+  debitCount: number;
+  spendBySource: WhatsAppWalletSpendBySource[];
+}
+
+export interface WhatsAppWalletTransaction {
+  _id: string;
+  entryType: 'message' | 'balance_sync';
+  direction: 'credit' | 'debit';
+  status: 'pending' | 'posted' | 'failed';
+  sourceType: 'broadcast' | 'quick_reply' | 'chat' | 'manual_sync' | 'meta_adjustment' | 'other' | string;
+  sourceId?: string | null;
+  sourceModel?: string | null;
+  whatsappMessageId?: string | null;
+  recipientPhone?: string | null;
+  templateName?: string | null;
+  amount?: number | null;
+  currency?: string | null;
+  balanceBefore?: number | null;
+  balanceAfter?: number | null;
+  metaStatus?: string | null;
+  billable?: boolean | null;
+  conversationCategory?: string | null;
+  pricingModel?: string | null;
+  note?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WhatsAppConversationWindow {
+  isOpen: boolean;
+  lastInboundAt: string | null;
+  expiresAt: string | null;
+  remainingMs: number;
+  remainingMinutes: number;
+}
+
+export interface WhatsAppChatCustomer {
+  _id: string;
+  phoneNumber: string;
+  customerName?: string | null;
+  lastMessageText?: string;
+  lastMessageType?: 'text' | 'template' | 'interactive' | 'system' | string;
+  lastDirection?: 'inbound' | 'outbound' | string;
+  lastStatus?: 'pending' | 'sent' | 'delivered' | 'read' | 'failed' | string;
+  lastMessageAt?: string;
+  lastInboundAt?: string | null;
+  totalMessages: number;
+  unreadCount: number;
+  conversationWindow: WhatsAppConversationWindow;
+}
+
+export interface WhatsAppChatMessage {
+  _id: string;
+  phoneNumber: string;
+  customerName?: string | null;
+  direction: 'inbound' | 'outbound';
+  messageType: 'text' | 'template' | 'interactive' | 'system' | string;
+  text: string;
+  template?: {
+    templateId?: string | null;
+    name?: string | null;
+    language?: string | null;
+  };
+  status: 'pending' | 'sent' | 'delivered' | 'read' | 'failed' | string;
+  errorMessage?: string | null;
+  metadata?: {
+    channel?: string;
+    sourceModel?: string;
+    sourceId?: string;
+    campaignId?: string;
+    [key: string]: unknown;
+  } | null;
+  within24HourWindow?: boolean | null;
+  sentAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export const whatsappApi = {
   // Configure WhatsApp settings
   configureSettings: (config: WhatsAppConfig) =>
@@ -749,6 +930,29 @@ export const whatsappApi = {
     apiRequest<{ message: string; whatsapp: Partial<WhatsAppConfig> }>('/whatsapp/settings', {
       method: 'PUT',
       body: JSON.stringify(data),
+    }),
+
+  getWallet: (options?: { page?: number; limit?: number; sourceType?: string; refresh?: boolean }) => {
+    const params = new URLSearchParams();
+    if (options?.page) params.set('page', String(options.page));
+    if (options?.limit) params.set('limit', String(options.limit));
+    if (options?.sourceType) params.set('sourceType', options.sourceType);
+    if (options?.refresh) params.set('refresh', 'true');
+    const query = params.toString();
+    return apiRequest<{
+      wallet: WhatsAppWalletSnapshot;
+      sync?: { balance: number; currency: string | null } | null;
+      transactions: WhatsAppWalletTransaction[];
+      pagination: { page: number; limit: number; total: number; totalPages: number };
+    }>(`/whatsapp/wallet${query ? `?${query}` : ''}`);
+  },
+
+  syncWallet: () =>
+    apiRequest<{
+      message: string;
+      wallet: WhatsAppWalletSnapshot;
+    }>('/whatsapp/wallet/sync', {
+      method: 'POST',
     }),
 
   createTemplate: (data: CreateWhatsAppTemplatePayload) =>
@@ -881,6 +1085,54 @@ export const whatsappApi = {
         customerPhone,
         menuUrl,
       }),
+    }),
+
+  getChatCustomers: (page = 1, limit = 20, search = '') =>
+    apiRequest<{
+      customers: WhatsAppChatCustomer[];
+      pagination: { page: number; limit: number; total: number; totalPages: number };
+    }>(`/whatsapp/chat/customers?page=${page}&limit=${limit}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
+
+  getChatMessages: (phoneNumber: string, page = 1, limit = 50) =>
+    apiRequest<{
+      phoneNumber: string;
+      conversationWindow: WhatsAppConversationWindow;
+      messages: WhatsAppChatMessage[];
+      pagination: { page: number; limit: number; total: number; totalPages: number };
+    }>(`/whatsapp/chat/messages/${encodeURIComponent(phoneNumber)}?page=${page}&limit=${limit}`),
+
+  getChatWindow: (phoneNumber: string) =>
+    apiRequest<{
+      phoneNumber: string;
+      conversationWindow: WhatsAppConversationWindow;
+    }>(`/whatsapp/chat/window/${encodeURIComponent(phoneNumber)}`),
+
+  sendChatText: (data: { phoneNumber: string; customerName?: string; text: string }) =>
+    apiRequest<{
+      message: string;
+      chatMessage: WhatsAppChatMessage;
+      conversationWindow: WhatsAppConversationWindow;
+      meta?: unknown;
+    }>('/whatsapp/chat/send/text', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  sendChatTemplate: (data: {
+    phoneNumber: string;
+    customerName?: string;
+    templateId?: string;
+    templateName?: string;
+    variables?: Record<string, string>;
+  }) =>
+    apiRequest<{
+      message: string;
+      chatMessage: WhatsAppChatMessage;
+      conversationWindow: WhatsAppConversationWindow;
+      meta?: unknown;
+    }>('/whatsapp/chat/send/template', {
+      method: 'POST',
+      body: JSON.stringify(data),
     }),
 };
 
@@ -1105,6 +1357,11 @@ export const broadcastApi = {
 
   retryFailed: (id: string) =>
     apiRequest<{ message: string; retriedCount: number }>(`/broadcast/campaigns/${id}/retry-failed`, {
+      method: 'POST',
+    }),
+
+  refreshCampaign: (id: string) =>
+    apiRequest<{ message: string; campaign: BroadcastCampaign; stats: BroadcastCampaign['stats'] & { status: BroadcastCampaign['status'] } }>(`/broadcast/campaigns/${id}/refresh`, {
       method: 'POST',
     }),
 

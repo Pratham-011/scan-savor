@@ -11,10 +11,10 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
-    allowedHosts: ["louise-situations-invited-enb.trycloudflare.com"],
+    allowedHosts: ["july-hobby-holds-pdf.trycloudflare.com"],
     proxy: {
       '/api': {
-        target: 'https://oneqrprod-dag2b3cmg0gsa7br.eastasia-01.azurewebsites.net',
+        target: 'http://localhost:5000',
         changeOrigin: true,
       },
     },

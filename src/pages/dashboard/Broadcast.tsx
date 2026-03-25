@@ -167,19 +167,6 @@ export default function BroadcastPage() {
     }));
   }, [selectedCampaign?._id]);
 
-  useEffect(() => {
-    if (activeTab !== 'campaigns' || !selectedCampaignId || !selectedCampaign || selectedCampaign.status !== 'running') {
-      return;
-    }
-
-    const timer = setInterval(() => {
-      loadCampaignDetail();
-      loadCampaigns();
-    }, 8000);
-
-    return () => clearInterval(timer);
-  }, [activeTab, selectedCampaignId, selectedCampaign?.status]);
-
   const selectedCount = selectedContactIds.length;
   const deliveryStats = useMemo(() => selectedCampaign?.stats, [selectedCampaign]);
 
@@ -335,6 +322,21 @@ export default function BroadcastPage() {
       await loadCampaigns();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update retry settings');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const refreshSelectedCampaign = async () => {
+    if (!selectedCampaignId) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      await broadcastApi.refreshCampaign(selectedCampaignId);
+      await loadCampaignDetail();
+      await loadCampaigns();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to refresh campaign');
     } finally {
       setIsLoading(false);
     }
@@ -770,6 +772,13 @@ export default function BroadcastPage() {
                   >
                     <RotateCw className="h-4 w-4" />
                     Save Retry Settings
+                  </button>
+                  <button
+                    onClick={refreshSelectedCampaign}
+                    className="px-4 py-2 rounded-lg border border-border/60 hover:bg-secondary text-sm font-semibold flex items-center gap-2"
+                  >
+                    <RefreshCcw className="h-4 w-4" />
+                    Refresh Campaign
                   </button>
                   <button
                     onClick={retryFailed}

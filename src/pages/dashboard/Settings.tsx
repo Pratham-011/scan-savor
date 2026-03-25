@@ -41,6 +41,7 @@ export default function Settings() {
   const [isExporting, setIsExporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   const [exportProgress, setExportProgress] = useState(0);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -137,9 +138,18 @@ export default function Settings() {
   };
 
   const handleDelete = async () => {
+    if (deleteConfirmText !== 'DELETE') {
+      toast({
+        title: 'Type DELETE to confirm',
+        description: 'For safety, you must type DELETE before removing your restaurant.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
     setIsDeleting(true);
     try {
-      await restaurantApi.delete();
+      await restaurantApi.delete('DELETE');
       toast({ title: 'Restaurant deleted' });
       navigate('/');
     } catch (error) {
@@ -474,10 +484,20 @@ export default function Settings() {
                 This will permanently delete your restaurant "{formData.name}" and all associated data including menu items, categories, and settings. This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
+            <div className="space-y-2">
+              <Label htmlFor="confirm-delete">Type DELETE to confirm</Label>
+              <Input
+                id="confirm-delete"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="DELETE"
+              />
+            </div>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogCancel onClick={() => setDeleteConfirmText('')}>Cancel</AlertDialogCancel>
               <AlertDialogAction 
                 onClick={handleDelete} 
+                disabled={isDeleting || deleteConfirmText !== 'DELETE'}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
                 Yes, Delete Restaurant
