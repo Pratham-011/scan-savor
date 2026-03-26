@@ -402,6 +402,12 @@ export const publicMenuApi = {
         whatsappEnabled: boolean;
         redirectUrl: string | null;
         menuUrl: string;
+        menuOpenPopup?: {
+          isEnabled?: boolean;
+          title?: string;
+          message?: string;
+          buttonText?: string;
+        };
       };
 
 
@@ -534,6 +540,12 @@ export interface Restaurant {
   user: string;
   foodTypes?: ('jain' | 'veg' | 'non-veg' | 'vegan' | 'half-jain')[];
   locationLink?: string;
+  menuOpenPopup?: {
+    isEnabled?: boolean;
+    title?: string;
+    message?: string;
+    buttonText?: string;
+  };
 }
 
 export interface CreateRestaurantData {
@@ -546,6 +558,12 @@ export interface CreateRestaurantData {
   phone?: string;
   foodTypes?: ('jain' | 'veg' | 'non-veg' | 'vegan' | 'half-jain')[];
   locationLink?: string;
+  menuOpenPopup?: {
+    isEnabled?: boolean;
+    title?: string;
+    message?: string;
+    buttonText?: string;
+  };
 }
 
 export interface MainCategory {
@@ -629,6 +647,9 @@ export interface PublicMenuItem {
     name: string;
     order: number;
     image?: string;
+    availability?: Availability;
+    isCurrentlyAvailable?: boolean;
+    status?: string;
   };
   category: {
     _id: string;
@@ -637,6 +658,9 @@ export interface PublicMenuItem {
     restaurant: string;
     order?: number;
     image?: string;
+    availability?: Availability;
+    isCurrentlyAvailable?: boolean;
+    status?: string;
   };
   name: string;
   description?: string;
@@ -647,6 +671,9 @@ export interface PublicMenuItem {
   isHalfJain?: boolean;
   image?: string;
   order: number;
+  availability?: Availability;
+  isCurrentlyAvailable?: boolean;
+  status?: string;
   tags?: Array<{ _id: string; name: string; color: string }>;
   effectiveAddOns?: Array<{ _id: string; name: string; price: number }>;
 }

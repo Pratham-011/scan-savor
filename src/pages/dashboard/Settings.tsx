@@ -32,6 +32,12 @@ export default function Settings() {
     banner: '',
     Instaurl: '',
     locationLink: '',
+    menuOpenPopup: {
+      isEnabled: false,
+      title: 'NOTE',
+      message: '',
+      buttonText: 'Continue'
+    },
     foodTypes: ['veg'] as ('jain' | 'veg' | 'non-veg' | 'vegan' | 'half-jain')[],
   });
   const [isLoading, setIsLoading] = useState(true);
@@ -59,6 +65,12 @@ export default function Settings() {
           banner: data.banner || '',
           Instaurl: data.Instaurl || '',
           locationLink: data.locationLink || '',
+          menuOpenPopup: {
+            isEnabled: data.menuOpenPopup?.isEnabled || false,
+            title: data.menuOpenPopup?.title || 'NOTE',
+            message: data.menuOpenPopup?.message || '',
+            buttonText: data.menuOpenPopup?.buttonText || 'Continue'
+          },
           foodTypes: data.foodTypes || ['veg'],
         });
       } catch (error) {
@@ -72,6 +84,17 @@ export default function Settings() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handlePopupChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      menuOpenPopup: {
+        ...prev.menuOpenPopup,
+        [name]: value,
+      }
+    }));
   };
 
   const handleSave = async () => {
@@ -284,6 +307,65 @@ export default function Settings() {
               placeholder="https://maps.google.com/..."
             />
             <p className="text-xs text-muted-foreground">Paste your Google Maps link so customers can navigate to your restaurant</p>
+          </div>
+
+          <div className="space-y-3 rounded-lg border border-border/70 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <Label htmlFor="menuOpenPopupEnabled">Menu Opening Popup</Label>
+                <p className="text-xs text-muted-foreground mt-1">Show a note popup when customers open your public menu.</p>
+              </div>
+              <input
+                id="menuOpenPopupEnabled"
+                type="checkbox"
+                checked={formData.menuOpenPopup.isEnabled}
+                onChange={(e) => setFormData(prev => ({
+                  ...prev,
+                  menuOpenPopup: {
+                    ...prev.menuOpenPopup,
+                    isEnabled: e.target.checked
+                  }
+                }))}
+                className="rounded border-border mt-1"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="popupTitle">Popup Title</Label>
+              <Input
+                id="popupTitle"
+                name="title"
+                value={formData.menuOpenPopup.title}
+                onChange={handlePopupChange}
+                placeholder="NOTE"
+                maxLength={40}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="popupMessage">Popup Message</Label>
+              <Textarea
+                id="popupMessage"
+                name="message"
+                value={formData.menuOpenPopup.message}
+                onChange={handlePopupChange}
+                placeholder="Enter the note you want to show to customers"
+                rows={4}
+                maxLength={400}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="popupButtonText">Button Text</Label>
+              <Input
+                id="popupButtonText"
+                name="buttonText"
+                value={formData.menuOpenPopup.buttonText}
+                onChange={handlePopupChange}
+                placeholder="Continue"
+                maxLength={20}
+              />
+            </div>
           </div>
 
           <div className="space-y-3">

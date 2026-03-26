@@ -1108,6 +1108,13 @@ export default function PublicMenu() {
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
   const [addressExpanded, setAddressExpanded] = useState(false);
+  const [showMenuOpenPopup, setShowMenuOpenPopup] = useState(false);
+  const [menuOpenPopupConfig, setMenuOpenPopupConfig] = useState<{
+    isEnabled?: boolean;
+    title?: string;
+    message?: string;
+    buttonText?: string;
+  } | null>(null);
 
     const isMobileDevice =
     /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
@@ -1180,6 +1187,12 @@ export default function PublicMenu() {
       // spinner during this check instead of the full skeleton.
       try {
         const settings = await publicMenuApi.getSettings(slug);
+        setMenuOpenPopupConfig(settings.menuOpenPopup || null);
+
+        if (settings.menuOpenPopup?.isEnabled && settings.menuOpenPopup?.message?.trim()) {
+          setShowMenuOpenPopup(true);
+        }
+
         if (settings.whatsappEnabled && settings.redirectUrl) {
           setIsRedirectingToWhatsApp(true);
           window.location.replace(settings.redirectUrl);
@@ -1207,12 +1220,24 @@ export default function PublicMenu() {
 
     checkAndLoad();
   }, [slug]);
+
+  useEffect(() => {
+    if (menuOpenPopupConfig) return;
+
+    const popup = menuData?.restaurant?.menuOpenPopup;
+    if (popup?.isEnabled && popup?.message?.trim()) {
+      setShowMenuOpenPopup(true);
+      return;
+    }
+
+    setShowMenuOpenPopup(false);
+  }, [menuData, menuOpenPopupConfig]);
   
 
   // Build normalized category maps from menu items.
   // Using the latest item data prevents stale image URLs from sticking around in the UI.
   const mainCategoryById = useMemo(() => {
-    const map = new Map<string, { _id: string; name: string; order: number; image?: string; forceNoImage: boolean }>();
+    const map = new Map<string, { _id: string; name: string; order: number; image?: string; isCurrentlyAvailable: boolean; forceNoImage: boolean }>();
 
     menuData?.menu?.forEach(item => {
       const normalizedImage = normalizeImageUrl(item.mainCategory.image);
@@ -1224,6 +1249,7 @@ export default function PublicMenu() {
           name: item.mainCategory.name,
           order: item.mainCategory.order || 0,
           image: normalizedImage,
+          isCurrentlyAvailable: item.mainCategory.isCurrentlyAvailable !== false,
           forceNoImage: !normalizedImage,
         });
         return;
@@ -1231,6 +1257,7 @@ export default function PublicMenu() {
 
       existing.name = item.mainCategory.name;
       existing.order = item.mainCategory.order || 0;
+      existing.isCurrentlyAvailable = existing.isCurrentlyAvailable && item.mainCategory.isCurrentlyAvailable !== false;
 
       if (!normalizedImage) {
         existing.image = undefined;
@@ -1240,13 +1267,14 @@ export default function PublicMenu() {
       }
     });
 
-    const normalizedMap = new Map<string, { _id: string; name: string; order: number; image?: string }>();
+    const normalizedMap = new Map<string, { _id: string; name: string; order: number; image?: string; isCurrentlyAvailable: boolean }>();
     map.forEach((value, key) => {
       normalizedMap.set(key, {
         _id: value._id,
         name: value.name,
         order: value.order,
         image: value.image,
+        isCurrentlyAvailable: value.isCurrentlyAvailable,
       });
     });
 
@@ -1254,7 +1282,7 @@ export default function PublicMenu() {
   }, [menuData]);
 
   const subCategoryById = useMemo(() => {
-    const map = new Map<string, { _id: string; name: string; order: number; image?: string; mainCategoryId: string; forceNoImage: boolean }>();
+    const map = new Map<string, { _id: string; name: string; order: number; image?: string; mainCategoryId: string; isCurrentlyAvailable: boolean; forceNoImage: boolean }>();
 
     menuData?.menu?.forEach(item => {
       const normalizedImage = normalizeImageUrl(item.category.image);
@@ -1267,6 +1295,7 @@ export default function PublicMenu() {
           order: item.category.order || 0,
           image: normalizedImage,
           mainCategoryId: item.mainCategory._id,
+          isCurrentlyAvailable: item.category.isCurrentlyAvailable !== false,
           forceNoImage: !normalizedImage,
         });
         return;
@@ -1275,6 +1304,7 @@ export default function PublicMenu() {
       existing.name = item.category.name;
       existing.order = item.category.order || 0;
       existing.mainCategoryId = item.mainCategory._id;
+      existing.isCurrentlyAvailable = existing.isCurrentlyAvailable && item.category.isCurrentlyAvailable !== false;
 
       if (!normalizedImage) {
         existing.image = undefined;
@@ -1284,7 +1314,7 @@ export default function PublicMenu() {
       }
     });
 
-    const normalizedMap = new Map<string, { _id: string; name: string; order: number; image?: string; mainCategoryId: string }>();
+    const normalizedMap = new Map<string, { _id: string; name: string; order: number; image?: string; mainCategoryId: string; isCurrentlyAvailable: boolean }>();
     map.forEach((value, key) => {
       normalizedMap.set(key, {
         _id: value._id,
@@ -1292,6 +1322,7 @@ export default function PublicMenu() {
         order: value.order,
         image: value.image,
         mainCategoryId: value.mainCategoryId,
+        isCurrentlyAvailable: value.isCurrentlyAvailable,
       });
     });
 
@@ -1561,6 +1592,10 @@ const filteredItems = menuData.menu.filter(item => {
 
     return `https://instagram.com/${raw}`;
   })();
+
+  const popupTitle = menuOpenPopupConfig?.title?.trim() || menuData?.restaurant?.menuOpenPopup?.title?.trim() || 'NOTE';
+  const popupMessage = menuOpenPopupConfig?.message?.trim() || menuData?.restaurant?.menuOpenPopup?.message?.trim() || '';
+  const popupButtonText = menuOpenPopupConfig?.buttonText?.trim() || menuData?.restaurant?.menuOpenPopup?.buttonText?.trim() || 'Continue';
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -1923,10 +1958,12 @@ const filteredItems = menuData.menu.filter(item => {
               className={cn(
                 "flex items-center px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all duration-200 h-10",
                 cat.image ? "gap-2" : "gap-0",
+                cat.isCurrentlyAvailable === false && "opacity-70",
                 selectedMainCategory === cat._id
                   ? "bg-gradient-gold text-primary-foreground shadow-md"
                   : "bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
               )}
+              title={cat.isCurrentlyAvailable === false ? `${cat.name} is not available right now` : undefined}
             >
               {cat.image && (
                 <img
@@ -1936,6 +1973,9 @@ const filteredItems = menuData.menu.filter(item => {
                 />
               )}
               <span className="truncate">{cat.name}</span>
+              {cat.isCurrentlyAvailable === false && (
+                <span className="ml-2 text-[10px] font-bold text-red-500">Unavailable</span>
+              )}
             </button>
           ))}
         </div>
@@ -1961,10 +2001,12 @@ const filteredItems = menuData.menu.filter(item => {
                 className={cn(
                   "flex items-center px-3 py-1 text-xs font-medium whitespace-nowrap transition-all duration-200 border-b-2 h-8",
                   cat.image ? "gap-1.5" : "gap-0",
+                  cat.isCurrentlyAvailable === false && "opacity-70",
                   selectedSubCategory === cat._id
                     ? "border-primary text-primary"
                     : "border-transparent text-muted-foreground hover:text-foreground"
                 )}
+                title={cat.isCurrentlyAvailable === false ? `${cat.name} is not available right now` : undefined}
               >
                 {cat.image && (
                   <img
@@ -1974,6 +2016,9 @@ const filteredItems = menuData.menu.filter(item => {
                   />
                 )}
                 <span className="truncate">{cat.name}</span>
+                {cat.isCurrentlyAvailable === false && (
+                  <span className="ml-1 text-[9px] font-semibold text-red-500">Off</span>
+                )}
               </button>
             ))}
           </div>
@@ -2031,7 +2076,12 @@ const filteredItems = menuData.menu.filter(item => {
                     {subCat.items.map(item => (
                       <div
                         key={item._id}
-                        className="flex gap-3 p-3 rounded-xl bg-card/50 hover:bg-card transition-colors cursor-pointer border border-border/30"
+                        className={cn(
+                          "flex gap-3 p-3 rounded-xl transition-colors cursor-pointer border border-border/30",
+                          item.isCurrentlyAvailable === false
+                            ? "bg-card/30 opacity-75"
+                            : "bg-card/50 hover:bg-card"
+                        )}
                         onClick={() => setSelectedItem(item)}
                       >
                         {item.image && (
@@ -2059,6 +2109,11 @@ const filteredItems = menuData.menu.filter(item => {
                                 </div>
                               )}
                               <h4 className="font-semibold text-sm leading-snug truncate">{item.name}</h4>
+                              {item.isCurrentlyAvailable === false && (
+                                <span className="px-1.5 py-0.5 text-[9px] font-bold bg-red-500/15 text-red-400 rounded-full border border-red-500/30 whitespace-nowrap">
+                                  Not available now
+                                </span>
+                              )}
                             </div>
                             <span className="font-bold text-primary text-sm flex-shrink-0">
                               ₹{item.price}
@@ -2208,6 +2263,11 @@ const filteredItems = menuData.menu.filter(item => {
                           {tag.name}
                         </span>
                       ))}
+                      {selectedItem.isCurrentlyAvailable === false && (
+                        <span className="px-2 py-0.5 text-[10px] font-bold bg-red-500/15 text-red-400 rounded-full border border-red-500/30">
+                          NOT AVAILABLE NOW
+                        </span>
+                      )}
                     </div>
                   </div>
                   <span className="text-xl font-bold text-primary whitespace-nowrap">₹{selectedItem.price}</span>
@@ -2256,6 +2316,28 @@ const filteredItems = menuData.menu.filter(item => {
             className="max-w-full max-h-[85vh] object-contain rounded-lg"
             onClick={(e) => e.stopPropagation()}
           />
+        </div>
+      )}
+
+      {showMenuOpenPopup && popupMessage && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="w-full max-w-lg rounded-xl overflow-hidden bg-white shadow-2xl">
+            <div className="bg-black text-white text-center py-3 font-bold tracking-wide uppercase text-lg">
+              {popupTitle}
+            </div>
+            <div className="px-5 py-6">
+              <p className="text-gray-800 text-xl leading-relaxed whitespace-pre-wrap">{popupMessage}</p>
+              <div className="mt-6 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => setShowMenuOpenPopup(false)}
+                  className="bg-green-600 hover:bg-green-700 text-white font-bold px-7 py-2 rounded-md uppercase tracking-wide"
+                >
+                  {popupButtonText}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
