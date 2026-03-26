@@ -277,6 +277,11 @@ export default function Categories() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  const normalizeImageInput = (value: string): string | undefined => {
+    const normalized = value.trim();
+    return normalized.length > 0 ? normalized : undefined;
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -356,11 +361,21 @@ export default function Categories() {
     try {
       let savedId: string;
       if (editingMain) {
-        await mainCategoryApi.update(editingMain._id, { name: mainName, order: mainOrder, availability: mainAvailability, image: mainImage || undefined });
+        await mainCategoryApi.update(editingMain._id, {
+          name: mainName,
+          order: mainOrder,
+          availability: mainAvailability,
+          image: normalizeImageInput(mainImage) ?? null,
+        });
         savedId = editingMain._id;
         toast({ title: 'Category updated!' });
       } else {
-        const newCat = await mainCategoryApi.create({ name: mainName, order: mainOrder, availability: mainAvailability, image: mainImage || undefined });
+        const newCat = await mainCategoryApi.create({
+          name: mainName,
+          order: mainOrder,
+          availability: mainAvailability,
+          image: normalizeImageInput(mainImage),
+        });
         savedId = newCat._id;
         toast({ title: 'Category created!' });
       }
@@ -404,11 +419,20 @@ export default function Categories() {
     try {
       let savedId: string;
       if (editingSub) {
-        await categoryApi.update(editingSub._id, { name: subName, availability: subAvailability, image: subImage || undefined });
+        await categoryApi.update(editingSub._id, {
+          name: subName,
+          availability: subAvailability,
+          image: normalizeImageInput(subImage) ?? null,
+        });
         savedId = editingSub._id;
         toast({ title: 'Subcategory updated!' });
       } else {
-        const newCat = await categoryApi.create({ name: subName, mainCategory: selectedMainCat, availability: subAvailability, image: subImage || undefined });
+        const newCat = await categoryApi.create({
+          name: subName,
+          mainCategory: selectedMainCat,
+          availability: subAvailability,
+          image: normalizeImageInput(subImage),
+        });
         savedId = newCat._id;
         toast({ title: 'Subcategory created!' });
       }

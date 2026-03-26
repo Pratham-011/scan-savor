@@ -32,6 +32,12 @@ export default function Settings() {
     banner: '',
     Instaurl: '',
     locationLink: '',
+    menuOpenPopup: {
+      isEnabled: false,
+      title: 'NOTE',
+      message: '',
+      buttonText: 'Continue'
+    },
     foodTypes: ['veg'] as ('jain' | 'veg' | 'non-veg' | 'vegan' | 'half-jain')[],
   });
   const [isLoading, setIsLoading] = useState(true);
@@ -41,6 +47,7 @@ export default function Settings() {
   const [isExporting, setIsExporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   const [exportProgress, setExportProgress] = useState(0);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -58,6 +65,12 @@ export default function Settings() {
           banner: data.banner || '',
           Instaurl: data.Instaurl || '',
           locationLink: data.locationLink || '',
+          menuOpenPopup: {
+            isEnabled: data.menuOpenPopup?.isEnabled || false,
+            title: data.menuOpenPopup?.title || 'NOTE',
+            message: data.menuOpenPopup?.message || '',
+            buttonText: data.menuOpenPopup?.buttonText || 'Continue'
+          },
           foodTypes: data.foodTypes || ['veg'],
         });
       } catch (error) {
@@ -71,6 +84,17 @@ export default function Settings() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handlePopupChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      menuOpenPopup: {
+        ...prev.menuOpenPopup,
+        [name]: value,
+      }
+    }));
   };
 
   const handleSave = async () => {
@@ -137,9 +161,18 @@ export default function Settings() {
   };
 
   const handleDelete = async () => {
+    if (deleteConfirmText !== 'DELETE') {
+      toast({
+        title: 'Type DELETE to confirm',
+        description: 'For safety, you must type DELETE before removing your restaurant.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
     setIsDeleting(true);
     try {
-      await restaurantApi.delete();
+      await restaurantApi.delete('DELETE');
       toast({ title: 'Restaurant deleted' });
       navigate('/');
     } catch (error) {
@@ -274,6 +307,65 @@ export default function Settings() {
               placeholder="https://maps.google.com/..."
             />
             <p className="text-xs text-muted-foreground">Paste your Google Maps link so customers can navigate to your restaurant</p>
+          </div>
+
+          <div className="space-y-3 rounded-lg border border-border/70 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <Label htmlFor="menuOpenPopupEnabled">Menu Opening Popup</Label>
+                <p className="text-xs text-muted-foreground mt-1">Show a note popup when customers open your public menu.</p>
+              </div>
+              <input
+                id="menuOpenPopupEnabled"
+                type="checkbox"
+                checked={formData.menuOpenPopup.isEnabled}
+                onChange={(e) => setFormData(prev => ({
+                  ...prev,
+                  menuOpenPopup: {
+                    ...prev.menuOpenPopup,
+                    isEnabled: e.target.checked
+                  }
+                }))}
+                className="rounded border-border mt-1"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="popupTitle">Popup Title</Label>
+              <Input
+                id="popupTitle"
+                name="title"
+                value={formData.menuOpenPopup.title}
+                onChange={handlePopupChange}
+                placeholder="NOTE"
+                maxLength={40}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="popupMessage">Popup Message</Label>
+              <Textarea
+                id="popupMessage"
+                name="message"
+                value={formData.menuOpenPopup.message}
+                onChange={handlePopupChange}
+                placeholder="Enter the note you want to show to customers"
+                rows={4}
+                maxLength={400}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="popupButtonText">Button Text</Label>
+              <Input
+                id="popupButtonText"
+                name="buttonText"
+                value={formData.menuOpenPopup.buttonText}
+                onChange={handlePopupChange}
+                placeholder="Continue"
+                maxLength={20}
+              />
+            </div>
           </div>
 
           <div className="space-y-3">
@@ -474,10 +566,20 @@ export default function Settings() {
                 This will permanently delete your restaurant "{formData.name}" and all associated data including menu items, categories, and settings. This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
+            <div className="space-y-2">
+              <Label htmlFor="confirm-delete">Type DELETE to confirm</Label>
+              <Input
+                id="confirm-delete"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="DELETE"
+              />
+            </div>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogCancel onClick={() => setDeleteConfirmText('')}>Cancel</AlertDialogCancel>
               <AlertDialogAction 
                 onClick={handleDelete} 
+                disabled={isDeleting || deleteConfirmText !== 'DELETE'}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
                 Yes, Delete Restaurant

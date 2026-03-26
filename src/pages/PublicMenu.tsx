@@ -1062,7 +1062,7 @@ import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { publicMenuApi, PublicMenuResponse, PublicMenuItem, MainCategory, Category } from '@/lib/api';
 import { demoMenuData } from '@/lib/demoData';
-import { MapPin, Phone, Instagram, Leaf, Search, X, Sparkles, Salad, Drumstick, CookingPot, TagIcon, Check } from 'lucide-react';
+import { MapPin, Phone, Instagram, Leaf, Search, X, Sparkles, Salad, Drumstick, CookingPot, TagIcon, Check, SlidersHorizontal } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Drawer, DrawerClose, DrawerContent, DrawerTitle } from '@/components/ui/drawer';
@@ -1082,6 +1082,11 @@ interface GroupedMainCategory {
   subCategories: GroupedCategory[];
 }
 
+const normalizeImageUrl = (value?: string | null): string | undefined => {
+  const cleaned = value?.trim();
+  return cleaned ? cleaned : undefined;
+};
+
 export default function PublicMenu() {
   const { slug } = useParams<{ slug: string }>();
   const [menuData, setMenuData] = useState<PublicMenuResponse | null>(null);
@@ -1096,12 +1101,20 @@ export default function PublicMenu() {
   const [showVeganOnly, setShowVeganOnly] = useState(false);
   const [showHalfJainOnly, setShowHalfJainOnly] = useState(false);
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
+  const [showDietFilter, setShowDietFilter] = useState(false);
   const [showTagFilter, setShowTagFilter] = useState(false);
   const [tagSearchQuery, setTagSearchQuery] = useState('');
   const [selectedItem, setSelectedItem] = useState<PublicMenuItem | null>(null);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
   const [addressExpanded, setAddressExpanded] = useState(false);
+  const [showMenuOpenPopup, setShowMenuOpenPopup] = useState(false);
+  const [menuOpenPopupConfig, setMenuOpenPopupConfig] = useState<{
+    isEnabled?: boolean;
+    title?: string;
+    message?: string;
+    buttonText?: string;
+  } | null>(null);
 
     const isMobileDevice =
     /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
@@ -1109,6 +1122,7 @@ export default function PublicMenu() {
     
   const [isCheckingSettings, setIsCheckingSettings] = useState(true);  // true until the lightweight settings check completes
   const [isRedirectingToWhatsApp, setIsRedirectingToWhatsApp] = useState(false);
+  const dietFilterRef = useRef<HTMLDivElement>(null);
   const tagFilterRef = useRef<HTMLDivElement>(null);
 
   const toggleDescription = useCallback((itemId: string) => {
@@ -1121,19 +1135,26 @@ export default function PublicMenu() {
   }, []);
 
   useEffect(() => {
-    if (!showTagFilter) return;
+    if (!showTagFilter && !showDietFilter) return;
 
     const handleOutsideClick = (event: MouseEvent | TouchEvent) => {
-      if (!tagFilterRef.current) return;
       const targetNode = event.target as Node;
-      if (!tagFilterRef.current.contains(targetNode)) {
+      const clickedInsideTagFilter = tagFilterRef.current?.contains(targetNode) ?? false;
+      const clickedInsideDietFilter = dietFilterRef.current?.contains(targetNode) ?? false;
+
+      if (!clickedInsideTagFilter) {
         setShowTagFilter(false);
+      }
+
+      if (!clickedInsideDietFilter) {
+        setShowDietFilter(false);
       }
     };
 
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setShowTagFilter(false);
+        setShowDietFilter(false);
       }
     };
 
@@ -1146,7 +1167,7 @@ export default function PublicMenu() {
       document.removeEventListener('touchstart', handleOutsideClick);
       document.removeEventListener('keydown', handleEscape);
     };
-  }, [showTagFilter]);
+  }, [showTagFilter, showDietFilter]);
 
   useEffect(() => {
     const checkAndLoad = async () => {
@@ -1166,6 +1187,12 @@ export default function PublicMenu() {
       // spinner during this check instead of the full skeleton.
       try {
         const settings = await publicMenuApi.getSettings(slug);
+        setMenuOpenPopupConfig(settings.menuOpenPopup || null);
+
+        if (settings.menuOpenPopup?.isEnabled && settings.menuOpenPopup?.message?.trim()) {
+          setShowMenuOpenPopup(true);
+        }
+
         if (settings.whatsappEnabled && settings.redirectUrl) {
           setIsRedirectingToWhatsApp(true);
           window.location.replace(settings.redirectUrl);
@@ -1193,47 +1220,127 @@ export default function PublicMenu() {
 
     checkAndLoad();
   }, [slug]);
+
+  useEffect(() => {
+    if (menuOpenPopupConfig) return;
+
+    const popup = menuData?.restaurant?.menuOpenPopup;
+    if (popup?.isEnabled && popup?.message?.trim()) {
+      setShowMenuOpenPopup(true);
+      return;
+    }
+
+    setShowMenuOpenPopup(false);
+  }, [menuData, menuOpenPopupConfig]);
   
 
-  // Extract unique main categories from menu items (only currently available ones)
-const mainCategories = useMemo(() => {
-  if (!menuData?.menu) return [];
+  // Build normalized category maps from menu items.
+  // Using the latest item data prevents stale image URLs from sticking around in the UI.
+  const mainCategoryById = useMemo(() => {
+    const map = new Map<string, { _id: string; name: string; order: number; image?: string; isCurrentlyAvailable: boolean; forceNoImage: boolean }>();
 
-  const uniqueMainCats = new Map<string, any>();
+    menuData?.menu?.forEach(item => {
+      const normalizedImage = normalizeImageUrl(item.mainCategory.image);
+      const existing = map.get(item.mainCategory._id);
 
-  menuData.menu.forEach(item => {
-    if (!uniqueMainCats.has(item.mainCategory._id)) {
-      uniqueMainCats.set(item.mainCategory._id, item.mainCategory);
-    }
-  });
+      if (!existing) {
+        map.set(item.mainCategory._id, {
+          _id: item.mainCategory._id,
+          name: item.mainCategory.name,
+          order: item.mainCategory.order || 0,
+          image: normalizedImage,
+          isCurrentlyAvailable: item.mainCategory.isCurrentlyAvailable !== false,
+          forceNoImage: !normalizedImage,
+        });
+        return;
+      }
 
-  return Array.from(uniqueMainCats.values()).sort((a, b) => (a.order || 0) - (b.order || 0));
-}, [menuData]);
+      existing.name = item.mainCategory.name;
+      existing.order = item.mainCategory.order || 0;
+      existing.isCurrentlyAvailable = existing.isCurrentlyAvailable && item.mainCategory.isCurrentlyAvailable !== false;
 
+      if (!normalizedImage) {
+        existing.image = undefined;
+        existing.forceNoImage = true;
+      } else if (!existing.forceNoImage) {
+        existing.image = normalizedImage;
+      }
+    });
 
+    const normalizedMap = new Map<string, { _id: string; name: string; order: number; image?: string; isCurrentlyAvailable: boolean }>();
+    map.forEach((value, key) => {
+      normalizedMap.set(key, {
+        _id: value._id,
+        name: value.name,
+        order: value.order,
+        image: value.image,
+        isCurrentlyAvailable: value.isCurrentlyAvailable,
+      });
+    });
+
+    return normalizedMap;
+  }, [menuData]);
+
+  const subCategoryById = useMemo(() => {
+    const map = new Map<string, { _id: string; name: string; order: number; image?: string; mainCategoryId: string; isCurrentlyAvailable: boolean; forceNoImage: boolean }>();
+
+    menuData?.menu?.forEach(item => {
+      const normalizedImage = normalizeImageUrl(item.category.image);
+      const existing = map.get(item.category._id);
+
+      if (!existing) {
+        map.set(item.category._id, {
+          _id: item.category._id,
+          name: item.category.name,
+          order: item.category.order || 0,
+          image: normalizedImage,
+          mainCategoryId: item.mainCategory._id,
+          isCurrentlyAvailable: item.category.isCurrentlyAvailable !== false,
+          forceNoImage: !normalizedImage,
+        });
+        return;
+      }
+
+      existing.name = item.category.name;
+      existing.order = item.category.order || 0;
+      existing.mainCategoryId = item.mainCategory._id;
+      existing.isCurrentlyAvailable = existing.isCurrentlyAvailable && item.category.isCurrentlyAvailable !== false;
+
+      if (!normalizedImage) {
+        existing.image = undefined;
+        existing.forceNoImage = true;
+      } else if (!existing.forceNoImage) {
+        existing.image = normalizedImage;
+      }
+    });
+
+    const normalizedMap = new Map<string, { _id: string; name: string; order: number; image?: string; mainCategoryId: string; isCurrentlyAvailable: boolean }>();
+    map.forEach((value, key) => {
+      normalizedMap.set(key, {
+        _id: value._id,
+        name: value.name,
+        order: value.order,
+        image: value.image,
+        mainCategoryId: value.mainCategoryId,
+        isCurrentlyAvailable: value.isCurrentlyAvailable,
+      });
+    });
+
+    return normalizedMap;
+  }, [menuData]);
+
+  const mainCategories = useMemo(() => {
+    return Array.from(mainCategoryById.values()).sort((a, b) => (a.order || 0) - (b.order || 0));
+  }, [mainCategoryById]);
 
   // Extract subcategories for selected main category (only currently available ones)
-const subCategories = useMemo(() => {
-  if (!menuData?.menu || !selectedMainCategory) return [];
+  const subCategories = useMemo(() => {
+    if (!selectedMainCategory) return [];
 
-  const uniqueSubCats = new Map<string, any>();
-
-  menuData.menu.forEach(item => {
-    if (
-      item.mainCategory._id === selectedMainCategory &&
-      !uniqueSubCats.has(item.category._id)
-    ) {
-      uniqueSubCats.set(item.category._id, {
-        _id: item.category._id,
-        name: item.category.name,
-        order: item.category.order || 0,
-        image: item.category.image
-      });
-    }
-  });
-
-  return Array.from(uniqueSubCats.values()).sort((a, b) => (a.order || 0) - (b.order || 0));
-}, [menuData, selectedMainCategory]);
+    return Array.from(subCategoryById.values())
+      .filter(subCategory => subCategory.mainCategoryId === selectedMainCategory)
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
+  }, [subCategoryById, selectedMainCategory]);
 
 // Extract unique tags from menu items
 const uniqueTags = useMemo(() => {
@@ -1258,6 +1365,16 @@ const visibleTags = useMemo(() => {
   const query = tagSearchQuery.toLowerCase();
   return uniqueTags.filter(tag => tag.name.toLowerCase().includes(query));
 }, [uniqueTags, tagSearchQuery]);
+
+const hasActiveDietFilters = showVegOnly || showNonVegOnly || showJainOnly || showVeganOnly || showHalfJainOnly;
+
+const clearDietFilters = useCallback(() => {
+  setShowVegOnly(false);
+  setShowNonVegOnly(false);
+  setShowJainOnly(false);
+  setShowVeganOnly(false);
+  setShowHalfJainOnly(false);
+}, []);
 
 
 
@@ -1476,6 +1593,10 @@ const filteredItems = menuData.menu.filter(item => {
     return `https://instagram.com/${raw}`;
   })();
 
+  const popupTitle = menuOpenPopupConfig?.title?.trim() || menuData?.restaurant?.menuOpenPopup?.title?.trim() || 'NOTE';
+  const popupMessage = menuOpenPopupConfig?.message?.trim() || menuData?.restaurant?.menuOpenPopup?.message?.trim() || '';
+  const popupButtonText = menuOpenPopupConfig?.buttonText?.trim() || menuData?.restaurant?.menuOpenPopup?.buttonText?.trim() || 'Continue';
+
   return (
     <div className="min-h-screen bg-background pb-24">
       {/* Header */}
@@ -1587,189 +1708,232 @@ const filteredItems = menuData.menu.filter(item => {
           )}
         </div>
 
-        {/* Diet Filters - horizontal scroll on mobile */}
-        <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
-          <button
-            onClick={() => {
-              setShowVegOnly(!showVegOnly);
-              if (!showVegOnly) setShowNonVegOnly(false);
-            }}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200",
-              showVegOnly
-                ? "bg-veg/15 text-veg ring-1 ring-veg/40 shadow-[0_0_12px_hsl(var(--veg)/0.2)]"
-                : "bg-secondary/60 text-muted-foreground hover:bg-secondary"
-            )}
-          >
-            <Leaf className="h-3.5 w-3.5" />
-            Veg
-          </button>
-          {restaurant.foodTypes?.includes('non-veg') && (
-            <button
-              onClick={() => {
-                setShowNonVegOnly(!showNonVegOnly);
-                if (!showNonVegOnly) setShowVegOnly(false);
-              }}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200",
-                showNonVegOnly
-                  ? "bg-non-veg/15 text-non-veg ring-1 ring-non-veg/40 shadow-[0_0_12px_hsl(var(--non-veg)/0.2)]"
-                  : "bg-secondary/60 text-muted-foreground hover:bg-secondary"
-              )}
-            >
-              <Drumstick className="h-3.5 w-3.5" />
-              Non-Veg
-            </button>
-          )}
-          {restaurant.foodTypes?.includes('jain') && (
-            <button
-              onClick={() => setShowJainOnly(!showJainOnly)}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200",
-                showJainOnly
-                  ? "bg-amber-500/15 text-amber-400 ring-1 ring-amber-500/40 shadow-[0_0_12px_rgba(245,158,11,0.2)]"
-                  : "bg-secondary/60 text-muted-foreground hover:bg-secondary"
-              )}
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              Jain
-            </button>
-          )}
-          {restaurant.foodTypes?.includes('vegan') && (
-            <button
-              onClick={() => setShowVeganOnly(!showVeganOnly)}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200",
-                showVeganOnly
-                  ? "bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/40 shadow-[0_0_12px_rgba(16,185,129,0.2)]"
-                  : "bg-secondary/60 text-muted-foreground hover:bg-secondary"
-              )}
-            >
-              <Salad className="h-3.5 w-3.5" />
-              Vegan
-            </button>
-          )}
-          {restaurant.foodTypes?.includes('half-jain') && (
-            <button
-              onClick={() => setShowHalfJainOnly(!showHalfJainOnly)}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200",
-                showHalfJainOnly
-                  ? "bg-orange-500/15 text-orange-400 ring-1 ring-orange-500/40 shadow-[0_0_12px_rgba(249,115,22,0.2)]"
-                  : "bg-secondary/60 text-muted-foreground hover:bg-secondary"
-              )}
-            >
-              <CookingPot className="h-3.5 w-3.5" />
-              Half Jain
-            </button>
-          )}
-        </div>
-
-        {/* Tag Filter - compact icon toggle with multi-select */}
-        {uniqueTags.length > 0 && (
-          <div ref={tagFilterRef} className="mt-3 relative">
+        <div className="mt-3 flex items-start gap-2">
+          {/* Diet filters moved into an icon popover to keep the top bar compact */}
+          <div ref={dietFilterRef} className="relative">
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowTagFilter(!showTagFilter)}
-                aria-label="Filter by tags"
-                aria-expanded={showTagFilter}
-                className={cn(
-                  "relative inline-flex items-center gap-2 h-9 px-3 rounded-xl border transition-all duration-200",
-                  showTagFilter || selectedTags.size > 0
-                    ? "border-primary/40 bg-secondary text-foreground shadow-sm"
-                    : "border-border/60 bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground"
-                )}
-              >
-                <TagIcon className="h-4 w-4" />
-                <span className="text-xs font-semibold">Tags</span>
-                {selectedTags.size > 0 && (
-                  <span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold leading-none">
-                    {selectedTags.size}
-                  </span>
-                )}
-              </button>
-
-              {selectedTags.size > 0 && (
-                <button
-                  onClick={() => setSelectedTags(new Set())}
-                  className="text-xs text-muted-foreground hover:text-foreground"
-                >
-                  Clear
-                </button>
+            <button
+              onClick={() => setShowDietFilter(!showDietFilter)}
+              aria-label="Filter by diet"
+              aria-expanded={showDietFilter}
+              className={cn(
+                "relative inline-flex items-center justify-center gap-2 w-[112px] h-9 px-3 rounded-xl border transition-all duration-200",
+                showDietFilter || hasActiveDietFilters
+                  ? "border-primary/40 bg-secondary text-foreground shadow-sm"
+                  : "border-border/60 bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground"
               )}
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              <span className="text-xs font-semibold">Filters</span>
+              {hasActiveDietFilters && (
+                <span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold leading-none">
+                  {[showVegOnly, showNonVegOnly, showJainOnly, showVeganOnly, showHalfJainOnly].filter(Boolean).length}
+                </span>
+              )}
+            </button>
+
+            {hasActiveDietFilters && (
+              <button onClick={clearDietFilters} className="text-xs text-muted-foreground hover:text-foreground">
+                Clear
+              </button>
+            )}
             </div>
 
-            {showTagFilter && (
-              <div className="absolute right-0 top-full mt-2 z-30 w-full sm:w-[340px] rounded-xl border border-border/70 bg-card/95 backdrop-blur-md shadow-xl p-2.5">
-                <div className="relative mb-2">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                  <Input
-                    placeholder="Search tags..."
-                    value={tagSearchQuery}
-                    onChange={(e) => setTagSearchQuery(e.target.value)}
-                    className="h-8 pl-8 text-xs bg-secondary/50 border-border/50"
-                  />
-                </div>
+            {showDietFilter && (
+              <div className="absolute left-0 top-full mt-2 z-30 w-[300px] sm:w-[340px] rounded-xl border border-border/70 bg-card/95 backdrop-blur-md shadow-xl p-2.5 space-y-1">
+              <button
+                onClick={() => {
+                  setShowVegOnly(!showVegOnly);
+                  if (!showVegOnly) setShowNonVegOnly(false);
+                }}
+                className={cn(
+                  "w-full flex items-center justify-between rounded-lg px-2.5 py-2 text-xs font-semibold transition-colors",
+                  showVegOnly ? "bg-veg/15 text-veg" : "hover:bg-secondary/60 text-foreground"
+                )}
+              >
+                <span className="inline-flex items-center gap-2">
+                  <Leaf className="h-3.5 w-3.5" />
+                  Veg
+                </span>
+                {showVegOnly && <Check className="h-3.5 w-3.5" />}
+              </button>
 
-                <div className="max-h-56 overflow-y-auto pr-1 space-y-1">
-                  {visibleTags.length === 0 ? (
-                    <p className="text-xs text-muted-foreground py-2 px-1">No tags found</p>
-                  ) : (
-                    visibleTags.map(tag => {
-                      const isSelected = selectedTags.has(tag._id);
-
-                      return (
-                        <label
-                          key={tag._id}
-                          className={cn(
-                            "flex items-center gap-2 rounded-lg px-2 py-1.5 cursor-pointer transition-colors",
-                            isSelected ? "bg-secondary" : "hover:bg-secondary/60"
-                          )}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => {
-                              const newSelected = new Set(selectedTags);
-                              if (isSelected) {
-                                newSelected.delete(tag._id);
-                              } else {
-                                newSelected.add(tag._id);
-                              }
-                              setSelectedTags(newSelected);
-                            }}
-                            className="sr-only"
-                          />
-
-                          <span
-                            className={cn(
-                              "h-4 w-4 rounded-md border flex items-center justify-center transition-colors",
-                              isSelected
-                                ? "bg-primary border-primary text-primary-foreground"
-                                : "bg-background border-border/70"
-                            )}
-                          >
-                            {isSelected && <Check className="h-3 w-3" />}
-                          </span>
-
-                          <span
-                            className="h-2.5 w-2.5 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: tag.color }}
-                          />
-
-                          <span className="text-xs text-foreground truncate">{tag.name}</span>
-                        </label>
-                      );
-                    })
+              {restaurant.foodTypes?.includes('non-veg') && (
+                <button
+                  onClick={() => {
+                    setShowNonVegOnly(!showNonVegOnly);
+                    if (!showNonVegOnly) setShowVegOnly(false);
+                  }}
+                  className={cn(
+                    "w-full flex items-center justify-between rounded-lg px-2.5 py-2 text-xs font-semibold transition-colors",
+                    showNonVegOnly ? "bg-non-veg/15 text-non-veg" : "hover:bg-secondary/60 text-foreground"
                   )}
-                </div>
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <Drumstick className="h-3.5 w-3.5" />
+                    Non-Veg
+                  </span>
+                  {showNonVegOnly && <Check className="h-3.5 w-3.5" />}
+                </button>
+              )}
+
+              {restaurant.foodTypes?.includes('jain') && (
+                <button
+                  onClick={() => setShowJainOnly(!showJainOnly)}
+                  className={cn(
+                    "w-full flex items-center justify-between rounded-lg px-2.5 py-2 text-xs font-semibold transition-colors",
+                    showJainOnly ? "bg-amber-500/15 text-amber-400" : "hover:bg-secondary/60 text-foreground"
+                  )}
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Jain
+                  </span>
+                  {showJainOnly && <Check className="h-3.5 w-3.5" />}
+                </button>
+              )}
+
+              {restaurant.foodTypes?.includes('vegan') && (
+                <button
+                  onClick={() => setShowVeganOnly(!showVeganOnly)}
+                  className={cn(
+                    "w-full flex items-center justify-between rounded-lg px-2.5 py-2 text-xs font-semibold transition-colors",
+                    showVeganOnly ? "bg-emerald-500/15 text-emerald-400" : "hover:bg-secondary/60 text-foreground"
+                  )}
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <Salad className="h-3.5 w-3.5" />
+                    Vegan
+                  </span>
+                  {showVeganOnly && <Check className="h-3.5 w-3.5" />}
+                </button>
+              )}
+
+              {restaurant.foodTypes?.includes('half-jain') && (
+                <button
+                  onClick={() => setShowHalfJainOnly(!showHalfJainOnly)}
+                  className={cn(
+                    "w-full flex items-center justify-between rounded-lg px-2.5 py-2 text-xs font-semibold transition-colors",
+                    showHalfJainOnly ? "bg-orange-500/15 text-orange-400" : "hover:bg-secondary/60 text-foreground"
+                  )}
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <CookingPot className="h-3.5 w-3.5" />
+                    Half Jain
+                  </span>
+                  {showHalfJainOnly && <Check className="h-3.5 w-3.5" />}
+                </button>
+              )}
               </div>
             )}
           </div>
-        )}
+
+          {/* Tag Filter - compact icon toggle with multi-select */}
+          {uniqueTags.length > 0 && (
+            <div ref={tagFilterRef} className="relative">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowTagFilter(!showTagFilter)}
+                  aria-label="Filter by tags"
+                  aria-expanded={showTagFilter}
+                  className={cn(
+                    "relative inline-flex items-center justify-center gap-2 w-[112px] h-9 px-3 rounded-xl border transition-all duration-200",
+                    showTagFilter || selectedTags.size > 0
+                      ? "border-primary/40 bg-secondary text-foreground shadow-sm"
+                      : "border-border/60 bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  )}
+                >
+                  <TagIcon className="h-4 w-4" />
+                  <span className="text-xs font-semibold">Tags</span>
+                  {selectedTags.size > 0 && (
+                    <span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold leading-none">
+                      {selectedTags.size}
+                    </span>
+                  )}
+                </button>
+
+                {selectedTags.size > 0 && (
+                  <button
+                    onClick={() => setSelectedTags(new Set())}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+
+              {showTagFilter && (
+                <div className="absolute left-0 top-full mt-2 z-30 w-[300px] sm:w-[340px] rounded-xl border border-border/70 bg-card/95 backdrop-blur-md shadow-xl p-2.5">
+                  <div className="relative mb-2">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      placeholder="Search tags..."
+                      value={tagSearchQuery}
+                      onChange={(e) => setTagSearchQuery(e.target.value)}
+                      className="h-8 pl-8 text-xs bg-secondary/50 border-border/50"
+                    />
+                  </div>
+
+                  <div className="max-h-56 overflow-y-auto pr-1 space-y-1">
+                    {visibleTags.length === 0 ? (
+                      <p className="text-xs text-muted-foreground py-2 px-1">No tags found</p>
+                    ) : (
+                      visibleTags.map(tag => {
+                        const isSelected = selectedTags.has(tag._id);
+
+                        return (
+                          <label
+                            key={tag._id}
+                            className={cn(
+                              "flex items-center gap-2 rounded-lg px-2 py-1.5 cursor-pointer transition-colors",
+                              isSelected ? "bg-secondary" : "hover:bg-secondary/60"
+                            )}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {
+                                const newSelected = new Set(selectedTags);
+                                if (isSelected) {
+                                  newSelected.delete(tag._id);
+                                } else {
+                                  newSelected.add(tag._id);
+                                }
+                                setSelectedTags(newSelected);
+                              }}
+                              className="sr-only"
+                            />
+
+                            <span
+                              className={cn(
+                                "h-4 w-4 rounded-md border flex items-center justify-center transition-colors",
+                                isSelected
+                                  ? "bg-primary border-primary text-primary-foreground"
+                                  : "bg-background border-border/70"
+                              )}
+                            >
+                              {isSelected && <Check className="h-3 w-3" />}
+                            </span>
+
+                            <span
+                              className="h-2.5 w-2.5 rounded-full flex-shrink-0"
+                              style={{ backgroundColor: tag.color }}
+                            />
+
+                            <span className="text-xs text-foreground truncate">{tag.name}</span>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Main Category Tabs - card style */}
-        <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide mt-2">
+        <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden mt-2">
           <button
             onClick={() => {
               setSelectedMainCategory(null);
@@ -1792,27 +1956,33 @@ const filteredItems = menuData.menu.filter(item => {
                 setSelectedSubCategory(null);
               }}
               className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all duration-200",
+                "flex items-center px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all duration-200 h-10",
+                cat.image ? "gap-2" : "gap-0",
+                cat.isCurrentlyAvailable === false && "opacity-70",
                 selectedMainCategory === cat._id
                   ? "bg-gradient-gold text-primary-foreground shadow-md"
                   : "bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
               )}
+              title={cat.isCurrentlyAvailable === false ? `${cat.name} is not available right now` : undefined}
             >
               {cat.image && (
                 <img
                   src={cat.image}
                   alt={cat.name}
-                  className="w-6 h-6 rounded-lg object-cover"
+                  className="w-6 h-6 rounded-lg object-cover flex-shrink-0"
                 />
               )}
-              {cat.name}
+              <span className="truncate">{cat.name}</span>
+              {cat.isCurrentlyAvailable === false && (
+                <span className="ml-2 text-[10px] font-bold text-red-500">Unavailable</span>
+              )}
             </button>
           ))}
         </div>
 
         {/* Subcategory Pills - underline style */}
         {selectedMainCategory && subCategories.length > 0 && (
-          <div className="flex gap-3 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide mt-2 border-t border-border/30 pt-2">
+          <div className="flex gap-3 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden mt-2 border-t border-border/30 pt-2">
             <button
               onClick={() => setSelectedSubCategory(null)}
               className={cn(
@@ -1829,20 +1999,26 @@ const filteredItems = menuData.menu.filter(item => {
                 key={cat._id}
                 onClick={() => setSelectedSubCategory(cat._id)}
                 className={cn(
-                  "flex items-center gap-1.5 px-3 py-1 text-xs font-medium whitespace-nowrap transition-all duration-200 border-b-2",
+                  "flex items-center px-3 py-1 text-xs font-medium whitespace-nowrap transition-all duration-200 border-b-2 h-8",
+                  cat.image ? "gap-1.5" : "gap-0",
+                  cat.isCurrentlyAvailable === false && "opacity-70",
                   selectedSubCategory === cat._id
                     ? "border-primary text-primary"
                     : "border-transparent text-muted-foreground hover:text-foreground"
                 )}
+                title={cat.isCurrentlyAvailable === false ? `${cat.name} is not available right now` : undefined}
               >
                 {cat.image && (
                   <img
                     src={cat.image}
                     alt={cat.name}
-                    className="w-4 h-4 rounded object-cover"
+                    className="w-4 h-4 rounded object-cover flex-shrink-0"
                   />
                 )}
-                {cat.name}
+                <span className="truncate">{cat.name}</span>
+                {cat.isCurrentlyAvailable === false && (
+                  <span className="ml-1 text-[9px] font-semibold text-red-500">Off</span>
+                )}
               </button>
             ))}
           </div>
@@ -1857,15 +2033,14 @@ const filteredItems = menuData.menu.filter(item => {
           </div>
         ) : (
           groupedItems.map(mainCat => {
-            // Find main category image from the original data
-            const mainCatData = mainCategories.find(c => c._id === mainCat._id);
+            const mainCatImage = mainCategoryById.get(mainCat._id)?.image;
             return (
             <div key={mainCat._id}>
               {/* Main Category Header */}
-              <div className="flex items-center gap-3 mb-5 pb-2 border-b border-border/40">
-                {mainCatData?.image && (
+              <div className={cn("flex items-center mb-5 pb-2 border-b border-border/40", mainCatImage ? "gap-3" : "gap-0")}>
+                {mainCatImage && (
                   <img 
-                    src={mainCatData.image} 
+                    src={mainCatImage} 
                     alt={mainCat.name}
                     className="w-10 h-10 rounded-xl object-cover ring-2 ring-primary/20"
                   />
@@ -1879,14 +2054,14 @@ const filteredItems = menuData.menu.filter(item => {
               </div>
               
               {mainCat.subCategories.map(subCat => {
-                const subCatData = subCategories.find(c => c._id === subCat._id);
+                const subCatImage = subCategoryById.get(subCat._id)?.image;
                 return (
                 <div key={subCat._id} className="mb-6">
                   {/* Subcategory Header */}
-                  <div className="flex items-center gap-2 mb-3 ml-1">
-                    {subCatData?.image && (
+                  <div className={cn("flex items-center mb-3 ml-1", subCatImage ? "gap-2" : "gap-0")}>
+                    {subCatImage && (
                       <img 
-                        src={subCatData.image} 
+                        src={subCatImage} 
                         alt={subCat.name}
                         className="w-6 h-6 rounded-md object-cover"
                       />
@@ -1901,7 +2076,12 @@ const filteredItems = menuData.menu.filter(item => {
                     {subCat.items.map(item => (
                       <div
                         key={item._id}
-                        className="flex gap-3 p-3 rounded-xl bg-card/50 hover:bg-card transition-colors cursor-pointer border border-border/30"
+                        className={cn(
+                          "flex gap-3 p-3 rounded-xl transition-colors cursor-pointer border border-border/30",
+                          item.isCurrentlyAvailable === false
+                            ? "bg-card/30 opacity-75"
+                            : "bg-card/50 hover:bg-card"
+                        )}
                         onClick={() => setSelectedItem(item)}
                       >
                         {item.image && (
@@ -1929,6 +2109,11 @@ const filteredItems = menuData.menu.filter(item => {
                                 </div>
                               )}
                               <h4 className="font-semibold text-sm leading-snug truncate">{item.name}</h4>
+                              {item.isCurrentlyAvailable === false && (
+                                <span className="px-1.5 py-0.5 text-[9px] font-bold bg-red-500/15 text-red-400 rounded-full border border-red-500/30 whitespace-nowrap">
+                                  Not available now
+                                </span>
+                              )}
                             </div>
                             <span className="font-bold text-primary text-sm flex-shrink-0">
                               ₹{item.price}
@@ -2078,6 +2263,11 @@ const filteredItems = menuData.menu.filter(item => {
                           {tag.name}
                         </span>
                       ))}
+                      {selectedItem.isCurrentlyAvailable === false && (
+                        <span className="px-2 py-0.5 text-[10px] font-bold bg-red-500/15 text-red-400 rounded-full border border-red-500/30">
+                          NOT AVAILABLE NOW
+                        </span>
+                      )}
                     </div>
                   </div>
                   <span className="text-xl font-bold text-primary whitespace-nowrap">₹{selectedItem.price}</span>
@@ -2126,6 +2316,28 @@ const filteredItems = menuData.menu.filter(item => {
             className="max-w-full max-h-[85vh] object-contain rounded-lg"
             onClick={(e) => e.stopPropagation()}
           />
+        </div>
+      )}
+
+      {showMenuOpenPopup && popupMessage && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="w-full max-w-lg rounded-xl overflow-hidden bg-white shadow-2xl">
+            <div className="bg-black text-white text-center py-3 font-bold tracking-wide uppercase text-lg">
+              {popupTitle}
+            </div>
+            <div className="px-5 py-6">
+              <p className="text-gray-800 text-xl leading-relaxed whitespace-pre-wrap">{popupMessage}</p>
+              <div className="mt-6 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => setShowMenuOpenPopup(false)}
+                  className="bg-green-600 hover:bg-green-700 text-white font-bold px-7 py-2 rounded-md uppercase tracking-wide"
+                >
+                  {popupButtonText}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

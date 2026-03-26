@@ -35,7 +35,8 @@ const navItems = [
   { icon: MessageCircle, label: 'WhatsApp Setup', path: '/dashboard/whatsapp' },
   { icon: MessageCircle, label: 'Templates', path: '/dashboard/whatsapp-automation' },
   { icon: MessageCircle, label: 'Quick Replies', path: '/dashboard/whatsapp-quick-replies' },
-  { icon: MessageCircle, label: 'Customers', path: '/dashboard/whatsapp-customers' },
+  { icon: MessageCircle, label: 'Customer Sheet', path: '/dashboard/whatsapp-customers' },
+  { icon: MessageCircle, label: 'Chat Inbox', path: '/dashboard/whatsapp-chat' },
   { icon: Megaphone, label: 'Broadcast', path: '/dashboard/broadcast' },
   { icon: Settings, label: 'Settings', path: '/dashboard/settings' },
 ];
