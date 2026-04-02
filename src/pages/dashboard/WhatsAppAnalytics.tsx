@@ -10,6 +10,7 @@ import {
   Search,
   Send,
   User,
+  X,
 } from 'lucide-react';
 import {
   whatsappApi,
@@ -62,6 +63,7 @@ export default function WhatsAppAnalytics({ restaurantId }: WhatsAppAnalyticsPro
   const socketRef = useRef<Socket | null>(null);
   const selectedPhoneRef = useRef(selectedPhone);
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
+  const isInitialLoadRef = useRef(true);
 
   const ITEMS_PER_PAGE = 20;
   const MESSAGE_PAGE_SIZE = 100;
@@ -178,9 +180,12 @@ export default function WhatsAppAnalytics({ restaurantId }: WhatsAppAnalyticsPro
       setTotalPages(response.pagination.totalPages);
       setTotal(response.pagination.total);
 
-      if (!selectedPhone && response.customers.length > 0) {
+      // Only auto-select first customer on initial load, not on subsequent updates.
+      // New messages update the list without auto-opening (WhatsApp-style behavior).
+      if (!selectedPhone && response.customers.length > 0 && isInitialLoadRef.current) {
         setSelectedPhone(response.customers[0].phoneNumber);
         setSelectedName(response.customers[0].customerName || '');
+        isInitialLoadRef.current = false;
       }
     } catch (err) {
       console.error('Failed to fetch customers:', err);
@@ -249,6 +254,14 @@ export default function WhatsAppAnalytics({ restaurantId }: WhatsAppAnalyticsPro
 
       setMessages(dedupedMessages);
       setConversationWindow(response.conversationWindow);
+
+      if (phoneNumber) {
+        setCustomers((prev) => prev.map((customer) => (
+          customer.phoneNumber === phoneNumber
+            ? { ...customer, unreadCount: 0 }
+            : customer
+        )));
+      }
     } catch (err) {
       console.error('Failed to fetch messages:', err);
       if (!silent) {
@@ -604,17 +617,31 @@ export default function WhatsAppAnalytics({ restaurantId }: WhatsAppAnalyticsPro
                     <p className="font-semibold">{selectedName || selectedPhone}</p>
                     <p className="text-xs text-muted-foreground">{selectedPhone}</p>
                   </div>
-                  <button
-                    onClick={() => handleCopyPhone(selectedPhone)}
-                    className="p-2 rounded-lg hover:bg-secondary transition-colors"
-                    title="Copy phone number"
-                  >
-                    {copiedPhone === selectedPhone ? (
-                      <Check className="h-4 w-4 text-emerald-500" />
-                    ) : (
-                      <Copy className="h-4 w-4" />
-                    )}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleCopyPhone(selectedPhone)}
+                      className="p-2 rounded-lg hover:bg-secondary transition-colors"
+                      title="Copy phone number"
+                    >
+                      {copiedPhone === selectedPhone ? (
+                        <Check className="h-4 w-4 text-emerald-500" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSelectedPhone('');
+                        setSelectedName('');
+                        setMessages([]);
+                        setConversationWindow(null);
+                      }}
+                      className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
+                      title="Close conversation"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className={cn(
@@ -737,6 +764,10 @@ export default function WhatsAppAnalytics({ restaurantId }: WhatsAppAnalyticsPro
                     {composerError}
                   </div>
                 )}
+
+                <div className="pt-2 border-t border-border/20 text-center">
+                  <p className="text-[11px] text-muted-foreground">Powered by <span className="font-semibold">OneQR</span></p>
+                </div>
               </div>
             </>
           )}
