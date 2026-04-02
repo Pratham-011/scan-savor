@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { io, type Socket } from 'socket.io-client';
 import {
   Check,
   Clock3,
   Copy,
   Loader2,
   MessageCircle,
+  RefreshCw,
   Search,
   Send,
   User,
@@ -15,6 +17,7 @@ import {
   WhatsAppChatMessage,
   WhatsAppConversationWindow,
   WhatsAppTemplate,
+  getResolvedBaseUrl,
 } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useSearchParams } from 'react-router-dom';
@@ -54,14 +57,21 @@ export default function WhatsAppAnalytics({ restaurantId }: WhatsAppAnalyticsPro
   const [newPhone, setNewPhone] = useState('');
   const [newName, setNewName] = useState('');
   const [copiedPhone, setCopiedPhone] = useState<string | null>(null);
+  const [socketConnected, setSocketConnected] = useState(false);
+
+  const socketRef = useRef<Socket | null>(null);
+  const selectedPhoneRef = useRef(selectedPhone);
 
   const ITEMS_PER_PAGE = 20;
   const MESSAGE_PAGE_SIZE = 100;
-  const AUTO_REFRESH_MS = 8000;
 
   const orderedMessages = useMemo(() => [...messages].reverse(), [messages]);
 
   const sanitizePhone = (value: string) => value.replace(/\D/g, '');
+
+  useEffect(() => {
+    selectedPhoneRef.current = selectedPhone;
+  }, [selectedPhone]);
 
   useEffect(() => {
     fetchCustomers();
@@ -100,18 +110,53 @@ export default function WhatsAppAnalytics({ restaurantId }: WhatsAppAnalyticsPro
   }, [searchParams]);
 
   useEffect(() => {
-    const interval = window.setInterval(() => {
-      if (document.hidden) return;
-      if (sendingText || sendingTemplate) return;
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      return;
+    }
 
-      fetchCustomers(true);
-      if (selectedPhone) {
-        fetchMessages(selectedPhone, true);
+    const socket = io(getResolvedBaseUrl(), {
+      transports: ['websocket'],
+      auth: {
+        token,
+      },
+    });
+
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      setSocketConnected(true);
+    });
+
+    socket.on('disconnect', () => {
+      setSocketConnected(false);
+    });
+
+    const onRealtimeMessage = async (payload?: { phoneNumber?: string }) => {
+      await fetchCustomers(true);
+      if (selectedPhoneRef.current && payload?.phoneNumber === selectedPhoneRef.current) {
+        await fetchMessages(selectedPhoneRef.current, true);
       }
-    }, AUTO_REFRESH_MS);
+    };
 
-    return () => window.clearInterval(interval);
-  }, [selectedPhone, page, searchQuery, sendingText, sendingTemplate]);
+    const onRealtimeStatus = async (payload?: { phoneNumber?: string }) => {
+      if (selectedPhoneRef.current && payload?.phoneNumber === selectedPhoneRef.current) {
+        await fetchMessages(selectedPhoneRef.current, true);
+      }
+      await fetchCustomers(true);
+    };
+
+    socket.on('whatsapp:message:new', onRealtimeMessage);
+    socket.on('whatsapp:message:status', onRealtimeStatus);
+
+    return () => {
+      socket.off('whatsapp:message:new', onRealtimeMessage);
+      socket.off('whatsapp:message:status', onRealtimeStatus);
+      socket.disconnect();
+      socketRef.current = null;
+      setSocketConnected(false);
+    };
+  }, []);
 
   const fetchCustomers = async (silent = false) => {
     try {
@@ -163,7 +208,37 @@ export default function WhatsAppAnalytics({ restaurantId }: WhatsAppAnalyticsPro
         setMessagesError(null);
       }
       const response = await whatsappApi.getChatMessages(phoneNumber, 1, MESSAGE_PAGE_SIZE);
-      setMessages(response.messages);
+      const getWhatsAppMessageId = (msg: WhatsAppChatMessage) =>
+        String((msg as WhatsAppChatMessage & { whatsappMessageId?: string }).whatsappMessageId || '').trim();
+
+      const dedupedMessages = response.messages.filter((message, index, allMessages) => {
+        const messageId = getWhatsAppMessageId(message);
+        const fallbackKey = [
+          message.direction,
+          message.messageType,
+          message.sentAt,
+          message.text,
+          String(message.metadata?.sourceModel || ''),
+          String(message.metadata?.sourceId || '')
+        ].join('|');
+        const key = messageId || fallbackKey;
+
+        return index === allMessages.findIndex((candidate) => {
+          const candidateId = getWhatsAppMessageId(candidate);
+          const candidateFallbackKey = [
+            candidate.direction,
+            candidate.messageType,
+            candidate.sentAt,
+            candidate.text,
+            String(candidate.metadata?.sourceModel || ''),
+            String(candidate.metadata?.sourceId || '')
+          ].join('|');
+
+          return (candidateId || candidateFallbackKey) === key;
+        });
+      });
+
+      setMessages(dedupedMessages);
       setConversationWindow(response.conversationWindow);
     } catch (err) {
       console.error('Failed to fetch messages:', err);
@@ -174,6 +249,13 @@ export default function WhatsAppAnalytics({ restaurantId }: WhatsAppAnalyticsPro
       if (!silent) {
         setIsLoadingMessages(false);
       }
+    }
+  };
+
+  const handleRefresh = async () => {
+    await fetchCustomers();
+    if (selectedPhone) {
+      await fetchMessages(selectedPhone);
     }
   };
 
@@ -351,7 +433,12 @@ export default function WhatsAppAnalytics({ restaurantId }: WhatsAppAnalyticsPro
           Chat with existing and new customers with 24-hour policy enforcement.
         </p>
         <p className="text-xs text-muted-foreground mt-1">
-          Auto-refresh is enabled every 8 seconds while this tab is active.
+          Real-time updates come from WhatsApp Business API webhooks. Use refresh when needed.
+        </p>
+        <p className="text-xs mt-1">
+          <span className={cn('font-medium', socketConnected ? 'text-emerald-500' : 'text-amber-500')}>
+            {socketConnected ? 'Realtime connected' : 'Realtime reconnecting'}
+          </span>
         </p>
       </div>
 
@@ -410,6 +497,14 @@ export default function WhatsAppAnalytics({ restaurantId }: WhatsAppAnalyticsPro
             className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border/60 bg-background/50 text-sm focus:ring-2 focus:ring-primary/10 focus:border-primary/40 outline-none transition-all"
           />
         </div>
+        <button
+          onClick={handleRefresh}
+          disabled={isLoadingCustomers || isLoadingMessages || sendingText || sendingTemplate}
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border/60 text-sm font-semibold hover:bg-secondary disabled:opacity-50"
+        >
+          <RefreshCw className="h-4 w-4" />
+          Refresh
+        </button>
       </div>
 
       <div className="rounded-xl border border-border/50 bg-card/50 p-4 grid grid-cols-1 lg:grid-cols-[220px_1fr_220px_140px] gap-3">
