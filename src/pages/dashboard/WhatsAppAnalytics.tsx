@@ -61,6 +61,7 @@ export default function WhatsAppAnalytics({ restaurantId }: WhatsAppAnalyticsPro
 
   const socketRef = useRef<Socket | null>(null);
   const selectedPhoneRef = useRef(selectedPhone);
+  const chatContainerRef = useRef<HTMLDivElement | null>(null);
 
   const ITEMS_PER_PAGE = 20;
   const MESSAGE_PAGE_SIZE = 100;
@@ -89,6 +90,14 @@ export default function WhatsAppAnalytics({ restaurantId }: WhatsAppAnalyticsPro
     }
     fetchMessages(selectedPhone);
   }, [selectedPhone]);
+
+  useEffect(() => {
+    if (!chatContainerRef.current || !selectedPhone) {
+      return;
+    }
+
+    chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+  }, [orderedMessages, selectedPhone]);
 
   useEffect(() => {
     const urlPhone = sanitizePhone(searchParams.get('phone') || '');
@@ -620,7 +629,10 @@ export default function WhatsAppAnalytics({ restaurantId }: WhatsAppAnalyticsPro
                 </div>
               </div>
 
-              <div className="h-[400px] overflow-y-auto rounded-lg border border-border/40 bg-background/30 p-3 space-y-2">
+              <div
+                ref={chatContainerRef}
+                className="h-[400px] overflow-y-auto rounded-lg border border-border/40 bg-background/30 p-3 space-y-2"
+              >
                 {isLoadingMessages ? (
                   <div className="h-full flex items-center justify-center">
                     <Loader2 className="h-5 w-5 animate-spin text-primary" />
