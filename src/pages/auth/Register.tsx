@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
 import { authApi } from '@/lib/api';
-import { Loader2, ArrowRight, Check } from 'lucide-react';
+import { Loader2, ArrowRight, Check, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 type Step = 'email' | 'otp' | 'details';
@@ -24,6 +24,14 @@ export default function Register() {
   const { setAuth } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+    navigate('/');
+  };
 
   const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,8 +109,18 @@ export default function Register() {
       </div>
 
       <div className="relative w-full max-w-md">
+        <div className="mb-5 flex items-center justify-between md:hidden">
+          <Link to="/">
+            <Logo size="md" />
+          </Link>
+          <Button variant="ghost" onClick={handleBack}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back
+          </Button>
+        </div>
+
         <div className="text-center mb-8">
-          <Link to="/" className="inline-block">
+          <Link to="/" className="hidden md:inline-block">
             <Logo size="lg" />
           </Link>
           <h1 className="font-display text-2xl font-bold mt-6">Create your account</h1>

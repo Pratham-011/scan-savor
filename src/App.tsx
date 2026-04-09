@@ -9,6 +9,7 @@ import { restaurantApi } from "@/lib/api";
 
 // Pages
 import Landing from "./pages/Landing";
+import Contact from "./pages/Contact";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import PublicMenu from "./pages/PublicMenu";
@@ -28,6 +29,7 @@ import WhatsAppCustomerSheet from "./pages/dashboard/WhatsAppCustomerSheet";
 import WhatsAppAutomation from "./pages/dashboard/WhatsAppAutomation";
 import WhatsAppQuickReplies from "./pages/dashboard/WhatsAppQuickReplies";
 import BroadcastPage from "./pages/dashboard/Broadcast";
+import MetaAdsPage from "./pages/dashboard/MetaAds";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 
 const queryClient = new QueryClient();
@@ -97,6 +99,7 @@ const App = () => (
           <Routes>
             {/* Public Routes */}
             <Route path="/" element={<Landing />} />
+            <Route path="/contact" element={<Contact />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -119,6 +122,7 @@ const App = () => (
               <Route path="whatsapp-customers" element={<WhatsAppCustomerSheetWrapper />} />
               <Route path="whatsapp-chat" element={<WhatsAppAnalyticsWrapper />} />
               <Route path="broadcast" element={<BroadcastPage />} />
+              <Route path="meta-ads" element={<MetaAdsPage />} />
             </Route>
 
             {/* Catch-all */}
