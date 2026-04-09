@@ -1,6 +1,31 @@
+const stripTrailingSlash = (value: string) => value.replace(/\/+$/, '');
+
+const parseSiteUrls = (value?: string) => {
+  if (!value) return [];
+  return value
+    .split(',')
+    .map((url) => stripTrailingSlash(url.trim()))
+    .filter(Boolean);
+};
+
+const configuredSiteUrls = parseSiteUrls(import.meta.env.VITE_SITE_URL);
+
+const resolveSiteUrl = () => {
+  if (typeof window !== 'undefined') {
+    const currentOrigin = stripTrailingSlash(window.location.origin);
+    if (configuredSiteUrls.includes(currentOrigin)) {
+      return currentOrigin;
+    }
+    return currentOrigin;
+  }
+
+  return configuredSiteUrls[0] ?? 'http://localhost:8080';
+};
+
 export const siteConfig = {
   contactEmail: import.meta.env.VITE_CONTACT_EMAIL ?? 'oneqr26@gmail.com',
-  siteUrl: import.meta.env.VITE_SITE_URL ?? 'http://localhost:8080',
+  siteUrl: resolveSiteUrl(),
+  siteUrls: configuredSiteUrls,
   contactFormEndpoint:
     import.meta.env.VITE_CONTACT_FORM_ENDPOINT ??
     `https://formsubmit.co/ajax/${import.meta.env.VITE_CONTACT_EMAIL ?? 'oneqr26@gmail.com'}`,
