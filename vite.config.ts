@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
-    allowedHosts: ["july-hobby-holds-pdf.trycloudflare.com"],
+    allowedHosts: ["radar-races-differ-alter.trycloudflare.com"],
     proxy: {
       '/api': {
         target: 'http://localhost:5000',

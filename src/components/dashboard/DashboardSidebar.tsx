@@ -16,7 +16,8 @@ import {
   Tag as TagIcon,
   PlusCircle,
   MessageCircle,
-  Megaphone
+  Megaphone,
+  BadgeDollarSign
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -38,6 +39,7 @@ const navItems = [
   { icon: MessageCircle, label: 'Customer Sheet', path: '/dashboard/whatsapp-customers' },
   { icon: MessageCircle, label: 'Chat Inbox', path: '/dashboard/whatsapp-chat' },
   { icon: Megaphone, label: 'Broadcast', path: '/dashboard/broadcast' },
+  { icon: BadgeDollarSign, label: 'Meta Ads', path: '/dashboard/meta-ads' },
   { icon: Settings, label: 'Settings', path: '/dashboard/settings' },
 ];
 

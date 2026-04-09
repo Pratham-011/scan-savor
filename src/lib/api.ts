@@ -2,8 +2,8 @@
 // const BASE_URL = 'https://oneqr.onrender.com';
 
 // LOCAL DEV BACKEND LINK
-// const API_BASE = 'http://localhost:5000/api';
-// const BASE_URL = 'http://localhost:5000';
+const API_BASE = 'http://localhost:5000/api';
+const BASE_URL = 'http://localhost:5000';
 
 // LOCAL NGINX DEV BACKEND LINK
 // const API_BASE = 'https://54c2-36-255-170-81.ngrok-free.app/api';
@@ -14,8 +14,8 @@
 // const BASE_URL = 'https://oneqrbackend-axhad4hnenejhtek.eastasia-01.azurewebsites.net';
 
 // PROD BACKEND LINK(prod branch)
-const API_BASE = 'https://oneqrprod-dag2b3cmg0gsa7br.eastasia-01.azurewebsites.net/api';
-const BASE_URL = 'https://oneqrprod-dag2b3cmg0gsa7br.eastasia-01.azurewebsites.net';
+// const API_BASE = 'https://oneqrprod-dag2b3cmg0gsa7br.eastasia-01.azurewebsites.net/api';
+// const BASE_URL = 'https://oneqrprod-dag2b3cmg0gsa7br.eastasia-01.azurewebsites.net';
 
 export const getResolvedApiBase = () => API_BASE;
 export const getResolvedBaseUrl = () => BASE_URL;
@@ -850,7 +850,7 @@ export interface Customer {
 }
 
 export interface WhatsAppWalletSpendBySource {
-  sourceType: 'broadcast' | 'quick_reply' | 'chat' | 'manual_sync' | 'meta_adjustment' | 'other' | string;
+  sourceType: 'broadcast' | 'quick_reply' | 'chat' | 'meta_ads' | 'manual_sync' | 'meta_adjustment' | 'other' | string;
   count: number;
   billableCount: number;
   totalAmount: number;
@@ -873,7 +873,7 @@ export interface WhatsAppWalletTransaction {
   entryType: 'message' | 'balance_sync';
   direction: 'credit' | 'debit';
   status: 'pending' | 'posted' | 'failed';
-  sourceType: 'broadcast' | 'quick_reply' | 'chat' | 'manual_sync' | 'meta_adjustment' | 'other' | string;
+  sourceType: 'broadcast' | 'quick_reply' | 'chat' | 'meta_ads' | 'manual_sync' | 'meta_adjustment' | 'other' | string;
   sourceId?: string | null;
   sourceModel?: string | null;
   whatsappMessageId?: string | null;
@@ -1393,4 +1393,286 @@ export const broadcastApi = {
     }),
 
   exportCampaignReport: (id: string) => downloadCsvWithAuth(`/broadcast/campaigns/${id}/export`, `broadcast-${id}.csv`),
+};
+
+export interface MetaAdsConfig {
+  businessId?: string | null;
+  adAccountId?: string | null;
+  pageId?: string | null;
+  pixelId?: string | null;
+  accessToken?: string | null;
+  isEnabled?: boolean;
+  hasAccessToken?: boolean;
+}
+
+export interface MetaAdCampaign {
+  _id: string;
+  restaurant: string;
+  name: string;
+  objective: 'OUTCOME_TRAFFIC' | 'OUTCOME_ENGAGEMENT' | 'OUTCOME_AWARENESS';
+  status: 'draft' | 'published' | 'paused' | 'failed';
+  adCopy: {
+    primaryText: string;
+    headline: string;
+    description: string;
+    callToAction: string;
+    internalTitle?: string;
+    contentNotes?: string;
+  };
+  creative: {
+    destinationUrl: string;
+    imageUrl?: string | null;
+  };
+  budget: {
+    dailyAmount: number;
+    currency: string;
+  };
+  schedule?: {
+    startAt?: string | null;
+    endAt?: string | null;
+  };
+  audience: {
+    source: 'broadcast_contacts' | 'customer_interactions' | 'both' | 'manual';
+    contactIds?: string[];
+    countries: string[];
+    estimatedCount: number;
+    minimumRequired?: number;
+    meetsMinimum?: boolean;
+    customAudienceName?: string | null;
+    customAudienceId?: string | null;
+    locations?: string[];
+    gender?: 'all' | 'male' | 'female';
+    ageRange?: {
+      min?: number;
+      max?: number;
+    };
+    interests?: string[];
+    behaviors?: string[];
+  };
+  channels?: Array<'facebook' | 'instagram'>;
+  campaignMeta?: {
+    internalTitle?: string;
+    contentNotes?: string;
+  };
+  analytics?: {
+    impressions: number;
+    reach: number;
+    clicks: number;
+    conversions: number;
+    spend: number;
+  };
+  wallet?: {
+    estimatedReserve: number;
+    currency: string;
+  };
+  analyticsSnapshot?: {
+    fetchedAt?: string | null;
+    datePreset?: string | null;
+    metrics: {
+      impressions: number;
+      reach: number;
+      clicks: number;
+      spend: number;
+      conversions: number;
+      ctr: number;
+      cpc: number;
+      frequency: number;
+      inlineLinkClicks: number;
+    };
+  };
+  meta?: {
+    campaignId?: string | null;
+    adSetId?: string | null;
+    creativeId?: string | null;
+    adId?: string | null;
+    lastError?: unknown;
+  };
+  publishedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MetaAdsInsightMetrics {
+  impressions: number;
+  reach: number;
+  clicks: number;
+  ctr: number;
+  cpc: number;
+  spend: number;
+  frequency: number;
+  inlineLinkClicks: number;
+  conversions: number;
+}
+
+export interface MetaAdsInsightResult {
+  source: 'ad' | 'adset' | 'campaign';
+  id: string;
+  metrics: MetaAdsInsightMetrics;
+  raw: unknown;
+}
+
+export interface MetaAdsAudiencePreview {
+  source: 'broadcast_contacts' | 'customer_interactions' | 'both';
+  total: number;
+  minimumRequired: number;
+  meetsMinimum: boolean;
+  selectedContactCount: number;
+  sample: Array<{ name: string | null; phone: string | null; email: string | null }>;
+}
+
+export interface MetaAdsAudienceValidationResult {
+  source: 'broadcast_contacts' | 'customer_interactions' | 'both' | 'manual';
+  total: number;
+  minimumRequired: number;
+  meetsMinimum: boolean;
+  selectedContactCount: number;
+  sample: Array<{ name: string | null; phone: string | null; email: string | null }>;
+}
+
+export interface MetaAdsOverviewAdRow {
+  id: string;
+  name: string;
+  status: 'draft' | 'published' | 'paused' | 'failed';
+  createdAt: string;
+  publishedAt?: string | null;
+  audienceCount: number;
+  minimumRequired: number;
+  budget: {
+    dailyAmount: number;
+    currency: string;
+  };
+  wallet: {
+    estimatedReserve: number;
+    currency: string;
+  };
+  analytics: {
+    impressions: number;
+    reach: number;
+    clicks: number;
+    conversions: number;
+    spend: number;
+  };
+}
+
+export interface MetaAdsOverviewResponse {
+  totals: {
+    impressions: number;
+    reach: number;
+    clicks: number;
+    conversions: number;
+    spend: number;
+  };
+  totalAds: number;
+  activeAds: number;
+  pausedAds: number;
+  ads: MetaAdsOverviewAdRow[];
+}
+
+export const metaAdsApi = {
+  getConfig: () =>
+    apiRequest<{ config: MetaAdsConfig }>('/meta-ads/config'),
+
+  updateConfig: (data: Partial<MetaAdsConfig>) =>
+    apiRequest<{ message: string; config: MetaAdsConfig }>('/meta-ads/config', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  getAudiencePreview: (
+    source: 'broadcast_contacts' | 'customer_interactions' | 'both' = 'both',
+    contactIds: string[] = []
+  ) => {
+    const params = new URLSearchParams({ source });
+    if (contactIds.length > 0) {
+      params.set('contactIds', contactIds.join(','));
+    }
+    return apiRequest<MetaAdsAudiencePreview>(`/meta-ads/audience/preview?${params.toString()}`);
+  },
+
+  validateAudience: (data: {
+    source: 'broadcast_contacts' | 'customer_interactions' | 'both' | 'manual';
+    contactIds?: string[];
+    minimumRequired?: number;
+    manualCount?: number;
+    estimatedCount?: number;
+  }) =>
+    apiRequest<MetaAdsAudienceValidationResult>('/meta-ads/audience/validate', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  createCampaign: (data: {
+    name: string;
+    objective?: 'OUTCOME_TRAFFIC' | 'OUTCOME_ENGAGEMENT' | 'OUTCOME_AWARENESS';
+    adCopy: {
+      primaryText: string;
+      headline: string;
+      description?: string;
+      callToAction?: string;
+      internalTitle?: string;
+      contentNotes?: string;
+    };
+    creative: {
+      destinationUrl: string;
+      imageUrl?: string;
+    };
+    budget: {
+      dailyAmount: number;
+      currency?: string;
+    };
+    schedule?: {
+      startAt?: string;
+      endAt?: string;
+    };
+    audience?: {
+      source?: 'broadcast_contacts' | 'customer_interactions' | 'both' | 'manual';
+      contactIds?: string[];
+      countries?: string[];
+      customAudienceName?: string;
+      estimatedCount?: number;
+      locations?: string[];
+      gender?: 'all' | 'male' | 'female';
+      ageRange?: {
+        min?: number;
+        max?: number;
+      };
+      interests?: string[];
+      behaviors?: string[];
+    };
+    channels?: Array<'facebook' | 'instagram'>;
+    campaignMeta?: {
+      internalTitle?: string;
+      contentNotes?: string;
+    };
+  }) =>
+    apiRequest<{ message: string; campaign: MetaAdCampaign }>('/meta-ads/campaigns', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  getCampaigns: () =>
+    apiRequest<{ campaigns: MetaAdCampaign[] }>('/meta-ads/campaigns'),
+
+  publishCampaign: (id: string) =>
+    apiRequest<{ message: string; campaign: MetaAdCampaign; wallet?: { currentBalance: number; currency: string; reserveAmount: number } }>(`/meta-ads/campaigns/${id}/publish`, {
+      method: 'POST',
+    }),
+
+  updateCampaignStatus: (id: string, state: 'ACTIVE' | 'PAUSED') =>
+    apiRequest<{ message: string; campaign: MetaAdCampaign }>(`/meta-ads/campaigns/${id}/status`, {
+      method: 'POST',
+      body: JSON.stringify({ state }),
+    }),
+
+  getCampaignInsights: (id: string, datePreset = 'last_7d') =>
+    apiRequest<{
+      campaignId: string;
+      datePreset: string;
+      fields: string[];
+      summary: MetaAdsInsightMetrics;
+      insights: MetaAdsInsightResult[];
+    }>(`/meta-ads/campaigns/${id}/insights?datePreset=${encodeURIComponent(datePreset)}`),
+
+  getAnalyticsOverview: () =>
+    apiRequest<MetaAdsOverviewResponse>('/meta-ads/analytics/overview'),
 };

@@ -1,0 +1,37 @@
+<svg width="1200" height="800" viewBox="0 0 1200 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg2" x1="0" y1="0" x2="1200" y2="800" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="180" y1="120" x2="1020" y2="720" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1F2937" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#0B1220" stop-opacity="0.9"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="280" y1="180" x2="920" y2="620" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F59E0B"/>
+      <stop offset="1" stop-color="#FBBF24"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="800" rx="48" fill="url(#bg2)"/>
+  <circle cx="220" cy="170" r="90" fill="#FBBF24" fill-opacity="0.16"/>
+  <circle cx="980" cy="660" r="120" fill="#F59E0B" fill-opacity="0.12"/>
+  <rect x="250" y="70" width="700" height="660" rx="48" fill="url(#glass)" stroke="#303544" stroke-width="2"/>
+  <rect x="310" y="120" width="140" height="18" rx="9" fill="#FBBF24"/>
+  <rect x="310" y="156" width="220" height="18" rx="9" fill="#263043"/>
+  <rect x="310" y="204" width="580" height="210" rx="32" fill="#101827" stroke="#31384A"/>
+  <rect x="340" y="234" width="210" height="150" rx="24" fill="url(#accent)"/>
+  <rect x="580" y="234" width="280" height="22" rx="11" fill="#F3F4F6"/>
+  <rect x="580" y="274" width="170" height="14" rx="7" fill="#4B5563"/>
+  <rect x="580" y="302" width="220" height="14" rx="7" fill="#4B5563"/>
+  <rect x="580" y="340" width="120" height="40" rx="20" fill="#FBBF24"/>
+  <rect x="310" y="448" width="580" height="214" rx="32" fill="#101827" stroke="#31384A"/>
+  <rect x="342" y="486" width="150" height="20" rx="10" fill="#FBBF24"/>
+  <rect x="342" y="526" width="500" height="16" rx="8" fill="#263043"/>
+  <rect x="342" y="558" width="450" height="16" rx="8" fill="#263043"/>
+  <rect x="342" y="590" width="380" height="16" rx="8" fill="#263043"/>
+  <rect x="342" y="624" width="150" height="30" rx="15" fill="#FBBF24"/>
+  <circle cx="860" cy="520" r="34" fill="#FBBF24" fill-opacity="0.2"/>
+  <circle cx="860" cy="520" r="18" fill="#FBBF24"/>
+  <path d="M853 520L859 526L868 514" stroke="#111827" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
