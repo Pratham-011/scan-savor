@@ -13,6 +13,7 @@ import {
   RefreshCw,
   Sparkles,
   Circle,
+  Upload,
 } from 'lucide-react';
 import { getResolvedApiBase, whatsappApi, WhatsAppTemplate, WhatsAppTemplateButton, WhatsAppTemplateComponent } from '@/lib/api';
 import { Switch } from '@/components/ui/switch';
@@ -209,7 +210,7 @@ const buildTemplateComponents = (
 };
 
 const getTemplateEditorState = (template: WhatsAppTemplate) => {
-  const templateComponents = (template.components || []) as Array<Record<string, unknown>>;
+  const templateComponents = (template.components || []) as unknown as Array<Record<string, unknown>>;
   const headerComponent = templateComponents.find((comp) => String(comp?.type || '').toLowerCase() === 'header');
   const footerComponent = templateComponents.find((comp) => String(comp?.type || '').toLowerCase() === 'footer');
   const buttonsComponent = templateComponents.find((comp) => String(comp?.type || '').toLowerCase() === 'buttons');
@@ -406,6 +407,7 @@ export default function WhatsAppAutomation() {
   const [showPreview, setShowPreview] = useState(false);
   const [autoSyncingStatus, setAutoSyncingStatus] = useState(false);
   const [lastAutoSyncAt, setLastAutoSyncAt] = useState<string | null>(null);
+  const [uploadingHeaderMedia, setUploadingHeaderMedia] = useState(false);
   const templateValidation = useMemo(
     () => validateTemplateFormState(templateForm, templateHeaderType),
     [templateForm, templateHeaderType]
@@ -713,6 +715,36 @@ export default function WhatsAppAutomation() {
     setEditingTemplateId(null);
     resetTemplateForm();
     setTemplateDialogStep(2);
+  };
+
+  const handleTemplateHeaderUpload = async (file?: File) => {
+    if (!file || !(templateHeaderType === 'image' || templateHeaderType === 'video' || templateHeaderType === 'document')) {
+      return;
+    }
+
+    try {
+      setUploadingHeaderMedia(true);
+      setError(null);
+
+      const resourceType = templateHeaderType === 'document'
+        ? 'raw'
+        : (templateHeaderType as 'image' | 'video');
+
+      const response = await whatsappApi.uploadMedia(file, {
+        purpose: 'template_header',
+        resourceType
+      });
+
+      setTemplateForm((prev) => ({
+        ...prev,
+        headerMediaType: templateHeaderType,
+        headerMediaHandle: response.asset.url
+      }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to upload header media');
+    } finally {
+      setUploadingHeaderMedia(false);
+    }
   };
 
   return (
@@ -1199,21 +1231,44 @@ export default function WhatsAppAutomation() {
                   {(templateHeaderType === 'image' || templateHeaderType === 'video' || templateHeaderType === 'document') && (
                     <div className="space-y-2">
                       <label className="mb-1 block text-sm font-medium text-muted-foreground">Header media</label>
-                      <input
-                        type="text"
-                        value={templateForm.headerMediaHandle}
-                        onChange={(e) =>
-                          setTemplateForm({
-                            ...templateForm,
-                            headerMediaType: templateHeaderType as 'image' | 'video' | 'document',
-                            headerMediaHandle: e.target.value
-                          })
-                        }
-                        placeholder={`Meta ${templateHeaderType} handle`}
-                        className="w-full rounded-lg border border-border/60 bg-background/60 px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                      />
+                      <div className="flex flex-col gap-2 md:flex-row">
+                        <input
+                          type="text"
+                          value={templateForm.headerMediaHandle}
+                          onChange={(e) =>
+                            setTemplateForm({
+                              ...templateForm,
+                              headerMediaType: templateHeaderType as 'image' | 'video' | 'document',
+                              headerMediaHandle: e.target.value
+                            })
+                          }
+                          placeholder={`Paste public ${templateHeaderType} URL or upload below`}
+                          className="w-full rounded-lg border border-border/60 bg-background/60 px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        />
+                        <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-border/60 px-3 py-2 text-sm font-medium text-foreground hover:bg-background/60">
+                          {uploadingHeaderMedia ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                          {uploadingHeaderMedia ? 'Uploading...' : 'Upload'}
+                          <input
+                            type="file"
+                            className="hidden"
+                            accept={
+                              templateHeaderType === 'image'
+                                ? 'image/*'
+                                : templateHeaderType === 'video'
+                                  ? 'video/*'
+                                  : '.pdf,.doc,.docx,.txt,.csv,.xlsx,.xls,application/*'
+                            }
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              void handleTemplateHeaderUpload(file);
+                              e.currentTarget.value = '';
+                            }}
+                            disabled={uploadingHeaderMedia}
+                          />
+                        </label>
+                      </div>
                       <p className="text-xs text-muted-foreground">
-                        Add the uploaded Meta media handle so template review can validate the header asset.
+                        Use a permanent public URL (Cloudinary upload recommended). Meta private temporary URLs are not valid.
                       </p>
                     </div>
                   )}
