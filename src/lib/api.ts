@@ -17,6 +17,7 @@
 const API_BASE = 'https://oneqrprod-dag2b3cmg0gsa7br.eastasia-01.azurewebsites.net/api';
 const BASE_URL = 'https://oneqrprod-dag2b3cmg0gsa7br.eastasia-01.azurewebsites.net';
 
+
 export const getResolvedApiBase = () => API_BASE;
 export const getResolvedBaseUrl = () => BASE_URL;
 
