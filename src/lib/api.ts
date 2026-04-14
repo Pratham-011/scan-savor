@@ -2,8 +2,8 @@
 // const BASE_URL = 'https://oneqr.onrender.com';
 
 // LOCAL DEV BACKEND LINK
-// const API_BASE = 'http://localhost:5000/api';
-// const BASE_URL = 'http://localhost:5000';
+const API_BASE = 'http://localhost:5001/api';
+const BASE_URL = 'http://localhost:5001';
 
 // LOCAL NGINX DEV BACKEND LINK
 // const API_BASE = 'https://54c2-36-255-170-81.ngrok-free.app/api';
@@ -14,8 +14,8 @@
 // const BASE_URL = 'https://oneqrbackend-axhad4hnenejhtek.eastasia-01.azurewebsites.net';
 
 // PROD BACKEND LINK(prod branch)
-const API_BASE = 'https://oneqrprod-dag2b3cmg0gsa7br.eastasia-01.azurewebsites.net/api';
-const BASE_URL = 'https://oneqrprod-dag2b3cmg0gsa7br.eastasia-01.azurewebsites.net';
+// const API_BASE = 'https://oneqrprod-dag2b3cmg0gsa7br.eastasia-01.azurewebsites.net/api';
+// const BASE_URL = 'https://oneqrprod-dag2b3cmg0gsa7br.eastasia-01.azurewebsites.net';
 
 export const getResolvedApiBase = () => API_BASE;
 export const getResolvedBaseUrl = () => BASE_URL;
@@ -905,7 +905,7 @@ export interface WhatsAppChatCustomer {
   phoneNumber: string;
   customerName?: string | null;
   lastMessageText?: string;
-  lastMessageType?: 'text' | 'template' | 'interactive' | 'system' | string;
+  lastMessageType?: 'text' | 'template' | 'interactive' | 'media' | 'system' | string;
   lastDirection?: 'inbound' | 'outbound' | string;
   lastStatus?: 'pending' | 'sent' | 'delivered' | 'read' | 'failed' | string;
   lastMessageAt?: string;
@@ -920,7 +920,7 @@ export interface WhatsAppChatMessage {
   phoneNumber: string;
   customerName?: string | null;
   direction: 'inbound' | 'outbound';
-  messageType: 'text' | 'template' | 'interactive' | 'system' | string;
+  messageType: 'text' | 'template' | 'interactive' | 'media' | 'system' | string;
   text: string;
   template?: {
     templateId?: string | null;
@@ -940,6 +940,18 @@ export interface WhatsAppChatMessage {
   sentAt: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface WhatsAppUploadedAsset {
+  url: string;
+  publicId: string;
+  resourceType: string;
+  format?: string;
+  bytes?: number;
+  width?: number | null;
+  height?: number | null;
+  duration?: number | null;
+  originalFilename?: string | null;
 }
 
 export const whatsappApi = {
@@ -1158,6 +1170,50 @@ export const whatsappApi = {
       conversationWindow: WhatsAppConversationWindow;
       meta?: unknown;
     }>('/whatsapp/chat/send/template', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  uploadMedia: async (file: File, options?: { purpose?: 'template_header' | 'chat_media' | 'broadcast_media' | 'general'; resourceType?: 'image' | 'video' | 'raw' | 'auto' }) => {
+    const token = getToken();
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('purpose', options?.purpose || 'general');
+    if (options?.resourceType) {
+      formData.append('resourceType', options.resourceType);
+    }
+
+    const response = await fetch(`${API_BASE}/whatsapp/media/upload`, {
+      method: 'POST',
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` })
+      },
+      body: formData
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Media upload failed' }));
+      throw new ApiError(error?.message || 'Media upload failed', error);
+    }
+
+    return response.json() as Promise<{ message: string; asset: WhatsAppUploadedAsset }>;
+  },
+
+  sendChatMedia: (data: {
+    phoneNumber: string;
+    customerName?: string;
+    mediaType: 'image' | 'video' | 'document';
+    mediaUrl: string;
+    filename?: string;
+    mimeType?: string;
+    caption?: string;
+  }) =>
+    apiRequest<{
+      message: string;
+      chatMessage: WhatsAppChatMessage;
+      conversationWindow: WhatsAppConversationWindow;
+      meta?: unknown;
+    }>('/whatsapp/chat/send/media', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
