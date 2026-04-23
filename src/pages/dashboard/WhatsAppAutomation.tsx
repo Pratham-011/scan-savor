@@ -209,6 +209,39 @@ const buildTemplateComponents = (
   return components;
 };
 
+const getFilenameFromUrl = (rawUrl = '') => {
+  try {
+    const parsed = new URL(rawUrl);
+    const lastSegment = parsed.pathname.split('/').filter(Boolean).pop() || '';
+    return decodeURIComponent(lastSegment).trim();
+  } catch {
+    return '';
+  }
+};
+
+const getMediaPreviewFromHandle = (handle = '', type: TemplateHeaderType) => {
+  const value = String(handle || '').trim();
+
+  if (!value || !/^https?:\/\//i.test(value)) {
+    return null;
+  }
+
+  return {
+    type,
+    url: value,
+    filename: type === 'document' ? getFilenameFromUrl(value) || 'document.pdf' : ''
+  };
+};
+
+const getTemplateDocumentDisplayName = (form: { headerMediaFilename?: string; headerMediaHandle: string }) => {
+  const preferredName = String(form.headerMediaFilename || '').trim();
+  if (preferredName) {
+    return preferredName;
+  }
+
+  return getFilenameFromUrl(form.headerMediaHandle) || 'document.pdf';
+};
+
 const getTemplateEditorState = (template: WhatsAppTemplate) => {
   const templateComponents = (template.components || []) as unknown as Array<Record<string, unknown>>;
   const headerComponent = templateComponents.find((comp) => String(comp?.type || '').toLowerCase() === 'header');
@@ -246,6 +279,7 @@ const getTemplateEditorState = (template: WhatsAppTemplate) => {
       headerText,
       headerMediaType: (headerFormat === 'video' || headerFormat === 'document' ? headerFormat : 'image') as 'image' | 'video' | 'document',
       headerMediaHandle: headerHandle,
+      headerMediaFilename: String((headerComponent as { example?: { filename?: string } } | undefined)?.example?.filename || '').trim(),
       footerText: String((footerComponent as { text?: string } | undefined)?.text || ''),
       buttons: buttons.length > 0 ? buttons : [createEmptyButton()],
       isActive: template.isActive,
@@ -396,6 +430,7 @@ export default function WhatsAppAutomation() {
     headerText: '',
     headerMediaType: 'image' as 'image' | 'video' | 'document',
     headerMediaHandle: '',
+    headerMediaFilename: '',
     footerText: '',
     buttons: [createEmptyButton()] as WhatsAppTemplateButton[],
     isActive: true,
@@ -423,6 +458,7 @@ export default function WhatsAppAutomation() {
       headerText: '',
       headerMediaType: 'image',
       headerMediaHandle: '',
+      headerMediaFilename: '',
       footerText: '',
       buttons: [createEmptyButton()],
       isActive: true,
@@ -701,6 +737,7 @@ export default function WhatsAppAutomation() {
       headerText: '',
       headerMediaType: 'image',
       headerMediaHandle: '',
+      headerMediaFilename: '',
       footerText: '',
       buttons: [createEmptyButton()],
       isActive: true,
@@ -738,7 +775,8 @@ export default function WhatsAppAutomation() {
       setTemplateForm((prev) => ({
         ...prev,
         headerMediaType: templateHeaderType,
-        headerMediaHandle: response.asset.url
+        headerMediaHandle: response.asset.url,
+        headerMediaFilename: response.asset.originalFilename || file.name
       }));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to upload header media');
@@ -1546,6 +1584,42 @@ export default function WhatsAppAutomation() {
                         </div>
 
                         <div className="ml-auto w-[88%] rounded-xl bg-[#dcf8c6] px-3 py-2 text-[#1f2937] shadow-sm">
+                          {templateHeaderType === 'image' && templateForm.headerMediaHandle.trim() && (() => {
+                            const preview = getMediaPreviewFromHandle(templateForm.headerMediaHandle, 'image');
+                            return preview ? (
+                              <div className="mb-2 overflow-hidden rounded-lg border border-[#b8e2a0] bg-white">
+                                <img
+                                  src={preview.url}
+                                  alt="Template image preview"
+                                  className="h-32 w-full object-cover"
+                                />
+                              </div>
+                            ) : null;
+                          })()}
+
+                          {templateHeaderType === 'video' && templateForm.headerMediaHandle.trim() && (() => {
+                            const preview = getMediaPreviewFromHandle(templateForm.headerMediaHandle, 'video');
+                            return preview ? (
+                              <div className="mb-2 overflow-hidden rounded-lg border border-[#b8e2a0] bg-black">
+                                <video
+                                  src={preview.url}
+                                  controls
+                                  className="h-36 w-full object-cover"
+                                />
+                              </div>
+                            ) : null;
+                          })()}
+
+                          {templateHeaderType === 'document' && templateForm.headerMediaHandle.trim() && (() => {
+                            const preview = getMediaPreviewFromHandle(templateForm.headerMediaHandle, 'document');
+                            return preview ? (
+                              <div className="mb-2 rounded-lg border border-[#b8e2a0] bg-white px-3 py-2">
+                                <p className="truncate text-xs font-semibold text-[#1f2937]">{getTemplateDocumentDisplayName(templateForm)}</p>
+                                <p className="mt-1 text-[10px] text-[#4b5563]">Document preview</p>
+                              </div>
+                            ) : null;
+                          })()}
+
                           {templateHeaderType === 'text' && templateForm.headerText.trim() && (
                             <div className="mb-2 border-b border-[#b8e2a0] pb-1.5">
                               <p className="text-xs font-semibold whitespace-pre-wrap">{templateForm.headerText}</p>

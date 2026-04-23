@@ -2,8 +2,8 @@
 // const BASE_URL = 'https://oneqr.onrender.com';
 
 // LOCAL DEV BACKEND LINK
-// const API_BASE = 'http://localhost:5001/api';
-// const BASE_URL = 'http://localhost:5001';
+const API_BASE = 'http://localhost:5000/api';
+const BASE_URL = 'http://localhost:5000';
 
 // LOCAL NGINX DEV BACKEND LINK
 // const API_BASE = 'https://54c2-36-255-170-81.ngrok-free.app/api';
@@ -14,8 +14,8 @@
 // const BASE_URL = 'https://oneqrbackend-axhad4hnenejhtek.eastasia-01.azurewebsites.net';
 
 // PROD BACKEND LINK(prod branch)
-const API_BASE = 'https://oneqrprod-dag2b3cmg0gsa7br.eastasia-01.azurewebsites.net/api';
-const BASE_URL = 'https://oneqrprod-dag2b3cmg0gsa7br.eastasia-01.azurewebsites.net';
+// const API_BASE = 'https://oneqrprod-dag2b3cmg0gsa7br.eastasia-01.azurewebsites.net/api';
+// const BASE_URL = 'https://oneqrprod-dag2b3cmg0gsa7br.eastasia-01.azurewebsites.net';
 
 
 export const getResolvedApiBase = () => API_BASE;
@@ -752,7 +752,21 @@ export interface WhatsAppTemplateComponent {
   format?: 'text' | 'image' | 'video' | 'document' | 'location';
   text?: string;
   buttons?: WhatsAppTemplateButton[];
-  example?: Record<string, unknown>;
+  example?: {
+    header_handle?: string[];
+    mediaUrl?: string;
+    link?: string;
+    preview_url?: string;
+    preview_urls?: string[];
+    filename?: string;
+    [key: string]: unknown;
+  };
+  oneqrPreview?: {
+    type?: 'image' | 'video' | 'document' | string;
+    url?: string;
+    urls?: string[];
+    filename?: string;
+  };
 }
 
 export interface WhatsAppTemplateButton {
@@ -1478,7 +1492,11 @@ export interface MetaAdCampaign {
   };
   creative: {
     destinationUrl: string;
+    mediaType?: 'IMAGE' | 'VIDEO';
     imageUrl?: string | null;
+    videoUrl?: string | null;
+    imageHash?: string | null;
+    videoId?: string | null;
   };
   budget: {
     dailyAmount: number;
@@ -1625,6 +1643,22 @@ export interface MetaAdsOverviewResponse {
   ads: MetaAdsOverviewAdRow[];
 }
 
+export interface MetaAdsUploadedAsset {
+  mediaType: 'IMAGE' | 'VIDEO';
+  url: string;
+  publicId: string;
+  resourceType: string;
+  format?: string;
+  bytes?: number;
+  width?: number | null;
+  height?: number | null;
+  duration?: number | null;
+  originalFilename?: string | null;
+  imageHash?: string | null;
+  videoId?: string | null;
+  metaUpload?: unknown;
+}
+
 export const metaAdsApi = {
   getConfig: () =>
     apiRequest<{ config: MetaAdsConfig }>('/meta-ads/config'),
@@ -1671,7 +1705,11 @@ export const metaAdsApi = {
     };
     creative: {
       destinationUrl: string;
+      mediaType?: 'IMAGE' | 'VIDEO';
       imageUrl?: string;
+      videoUrl?: string;
+      imageHash?: string;
+      videoId?: string;
     };
     budget: {
       dailyAmount: number;
@@ -1706,6 +1744,84 @@ export const metaAdsApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+
+  updateCampaign: (id: string, data: Partial<{
+    name: string;
+    objective: 'OUTCOME_TRAFFIC' | 'OUTCOME_ENGAGEMENT' | 'OUTCOME_AWARENESS';
+    adCopy: {
+      primaryText?: string;
+      headline?: string;
+      description?: string;
+      callToAction?: string;
+      internalTitle?: string;
+      contentNotes?: string;
+    };
+    creative: {
+      destinationUrl?: string;
+      mediaType?: 'IMAGE' | 'VIDEO';
+      imageUrl?: string;
+      videoUrl?: string;
+      imageHash?: string;
+      videoId?: string;
+    };
+    budget: {
+      dailyAmount?: number;
+      currency?: string;
+    };
+    schedule: {
+      startAt?: string;
+      endAt?: string;
+    };
+    audience: {
+      source?: 'broadcast_contacts' | 'customer_interactions' | 'both' | 'manual';
+      contactIds?: string[];
+      countries?: string[];
+      customAudienceName?: string;
+      estimatedCount?: number;
+      manualCount?: number;
+      locations?: string[];
+      gender?: 'all' | 'male' | 'female';
+      ageRange?: {
+        min?: number;
+        max?: number;
+      };
+      interests?: string[];
+      behaviors?: string[];
+    };
+    channels: Array<'facebook' | 'instagram'>;
+    campaignMeta: {
+      internalTitle?: string;
+      contentNotes?: string;
+    };
+  }>) =>
+    apiRequest<{ message: string; campaign: MetaAdCampaign }>(`/meta-ads/campaigns/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  uploadAsset: async (file: File, options?: { mediaType?: 'IMAGE' | 'VIDEO' }) => {
+    const token = getToken();
+    const formData = new FormData();
+    formData.append('file', file);
+    if (options?.mediaType) {
+      formData.append('mediaType', options.mediaType);
+    }
+
+    const response = await fetch(`${API_BASE}/meta-ads/assets/upload`, {
+      method: 'POST',
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` })
+      },
+      body: formData
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Meta ads asset upload failed' }));
+      throw new ApiError(error?.message || 'Meta ads asset upload failed', error);
+    }
+
+    return response.json() as Promise<{ message: string; asset: MetaAdsUploadedAsset }>;
+  },
 
   getCampaigns: () =>
     apiRequest<{ campaigns: MetaAdCampaign[] }>('/meta-ads/campaigns'),

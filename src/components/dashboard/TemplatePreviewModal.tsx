@@ -55,6 +55,24 @@ export default function TemplatePreviewModal({ template, open, onOpenChange }: T
   const headerText = String(headerComponent?.text || '');
   const footerText = String(footerComponent?.text || '');
   const buttons = Array.isArray(buttonsComponent?.buttons) ? buttonsComponent.buttons : [];
+  const headerPreview = headerComponent?.oneqrPreview;
+  const headerPreviewUrls = Array.isArray(headerPreview?.urls) ? headerPreview.urls : [];
+  const headerPreviewUrl =
+    String(
+      headerPreview?.url ||
+      headerComponent?.example?.preview_url ||
+      headerComponent?.example?.mediaUrl ||
+      headerComponent?.example?.link ||
+      ''
+    ).trim() ||
+    (Array.isArray(headerComponent?.example?.preview_urls) && headerComponent.example.preview_urls.length > 0
+      ? String(headerComponent.example.preview_urls[0] || '').trim()
+      : '');
+  const documentFilename = String(
+    headerPreview?.filename ||
+    headerComponent?.example?.filename ||
+    ''
+  ).trim();
   const headerHandle =
     Array.isArray(headerComponent?.example?.header_handle) && headerComponent.example.header_handle.length > 0
       ? String(headerComponent.example.header_handle[0])
@@ -105,7 +123,46 @@ export default function TemplatePreviewModal({ template, open, onOpenChange }: T
                   {headerFormat && headerFormat !== 'text' && (
                     <div className="mb-2 rounded-md border border-[#b8e2a0] bg-[#eef8e6] px-2 py-1.5">
                       <p className="text-[11px] font-semibold capitalize">{headerFormat} attached</p>
-                      {headerHandle && <p className="text-[10px] text-[#4b5563] truncate">{headerHandle}</p>}
+
+                      {headerFormat === 'image' && headerPreviewUrl && (
+                        <img
+                          src={headerPreviewUrl}
+                          alt="Template header preview"
+                          className="mt-2 h-24 w-full rounded border border-[#b8e2a0] object-cover"
+                        />
+                      )}
+
+                      {headerFormat === 'video' && headerPreviewUrl && (
+                        <video
+                          src={headerPreviewUrl}
+                          controls
+                          className="mt-2 h-28 w-full rounded border border-[#b8e2a0] object-cover"
+                        />
+                      )}
+
+                      {headerFormat === 'document' && headerPreviewUrl && (
+                        <div className="mt-2 rounded border border-[#b8e2a0] bg-white px-2 py-2">
+                          <p className="text-[10px] font-medium text-[#374151] truncate">
+                            {documentFilename || 'Document'}
+                          </p>
+                          <a
+                            href={headerPreviewUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-[10px] text-blue-700 underline"
+                          >
+                            Open document preview
+                          </a>
+                        </div>
+                      )}
+
+                      {!headerPreviewUrl && headerHandle && (
+                        <p className="text-[10px] text-[#4b5563] truncate">{headerHandle}</p>
+                      )}
+
+                      {headerPreviewUrls.length > 1 && (
+                        <p className="mt-1 text-[10px] text-[#4b5563]">+{headerPreviewUrls.length - 1} more sample link(s)</p>
+                      )}
                     </div>
                   )}
 

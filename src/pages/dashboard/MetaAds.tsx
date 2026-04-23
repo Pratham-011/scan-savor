@@ -12,6 +12,14 @@ import {
   whatsappApi,
 } from '@/lib/api';
 
+const toDatetimeLocalInput = (value?: string | null) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return '';
+  const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return offsetDate.toISOString().slice(0, 16);
+};
+
 const formatDate = (value?: string | null) => {
   if (!value) return '-';
   try {
@@ -83,6 +91,8 @@ export default function MetaAdsPage() {
   const [wallet, setWallet] = useState<WhatsAppWalletSnapshot | null>(null);
 
   const [currentStep, setCurrentStep] = useState(1);
+  const [editingCampaignId, setEditingCampaignId] = useState<string | null>(null);
+  const [uploadingAsset, setUploadingAsset] = useState(false);
 
   const [draft, setDraft] = useState({
     name: '',
@@ -94,7 +104,11 @@ export default function MetaAdsPage() {
     callToAction: 'LEARN_MORE' as 'LEARN_MORE' | 'SHOP_NOW' | 'ORDER_NOW' | 'CONTACT_US' | 'SEND_WHATSAPP_MESSAGE',
     contentNotes: '',
     destinationUrl: '',
+    mediaType: 'IMAGE' as 'IMAGE' | 'VIDEO',
     imageUrl: '',
+    videoUrl: '',
+    imageHash: '',
+    videoId: '',
     dailyAmount: 200,
     startAt: '',
     endAt: '',
@@ -354,6 +368,37 @@ export default function MetaAdsPage() {
     }
   };
 
+  const handleUploadCreativeAsset = async (file: File) => {
+    try {
+      setUploadingAsset(true);
+      setError(null);
+      setSuccess(null);
+
+      const mediaType = file.type.startsWith('video/') ? 'VIDEO' : draft.mediaType;
+      const response = await metaAdsApi.uploadAsset(file, { mediaType });
+      const asset = response.asset;
+
+      setDraft((prev) => ({
+        ...prev,
+        mediaType: asset.mediaType,
+        imageUrl: asset.mediaType === 'IMAGE' ? String(asset.url || '') : prev.imageUrl,
+        videoUrl: asset.mediaType === 'VIDEO' ? String(asset.url || '') : prev.videoUrl,
+        imageHash: asset.mediaType === 'IMAGE' ? String(asset.imageHash || '') : prev.imageHash,
+        videoId: asset.mediaType === 'VIDEO' ? String(asset.videoId || '') : prev.videoId,
+      }));
+
+      setSuccess(
+        asset.mediaType === 'VIDEO'
+          ? `Video uploaded${asset.videoId ? ' and synced to Meta' : ''}`
+          : `Image uploaded${asset.imageHash ? ' and synced to Meta' : ''}`
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to upload creative asset');
+    } finally {
+      setUploadingAsset(false);
+    }
+  };
+
   const createCampaign = async () => {
     if (!draft.name.trim() || !draft.internalTitle.trim() || !draft.destinationUrl.trim() || !draft.headline.trim()) {
       setError('Campaign name, internal title, headline, and destination URL are required');
@@ -400,7 +445,7 @@ export default function MetaAdsPage() {
         return;
       }
 
-      await metaAdsApi.createCampaign({
+      const payload = {
         name: draft.name.trim(),
         objective: draft.objective,
         adCopy: {
@@ -413,7 +458,11 @@ export default function MetaAdsPage() {
         },
         creative: {
           destinationUrl: draft.destinationUrl.trim(),
+          mediaType: draft.mediaType,
           imageUrl: draft.imageUrl.trim() || undefined,
+          videoUrl: draft.videoUrl.trim() || undefined,
+          imageHash: draft.imageHash.trim() || undefined,
+          videoId: draft.videoId.trim() || undefined,
         },
         budget: {
           dailyAmount: Number(draft.dailyAmount),
@@ -443,7 +492,13 @@ export default function MetaAdsPage() {
           internalTitle: draft.internalTitle.trim(),
           contentNotes: draft.contentNotes.trim() || undefined,
         },
-      });
+      };
+
+      if (editingCampaignId) {
+        await metaAdsApi.updateCampaign(editingCampaignId, payload);
+      } else {
+        await metaAdsApi.createCampaign(payload);
+      }
 
       setDraft((prev) => ({
         ...prev,
@@ -454,17 +509,22 @@ export default function MetaAdsPage() {
         description: '',
         contentNotes: '',
         destinationUrl: '',
+        mediaType: 'IMAGE',
         imageUrl: '',
+        videoUrl: '',
+        imageHash: '',
+        videoId: '',
         startAt: '',
         endAt: '',
       }));
       await loadCampaigns();
       await loadOverview();
       setCurrentStep(3);
-      setSuccess('Draft campaign created. Publish from the ads table actions.');
+      setSuccess(editingCampaignId ? 'Campaign updated successfully.' : 'Draft campaign created. Publish from the ads table actions.');
+      setEditingCampaignId(null);
       setIsCreateModalOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create campaign');
+      setError(err instanceof Error ? err.message : 'Failed to save campaign');
     } finally {
       setLoading(false);
     }
@@ -484,9 +544,98 @@ export default function MetaAdsPage() {
 
   const openCreateModal = () => {
     setCurrentStep(1);
+    setEditingCampaignId(null);
+    setAudienceSource('broadcast_contacts');
+    setSelectedContactIds([]);
+    setAudienceCount(0);
     setAudienceValidation(null);
     setError(null);
     setSuccess(null);
+    setDraft((prev) => ({
+      ...prev,
+      name: '',
+      internalTitle: '',
+      objective: 'OUTCOME_TRAFFIC',
+      primaryText: '',
+      headline: '',
+      description: '',
+      callToAction: 'LEARN_MORE',
+      contentNotes: '',
+      destinationUrl: '',
+      mediaType: 'IMAGE',
+      imageUrl: '',
+      videoUrl: '',
+      imageHash: '',
+      videoId: '',
+      dailyAmount: 200,
+      startAt: '',
+      endAt: '',
+      manualAudienceCount: 0,
+      customAudienceName: '',
+      locations: '',
+      countries: 'IN',
+      gender: 'all',
+      ageMin: 18,
+      ageMax: 65,
+      interests: '',
+      behaviors: '',
+      channels: {
+        facebook: true,
+        instagram: true,
+      },
+    }));
+    setIsCreateModalOpen(true);
+  };
+
+  const openEditModal = (campaign: MetaAdCampaign) => {
+    setEditingCampaignId(campaign._id);
+    setCurrentStep(2);
+    setAudienceSource(campaign.audience?.source || 'both');
+    setSelectedContactIds(campaign.audience?.source === 'broadcast_contacts' ? (campaign.audience?.contactIds || []) : []);
+    setAudienceCount(Number(campaign.audience?.estimatedCount || 0));
+    setAudienceValidation({
+      total: Number(campaign.audience?.estimatedCount || 0),
+      minimumRequired: Number(campaign.audience?.minimumRequired || MIN_CONTACTS),
+      meetsMinimum: !!campaign.audience?.meetsMinimum,
+      selectedContactCount: Number(campaign.audience?.contactIds?.length || 0),
+    });
+    setError(null);
+    setSuccess(null);
+
+    setDraft((prev) => ({
+      ...prev,
+      name: campaign.name || '',
+      internalTitle: campaign.adCopy?.internalTitle || campaign.campaignMeta?.internalTitle || '',
+      objective: campaign.objective || 'OUTCOME_TRAFFIC',
+      primaryText: campaign.adCopy?.primaryText || '',
+      headline: campaign.adCopy?.headline || '',
+      description: campaign.adCopy?.description || '',
+      callToAction: (campaign.adCopy?.callToAction as 'LEARN_MORE' | 'SHOP_NOW' | 'ORDER_NOW' | 'CONTACT_US' | 'SEND_WHATSAPP_MESSAGE') || 'LEARN_MORE',
+      contentNotes: campaign.adCopy?.contentNotes || campaign.campaignMeta?.contentNotes || '',
+      destinationUrl: campaign.creative?.destinationUrl || '',
+      mediaType: (campaign.creative?.mediaType || (campaign.creative?.videoId || campaign.creative?.videoUrl ? 'VIDEO' : 'IMAGE')) as 'IMAGE' | 'VIDEO',
+      imageUrl: campaign.creative?.imageUrl || '',
+      videoUrl: campaign.creative?.videoUrl || '',
+      imageHash: campaign.creative?.imageHash || '',
+      videoId: campaign.creative?.videoId || '',
+      dailyAmount: Number(campaign.budget?.dailyAmount || 0),
+      startAt: toDatetimeLocalInput(campaign.schedule?.startAt),
+      endAt: toDatetimeLocalInput(campaign.schedule?.endAt),
+      manualAudienceCount: Number(campaign.audience?.estimatedCount || 0),
+      customAudienceName: campaign.audience?.customAudienceName || '',
+      locations: (campaign.audience?.locations || []).join(', '),
+      countries: (campaign.audience?.countries || ['IN']).join(','),
+      gender: campaign.audience?.gender || 'all',
+      ageMin: Number(campaign.audience?.ageRange?.min || 18),
+      ageMax: Number(campaign.audience?.ageRange?.max || 65),
+      interests: (campaign.audience?.interests || []).join(', '),
+      behaviors: (campaign.audience?.behaviors || []).join(', '),
+      channels: {
+        facebook: (campaign.channels || []).includes('facebook'),
+        instagram: (campaign.channels || []).includes('instagram'),
+      },
+    }));
+
     setIsCreateModalOpen(true);
   };
 
@@ -718,6 +867,19 @@ export default function MetaAdsPage() {
                       </button>
                       {row.status !== 'published' && (
                         <button
+                          onClick={() => {
+                            const campaign = campaigns.find((item) => item._id === row.id);
+                            if (campaign) {
+                              openEditModal(campaign);
+                            }
+                          }}
+                          className="rounded-md border border-border/60 px-2 py-1 text-xs hover:bg-secondary"
+                        >
+                          Edit
+                        </button>
+                      )}
+                      {row.status !== 'published' && (
+                        <button
                           onClick={async () => {
                             setSelectedCampaignId(row.id);
                             await publishSelectedCampaign();
@@ -878,7 +1040,7 @@ export default function MetaAdsPage() {
           <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-primary/20 bg-gradient-card shadow-2xl">
             <div className="flex items-center justify-between border-b border-border/40 px-4 py-3">
               <div className="flex items-center gap-3">
-                <h3 className="text-xl font-semibold">Create Ads</h3>
+                <h3 className="text-xl font-semibold">{editingCampaignId ? 'Edit Ad Campaign' : 'Create Ads'}</h3>
                 <span className="rounded-full border border-border/60 px-2 py-1 text-xs text-muted-foreground">Step {currentStep}/3</span>
               </div>
               <button
@@ -1115,7 +1277,7 @@ export default function MetaAdsPage() {
                     onChange={(e) => setDraft((prev) => ({ ...prev, callToAction: e.target.value as 'LEARN_MORE' | 'SHOP_NOW' | 'ORDER_NOW' | 'CONTACT_US' | 'SEND_WHATSAPP_MESSAGE' }))}
                   >
                     {CTA_OPTIONS.map((cta) => (
-                      <option key={cta} value={cta}>{cta.replaceAll('_', ' ')}</option>
+                      <option key={cta} value={cta}>{cta.replace(/_/g, ' ')}</option>
                     ))}
                   </select>
                   <textarea
@@ -1142,12 +1304,52 @@ export default function MetaAdsPage() {
                     value={draft.destinationUrl}
                     onChange={(e) => setDraft((prev) => ({ ...prev, destinationUrl: e.target.value }))}
                   />
-                  <input
+                  <select
                     className="px-3 py-2 rounded-lg border border-border/60 bg-background/50 text-sm"
-                    placeholder="Image URL (optional)"
-                    value={draft.imageUrl}
-                    onChange={(e) => setDraft((prev) => ({ ...prev, imageUrl: e.target.value }))}
+                    value={draft.mediaType}
+                    onChange={(e) => setDraft((prev) => ({ ...prev, mediaType: e.target.value as 'IMAGE' | 'VIDEO' }))}
+                  >
+                    <option value="IMAGE">Creative type: Image</option>
+                    <option value="VIDEO">Creative type: Video</option>
+                  </select>
+                  <input
+                    className="px-3 py-2 rounded-lg border border-border/60 bg-background/50 text-sm md:col-span-2"
+                    placeholder={draft.mediaType === 'VIDEO' ? 'Video URL (optional)' : 'Image URL (optional)'}
+                    value={draft.mediaType === 'VIDEO' ? draft.videoUrl : draft.imageUrl}
+                    onChange={(e) => setDraft((prev) => (
+                      draft.mediaType === 'VIDEO'
+                        ? { ...prev, videoUrl: e.target.value }
+                        : { ...prev, imageUrl: e.target.value }
+                    ))}
                   />
+                  <div className="md:col-span-3 flex flex-col gap-2 rounded-lg border border-border/40 bg-background/20 p-3">
+                    <p className="text-xs text-muted-foreground">Upload creative asset (auto stores Cloudinary URL and Meta image hash/video id when possible)</p>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <input
+                        type="file"
+                        accept={draft.mediaType === 'VIDEO' ? 'video/*' : 'image/*'}
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            await handleUploadCreativeAsset(file);
+                          }
+                          e.currentTarget.value = '';
+                        }}
+                        className="text-sm"
+                        disabled={uploadingAsset}
+                      />
+                      {uploadingAsset && (
+                        <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Uploading...
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground space-y-1">
+                      <p>Image hash: {draft.imageHash || '-'}</p>
+                      <p>Video id: {draft.videoId || '-'}</p>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
@@ -1204,11 +1406,15 @@ export default function MetaAdsPage() {
                     <p className="text-sm text-primary">{draft.destinationUrl || 'https://your-link-here.com'}</p>
                     <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                       <span className="rounded-full border border-border/60 px-2 py-1">{OBJECTIVE_OPTIONS.find((item) => item.value === draft.objective)?.label || 'Objective'}</span>
-                      <span className="rounded-full border border-border/60 px-2 py-1">CTA: {draft.callToAction.replaceAll('_', ' ')}</span>
+                      <span className="rounded-full border border-border/60 px-2 py-1">CTA: {draft.callToAction.replace(/_/g, ' ')}</span>
                       <span className="rounded-full border border-border/60 px-2 py-1">Budget: {formatCurrency(draft.dailyAmount, 'INR')}/day</span>
                       <span className="rounded-full border border-border/60 px-2 py-1">Channels: {selectedChannels.length ? selectedChannels.join(', ') : 'none'}</span>
                       <span className="rounded-full border border-border/60 px-2 py-1">Audience: {audienceCount}</span>
+                      <span className="rounded-full border border-border/60 px-2 py-1">Creative: {draft.mediaType}</span>
                     </div>
+                    <p className="text-xs text-muted-foreground">
+                      Asset URL: {draft.mediaType === 'VIDEO' ? (draft.videoUrl || '-') : (draft.imageUrl || '-')}
+                    </p>
                   </div>
                 </div>
 
@@ -1218,7 +1424,7 @@ export default function MetaAdsPage() {
                   className="inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-gold px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
                 >
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
-                  Create Draft
+                  {editingCampaignId ? 'Update Campaign' : 'Create Draft'}
                 </button>
               </div>
             </div>
