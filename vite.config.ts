@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
-    allowedHosts: ["radar-races-differ-alter.trycloudflare.com"],
+    allowedHosts: ["cluster-besides-toolbar-theories.trycloudflare.com"],
     proxy: {
       '/api': {
         target: 'http://localhost:5000',
