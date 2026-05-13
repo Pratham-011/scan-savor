@@ -1696,259 +1696,229 @@ const filteredItems = menuData.menu.filter(item => {
       </div>
 
       {/* Search & Filters */}
-      <div className="sticky top-3 z-20 mt-6 rounded-[28px] border border-[#d9c3ad]/80 bg-[#fff8f4]/90 px-4 py-4 shadow-[0_18px_50px_rgba(34,26,17,0.08)] backdrop-blur-xl sm:px-6">
-        {/* Search */}
-        <div className="relative mb-4">
-          <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#867461]" />
+      <div className="sticky top-3 z-20 mt-6 rounded-[28px] border border-[#d9c3ad]/80 bg-[#fff8f4]/90 px-4 py-3 shadow-[0_18px_50px_rgba(34,26,17,0.08)] backdrop-blur-xl sm:px-6">
+        {/* Search with inline filters */}
+        <div className="relative mb-3 flex items-center gap-2.5">
+          <Search className="absolute left-3 top-1/2 h-3 w-3 -translate-y-1/2 text-[#867461]" />
           <Input
             placeholder="Search menu..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-12 rounded-full border-[#d9c3ad] bg-white pl-11 pr-10 text-[#221a11] shadow-[0_10px_26px_rgba(34,26,17,0.04)] placeholder:text-[#867461] focus-visible:border-[#855300] focus-visible:ring-[#855300]/20"
+            className="h-9 flex-1 rounded-full border-[#d9c3ad] bg-white pl-9 pr-8 text-xs text-[#221a11] shadow-[0_10px_26px_rgba(34,26,17,0.04)] placeholder:text-[#867461] focus-visible:border-[#855300] focus-visible:ring-[#855300]/20"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-[#867461] transition-colors hover:bg-[#fff1e5] hover:text-[#221a11]"
+              className="absolute right-12 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-[#867461] transition-colors hover:bg-[#fff1e5] hover:text-[#221a11]"
             >
-              <X className="h-4 w-4" />
+              <X className="h-3 w-3" />
             </button>
           )}
-        </div>
 
-        <div className="flex items-start gap-3">
-          {/* Diet filters moved into an icon popover to keep the top bar compact */}
-          <div ref={dietFilterRef} className="relative">
-            <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowDietFilter(!showDietFilter)}
-              aria-label="Filter by diet"
-              aria-expanded={showDietFilter}
-              className={cn(
-                "relative inline-flex h-10 w-[112px] items-center justify-center gap-2 rounded-full border px-3 text-sm font-semibold transition-all duration-200",
-                showDietFilter || hasActiveDietFilters
-                  ? "border-[#855300]/30 bg-white text-[#221a11] shadow-[0_12px_24px_rgba(34,26,17,0.08)]"
-                  : "border-[#d9c3ad] bg-white text-[#534433] hover:border-[#855300]/30 hover:text-[#221a11]"
-              )}
-            >
-              <SlidersHorizontal className="h-4 w-4 text-[#855300]" />
-              <span className="text-xs font-semibold tracking-wide">Filters</span>
-              {hasActiveDietFilters && (
-                <span className="inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-[#855300] px-1.5 text-[10px] font-bold leading-none text-white">
-                  {[showVegOnly, showNonVegOnly, showJainOnly, showVeganOnly, showHalfJainOnly].filter(Boolean).length}
-                </span>
-              )}
-            </button>
-
-            {hasActiveDietFilters && (
-              <button onClick={clearDietFilters} className="text-xs font-medium text-[#867461] transition-colors hover:text-[#221a11]">
-                Clear
-              </button>
-            )}
-            </div>
-
-            {showDietFilter && (
-              <div className="absolute left-0 top-full z-30 mt-2 w-[300px] space-y-1 rounded-[22px] border border-[#d9c3ad] bg-[#fffdfb]/96 p-2.5 shadow-[0_24px_60px_rgba(34,26,17,0.12)] backdrop-blur-xl sm:w-[340px]">
+          {/* Filter buttons inline on right */}
+          <div className="flex items-center gap-2">
+            {/* Diet Filter */}
+            <div ref={dietFilterRef} className="relative">
               <button
-                onClick={() => {
-                  setShowVegOnly(!showVegOnly);
-                  if (!showVegOnly) setShowNonVegOnly(false);
-                }}
+                onClick={() => setShowDietFilter(!showDietFilter)}
+                aria-label="Filter by diet"
+                aria-expanded={showDietFilter}
                 className={cn(
-                  "flex w-full items-center justify-between rounded-2xl px-3 py-2.5 text-xs font-semibold transition-colors",
-                  showVegOnly ? "bg-[#eaf6e5] text-[#2f7a34]" : "text-[#221a11] hover:bg-[#fff1e5]"
+                  "relative inline-flex h-8 items-center justify-center gap-1 rounded-full border px-2 py-1 text-xs font-semibold transition-all duration-200",
+                  showDietFilter || hasActiveDietFilters
+                    ? "border-[#855300]/30 bg-white text-[#221a11] shadow-[0_12px_24px_rgba(34,26,17,0.08)]"
+                    : "border-[#d9c3ad] bg-white text-[#534433] hover:border-[#855300]/30 hover:text-[#221a11]"
                 )}
               >
-                <span className="inline-flex items-center gap-2">
-                  <Leaf className="h-3.5 w-3.5" />
-                  Veg
-                </span>
-                {showVegOnly && <Check className="h-3.5 w-3.5" />}
+                <SlidersHorizontal className="h-3 w-3 text-[#855300]" />
+                {hasActiveDietFilters && (
+                  <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#855300] text-[8px] font-bold leading-none text-white">
+                    {[showVegOnly, showNonVegOnly, showJainOnly, showVeganOnly, showHalfJainOnly].filter(Boolean).length}
+                  </span>
+                )}
               </button>
 
-              {restaurant.foodTypes?.includes('non-veg') && (
-                <button
-                  onClick={() => {
-                    setShowNonVegOnly(!showNonVegOnly);
-                    if (!showNonVegOnly) setShowVegOnly(false);
-                  }}
-                  className={cn(
-                      "flex w-full items-center justify-between rounded-2xl px-3 py-2.5 text-xs font-semibold transition-colors",
-                      showNonVegOnly ? "bg-[#f8e3df] text-[#9c2f2f]" : "text-[#221a11] hover:bg-[#fff1e5]"
-                  )}
-                >
-                  <span className="inline-flex items-center gap-2">
-                    <Drumstick className="h-3.5 w-3.5" />
-                    Non-Veg
-                  </span>
-                  {showNonVegOnly && <Check className="h-3.5 w-3.5" />}
-                </button>
-              )}
+              {showDietFilter && (
+                <div className="absolute right-0 top-full z-30 mt-2 w-[200px] space-y-0.5 rounded-lg border border-[#d9c3ad] bg-white p-1.5 shadow-[0_12px_30px_rgba(34,26,17,0.10)] backdrop-blur-sm sm:w-[220px]">
+                  <button
+                    onClick={() => {
+                      setShowVegOnly(!showVegOnly);
+                      if (!showVegOnly) setShowNonVegOnly(false);
+                    }}
+                    className={cn(
+                      "flex w-full items-center justify-between rounded-md px-2 py-1 text-xs font-medium transition-colors",
+                      showVegOnly ? "bg-[#f0f0f0] text-[#221a11]" : "text-[#534433] hover:bg-[#f8f8f8]"
+                    )}
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      <Leaf className="h-2.5 w-2.5" />
+                      Veg
+                    </span>
+                    {showVegOnly && <Check className="h-3 w-3" />}
+                  </button>
 
-              {restaurant.foodTypes?.includes('jain') && (
-                <button
-                  onClick={() => setShowJainOnly(!showJainOnly)}
-                  className={cn(
-                    "flex w-full items-center justify-between rounded-2xl px-3 py-2.5 text-xs font-semibold transition-colors",
-                    showJainOnly ? "bg-[#f4ead6] text-[#8b5b14]" : "text-[#221a11] hover:bg-[#fff1e5]"
+                  {restaurant.foodTypes?.includes('non-veg') && (
+                    <button
+                      onClick={() => {
+                        setShowNonVegOnly(!showNonVegOnly);
+                        if (!showNonVegOnly) setShowVegOnly(false);
+                      }}
+                      className={cn(
+                          "flex w-full items-center justify-between rounded-md px-2 py-1 text-xs font-medium transition-colors",
+                          showNonVegOnly ? "bg-[#f0f0f0] text-[#221a11]" : "text-[#534433] hover:bg-[#f8f8f8]"
+                      )}
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        <Drumstick className="h-2.5 w-2.5" />
+                        Non-Veg
+                      </span>
+                      {showNonVegOnly && <Check className="h-3 w-3" />}
+                    </button>
                   )}
-                >
-                  <span className="inline-flex items-center gap-2">
-                    <Sparkles className="h-3.5 w-3.5" />
-                    Jain
-                  </span>
-                  {showJainOnly && <Check className="h-3.5 w-3.5" />}
-                </button>
-              )}
 
-              {restaurant.foodTypes?.includes('vegan') && (
-                <button
-                  onClick={() => setShowVeganOnly(!showVeganOnly)}
-                  className={cn(
-                    "flex w-full items-center justify-between rounded-2xl px-3 py-2.5 text-xs font-semibold transition-colors",
-                    showVeganOnly ? "bg-[#e6f2e7] text-[#2f7a34]" : "text-[#221a11] hover:bg-[#fff1e5]"
+                  {restaurant.foodTypes?.includes('jain') && (
+                    <button
+                      onClick={() => setShowJainOnly(!showJainOnly)}
+                      className={cn(
+                        "flex w-full items-center justify-between rounded-md px-2 py-1 text-xs font-medium transition-colors",
+                        showJainOnly ? "bg-[#f0f0f0] text-[#221a11]" : "text-[#534433] hover:bg-[#f8f8f8]"
+                      )}
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        <Sparkles className="h-2.5 w-2.5" />
+                        Jain
+                      </span>
+                      {showJainOnly && <Check className="h-3 w-3" />}
+                    </button>
                   )}
-                >
-                  <span className="inline-flex items-center gap-2">
-                    <Salad className="h-3.5 w-3.5" />
-                    Vegan
-                  </span>
-                  {showVeganOnly && <Check className="h-3.5 w-3.5" />}
-                </button>
-              )}
 
-              {restaurant.foodTypes?.includes('half-jain') && (
-                <button
-                  onClick={() => setShowHalfJainOnly(!showHalfJainOnly)}
-                  className={cn(
-                    "flex w-full items-center justify-between rounded-2xl px-3 py-2.5 text-xs font-semibold transition-colors",
-                    showHalfJainOnly ? "bg-[#f7e3d3] text-[#b8671e]" : "text-[#221a11] hover:bg-[#fff1e5]"
+                  {restaurant.foodTypes?.includes('vegan') && (
+                    <button
+                      onClick={() => setShowVeganOnly(!showVeganOnly)}
+                      className={cn(
+                        "flex w-full items-center justify-between rounded-md px-2 py-1 text-xs font-medium transition-colors",
+                        showVeganOnly ? "bg-[#f0f0f0] text-[#221a11]" : "text-[#534433] hover:bg-[#f8f8f8]"
+                      )}
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        <Salad className="h-2.5 w-2.5" />
+                        Vegan
+                      </span>
+                      {showVeganOnly && <Check className="h-3 w-3" />}
+                    </button>
                   )}
-                >
-                  <span className="inline-flex items-center gap-2">
-                    <CookingPot className="h-3.5 w-3.5" />
-                    Half Jain
-                  </span>
-                  {showHalfJainOnly && <Check className="h-3.5 w-3.5" />}
-                </button>
-              )}
-              </div>
-            )}
-          </div>
 
-          {/* Tag Filter - compact icon toggle with multi-select */}
-          {uniqueTags.length > 0 && (
-            <div ref={tagFilterRef} className="relative">
-              <div className="flex items-center gap-2">
+                  {restaurant.foodTypes?.includes('half-jain') && (
+                    <button
+                      onClick={() => setShowHalfJainOnly(!showHalfJainOnly)}
+                      className={cn(
+                        "flex w-full items-center justify-between rounded-md px-2 py-1 text-xs font-medium transition-colors",
+                        showHalfJainOnly ? "bg-[#f0f0f0] text-[#221a11]" : "text-[#534433] hover:bg-[#f8f8f8]"
+                      )}
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        <CookingPot className="h-2.5 w-2.5" />
+                        Half Jain
+                      </span>
+                      {showHalfJainOnly && <Check className="h-3 w-3" />}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Tag Filter */}
+            {uniqueTags.length > 0 && (
+              <div ref={tagFilterRef} className="relative">
                 <button
                   onClick={() => setShowTagFilter(!showTagFilter)}
                   aria-label="Filter by tags"
                   aria-expanded={showTagFilter}
                   className={cn(
-                    "relative inline-flex h-10 w-[112px] items-center justify-center gap-2 rounded-full border px-3 text-sm font-semibold transition-all duration-200",
+                    "relative inline-flex h-8 items-center justify-center gap-1 rounded-full border px-2 py-1 text-xs font-semibold transition-all duration-200",
                     showTagFilter || selectedTags.size > 0
                       ? "border-[#855300]/30 bg-white text-[#221a11] shadow-[0_12px_24px_rgba(34,26,17,0.08)]"
                       : "border-[#d9c3ad] bg-white text-[#534433] hover:border-[#855300]/30 hover:text-[#221a11]"
                   )}
                 >
-                  <TagIcon className="h-4 w-4" />
-                  <span className="text-xs font-semibold tracking-wide">Tags</span>
+                  <TagIcon className="h-3 w-3" />
                   {selectedTags.size > 0 && (
-                    <span className="inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-[#855300] px-1.5 text-[10px] font-bold leading-none text-white">
+                    <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#855300] text-[8px] font-bold leading-none text-white">
                       {selectedTags.size}
                     </span>
                   )}
                 </button>
 
-                {selectedTags.size > 0 && (
-                  <button
-                    onClick={() => setSelectedTags(new Set())}
-                    className="text-xs font-medium text-[#867461] transition-colors hover:text-[#221a11]"
-                  >
-                    Clear
-                  </button>
-                )}
-              </div>
+                {showTagFilter && (
+                  <div className="absolute right-0 top-full z-30 mt-2 w-[200px] rounded-lg border border-[#d9c3ad] bg-white p-1.5 shadow-[0_12px_30px_rgba(34,26,17,0.10)] backdrop-blur-sm sm:w-[220px]">
+                  <div className="max-h-48 overflow-y-auto pr-1 space-y-0.5">
+                      {visibleTags.length === 0 ? (
+                        <p className="px-1 py-2 text-xs text-[#867461]">No tags found</p>
+                      ) : (
+                        visibleTags.map(tag => {
+                          const isSelected = selectedTags.has(tag._id);
 
-              {showTagFilter && (
-                <div className="absolute left-0 top-full z-30 mt-2 w-[300px] rounded-[22px] border border-[#d9c3ad] bg-[#fffdfb]/96 p-2.5 shadow-[0_24px_60px_rgba(34,26,17,0.12)] backdrop-blur-xl sm:w-[340px]">
-                  <div className="relative mb-2">
-                    <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#867461]" />
-                    <Input
-                      placeholder="Search tags..."
-                      value={tagSearchQuery}
-                      onChange={(e) => setTagSearchQuery(e.target.value)}
-                      className="h-9 rounded-full border-[#d9c3ad] bg-white pl-9 text-xs text-[#221a11] placeholder:text-[#867461] focus-visible:border-[#855300] focus-visible:ring-[#855300]/20"
-                    />
-                  </div>
-
-                  <div className="max-h-56 overflow-y-auto pr-1 space-y-1">
-                    {visibleTags.length === 0 ? (
-                      <p className="px-1 py-2 text-xs text-[#867461]">No tags found</p>
-                    ) : (
-                      visibleTags.map(tag => {
-                        const isSelected = selectedTags.has(tag._id);
-
-                        return (
-                          <label
-                            key={tag._id}
-                            className={cn(
-                              "flex cursor-pointer items-center gap-2 rounded-2xl px-2.5 py-2 transition-colors",
-                              isSelected ? "bg-[#fff1e5]" : "hover:bg-[#fff8f4]"
-                            )}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => {
-                                const newSelected = new Set(selectedTags);
-                                if (isSelected) {
-                                  newSelected.delete(tag._id);
-                                } else {
-                                  newSelected.add(tag._id);
-                                }
-                                setSelectedTags(newSelected);
-                              }}
-                              className="sr-only"
-                            />
-
-                            <span
+                          return (
+                            <label
+                              key={tag._id}
                               className={cn(
-                                "flex h-4 w-4 items-center justify-center rounded-md border transition-colors",
-                                isSelected
-                                  ? "border-[#855300] bg-[#855300] text-white"
-                                  : "border-[#d9c3ad] bg-white"
+                                "flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 text-xs transition-colors",
+                                isSelected ? "bg-[#f0f0f0]" : "hover:bg-[#f8f8f8]"
                               )}
                             >
-                              {isSelected && <Check className="h-3 w-3" />}
-                            </span>
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => {
+                                  const newSelected = new Set(selectedTags);
+                                  if (isSelected) {
+                                    newSelected.delete(tag._id);
+                                  } else {
+                                    newSelected.add(tag._id);
+                                  }
+                                  setSelectedTags(newSelected);
+                                }}
+                                className="sr-only"
+                              />
 
-                            <span
-                              className="h-2.5 w-2.5 rounded-full flex-shrink-0"
-                              style={{ backgroundColor: tag.color }}
-                            />
+                              <span
+                                className={cn(
+                                  "flex h-3 w-3 items-center justify-center rounded-md border transition-colors",
+                                  isSelected
+                                    ? "border-[#855300] bg-[#855300] text-white"
+                                    : "border-[#d9c3ad] bg-white"
+                                )}
+                              >
+                                {isSelected && <Check className="h-2 w-2" />}
+                              </span>
 
-                            <span className="truncate text-xs text-[#221a11]">{tag.name}</span>
-                          </label>
-                        );
-                      })
-                    )}
+                              <span
+                                className="h-1.5 w-1.5 rounded-full flex-shrink-0"
+                                style={{ backgroundColor: tag.color }}
+                              />
+
+                              <span className="truncate text-xs text-[#534433]">{tag.name}</span>
+                            </label>
+                          );
+                        })
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-          )}
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Main Category Tabs - card style */}
-        <div className="mt-4 flex gap-2 overflow-x-auto pb-1 scrollbar-hide [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           <button
             onClick={() => {
               setSelectedMainCategory(null);
               setSelectedSubCategory(null);
             }}
             className={cn(
-              "whitespace-nowrap rounded-full border px-4 py-2 text-sm font-semibold transition-all duration-200",
+              "whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all duration-200",
               !selectedMainCategory
                 ? "border-[#855300] bg-[#855300] text-white shadow-[0_12px_24px_rgba(133,83,0,0.18)]"
                 : "border-[#d9c3ad] bg-white text-[#534433] hover:border-[#855300]/30 hover:text-[#221a11]"
@@ -1964,7 +1934,7 @@ const filteredItems = menuData.menu.filter(item => {
                 setSelectedSubCategory(null);
               }}
               className={cn(
-                "flex h-10 items-center whitespace-nowrap rounded-full border px-4 py-2 text-sm font-semibold transition-all duration-200",
+                "flex items-center whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all duration-200",
                 cat.image ? "gap-2" : "gap-0",
                 cat.isCurrentlyAvailable === false && "opacity-70",
                 selectedMainCategory === cat._id
@@ -1974,7 +1944,7 @@ const filteredItems = menuData.menu.filter(item => {
               title={cat.isCurrentlyAvailable === false ? `${cat.name} is not available right now` : undefined}
             >
               {cat.image && (
-                <img src={cat.image} alt={cat.name} className="h-6 w-6 flex-shrink-0 rounded-lg object-cover" />
+                <img src={cat.image} alt={cat.name} className="h-5 w-5 flex-shrink-0 rounded-lg object-cover" />
               )}
               <span className="truncate">{cat.name}</span>
               {cat.isCurrentlyAvailable === false && (
@@ -1984,16 +1954,16 @@ const filteredItems = menuData.menu.filter(item => {
           ))}
         </div>
 
-        {/* Subcategory Pills - underline style */}
+        {/* Subcategory Pills - same as main category */}
         {selectedMainCategory && subCategories.length > 0 && (
-          <div className="mt-3 flex gap-3 overflow-x-auto border-t border-[#f0e0d1] pt-3 pb-1 scrollbar-hide [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             <button
               onClick={() => setSelectedSubCategory(null)}
               className={cn(
-                "whitespace-nowrap border-b-2 px-3 py-1 text-xs font-medium transition-all duration-200",
+                "whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all duration-200",
                 !selectedSubCategory
-                  ? "border-[#855300] text-[#855300]"
-                  : "border-transparent text-[#867461] hover:text-[#221a11]"
+                  ? "border-[#855300] bg-[#855300] text-white shadow-[0_12px_24px_rgba(133,83,0,0.18)]"
+                  : "border-[#d9c3ad] bg-white text-[#534433] hover:border-[#855300]/30 hover:text-[#221a11]"
               )}
             >
               All
@@ -2003,12 +1973,12 @@ const filteredItems = menuData.menu.filter(item => {
                 key={cat._id}
                 onClick={() => setSelectedSubCategory(cat._id)}
                 className={cn(
-                  "flex h-8 items-center whitespace-nowrap border-b-2 px-3 py-1 text-xs font-medium transition-all duration-200",
-                  cat.image ? "gap-1.5" : "gap-0",
+                  "flex items-center whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all duration-200",
+                  cat.image ? "gap-2" : "gap-0",
                   cat.isCurrentlyAvailable === false && "opacity-70",
                   selectedSubCategory === cat._id
-                    ? "border-[#855300] text-[#855300]"
-                    : "border-transparent text-[#867461] hover:text-[#221a11]"
+                    ? "border-[#855300] bg-[#855300] text-white shadow-[0_12px_24px_rgba(133,83,0,0.18)]"
+                    : "border-[#d9c3ad] bg-white text-[#534433] hover:border-[#855300]/30 hover:text-[#221a11]"
                 )}
                 title={cat.isCurrentlyAvailable === false ? `${cat.name} is not available right now` : undefined}
               >
@@ -2016,12 +1986,12 @@ const filteredItems = menuData.menu.filter(item => {
                   <img
                     src={cat.image}
                     alt={cat.name}
-                    className="h-4 w-4 flex-shrink-0 rounded object-cover"
+                    className="h-5 w-5 flex-shrink-0 rounded-lg object-cover"
                   />
                 )}
                 <span className="truncate">{cat.name}</span>
                 {cat.isCurrentlyAvailable === false && (
-                  <span className="ml-1 text-[9px] font-semibold text-[#b34b39]">Off</span>
+                  <span className="ml-2 text-[10px] font-bold text-[#b34b39]">Unavailable</span>
                 )}
               </button>
             ))}
