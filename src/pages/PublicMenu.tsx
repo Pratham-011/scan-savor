@@ -1607,42 +1607,52 @@ const filteredItems = menuData.menu.filter(item => {
 
       <div className="relative mx-auto max-w-6xl px-4 pb-28 pt-4 sm:px-6 lg:px-8">
       {/* Header */}
-      <div className="relative overflow-hidden rounded-[28px] border border-[#d9c3ad] bg-white/90 shadow-[0_24px_60px_rgba(34,26,17,0.08)] backdrop-blur-xl">
+      <div className="relative overflow-hidden rounded-[24px] border border-[#d9c3ad]/90 bg-[#fffdfb] shadow-[0_18px_44px_rgba(34,26,17,0.07)]">
         {restaurant.banner && (
-          <div className="relative h-56 w-full sm:h-72">
-            <img 
-              src={restaurant.banner} 
+          <div className="relative h-36 w-full sm:h-48">
+            <img
+              src={restaurant.banner}
               alt={restaurant.name}
-              className="w-full h-full object-cover"
+              className="h-full w-full object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#fff8f4] via-[#fff8f4]/40 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#fffdfb] via-[#fffdfb]/15 to-transparent" />
           </div>
         )}
-        
-        <div className={cn("relative z-10 px-5 pb-5 pt-5 sm:px-8 sm:pb-8", restaurant.banner ? "-mt-16 sm:-mt-20" : "pt-8")}> 
-          <div className="mb-5 flex items-end gap-4">
+
+        <div className={cn("relative z-10 px-4 pb-4 pt-4 sm:px-6 sm:pb-6", restaurant.banner ? "-mt-10 sm:-mt-14" : "pt-5")}> 
+          <div className="flex items-end gap-3 sm:gap-4">
             {restaurant.logo && (
-              <img 
-                src={restaurant.logo}
-                alt={restaurant.name}
-                className="h-20 w-20 cursor-pointer rounded-2xl border border-[#f0e0d1] object-cover shadow-[0_18px_40px_rgba(34,26,17,0.10)] transition-transform active:scale-95"
+              <button
+                type="button"
                 onClick={() => setLightboxImage(restaurant.logo!)}
-              />
+                className="group relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-2xl border border-[#e7d5c3] bg-white shadow-[0_10px_24px_rgba(34,26,17,0.08)] transition-transform active:scale-95 sm:h-20 sm:w-20"
+                aria-label={`${restaurant.name} logo`}
+              >
+                <img
+                  src={restaurant.logo}
+                  alt={restaurant.name}
+                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                />
+              </button>
             )}
-            <div className="flex-1 pb-1">
-              <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.28em] text-[#855300]">Menu</p>
-              <h1 className="font-display text-[2rem] font-semibold leading-[1.1] text-[#221a11] sm:text-[2.7rem]">{restaurant.name}</h1>
+            <div className="min-w-0 flex-1 pb-1">
+              <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.26em] text-[#855300] sm:text-[11px]">Menu</p>
+              <h1 className="font-display text-[1.65rem] font-semibold leading-[1.08] text-[#221a11] sm:text-[2.2rem]">
+                {restaurant.name}
+              </h1>
               {restaurant.description && (
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-[#534433] sm:text-base">{restaurant.description}</p>
+                <p className="mt-1.5 max-w-2xl text-[13px] leading-5 text-[#534433] sm:text-sm sm:leading-6">
+                  {restaurant.description}
+                </p>
               )}
             </div>
           </div>
 
-          <div className="flex flex-col gap-3 text-sm text-[#534433]">
+          <div className="mt-4 flex flex-col gap-2.5 text-sm text-[#534433] sm:mt-5">
             {restaurant.address && (
-              <div className="flex items-start gap-2 rounded-2xl border border-[#f0e0d1] bg-[#fff8f4]/70 px-4 py-3">
+              <div className="flex items-start gap-2 rounded-2xl border border-[#f0e0d1] bg-[#fff8f4]/70 px-3.5 py-2.5">
                 <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#855300]" />
-                <div className="flex-1 min-w-0">
+                <div className="min-w-0 flex-1">
                   {mapsUrl ? (
                     <a
                       href={mapsUrl}
@@ -1669,7 +1679,7 @@ const filteredItems = menuData.menu.filter(item => {
                 )}
               </div>
             )}
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2.5">
               {restaurant.phone && (
                 <a
                   href={`tel:${restaurant.phone}`}
