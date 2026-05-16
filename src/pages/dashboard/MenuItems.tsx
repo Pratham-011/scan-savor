@@ -228,7 +228,7 @@ function SortableMenuItem({ item, isAvailable, disabledReason, mainCat, subCat, 
   };
 
   return (
-    <div ref={setNodeRef} style={style} className={`glass rounded-xl overflow-hidden ${!isAvailable ? 'opacity-60' : ''}`}>
+    <div ref={setNodeRef} style={style} className={`glass rounded-xl overflow-hidden border-t-4 border-accent ${!isAvailable ? 'opacity-60' : ''}`}>
       {item.image && (
         <div className="aspect-video bg-secondary relative">
           <img src={item.image} alt={item.name} className="w-full h-full object-cover" />

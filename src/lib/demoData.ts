@@ -22,6 +22,10 @@ export const demoMenuData: PublicMenuResponse = {
     phone: '+91 98765 43210',
     qrSlug: 'demo',
     foodTypes: ['veg', 'non-veg', 'jain', 'vegan', 'half-jain'],
+    menuAppearance: {
+      theme: 'classic',
+      primaryColor: '#855300',
+    },
   },
   menu: [
     // Food - Starters

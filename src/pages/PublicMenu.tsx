@@ -1058,15 +1058,16 @@
 
 
 
-import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef, type CSSProperties } from 'react';
 import { useParams } from 'react-router-dom';
-import { publicMenuApi, PublicMenuResponse, PublicMenuItem, MainCategory, Category } from '@/lib/api';
+import { publicMenuApi, PublicMenuResponse, PublicMenuItem } from '@/lib/api';
 import { demoMenuData } from '@/lib/demoData';
 import { MapPin, Phone, Instagram, Leaf, Search, X, Sparkles, Salad, Drumstick, CookingPot, TagIcon, Check, SlidersHorizontal } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Drawer, DrawerClose, DrawerContent, DrawerTitle } from '@/components/ui/drawer';
 import { cn } from '@/lib/utils';
+import { getMenuThemePreset, hexToRgbTuple, normalizeMenuColor } from '@/lib/menuAppearance';
 
 interface GroupedCategory {
   _id: string;
@@ -1108,6 +1109,8 @@ export default function PublicMenu() {
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
   const [addressExpanded, setAddressExpanded] = useState(false);
+  const [isFilterBarFixed, setIsFilterBarFixed] = useState(false);
+  const [filterBarHeight, setFilterBarHeight] = useState(0);
   const [showMenuOpenPopup, setShowMenuOpenPopup] = useState(false);
   const [menuOpenPopupConfig, setMenuOpenPopupConfig] = useState<{
     isEnabled?: boolean;
@@ -1124,6 +1127,8 @@ export default function PublicMenu() {
   const [isRedirectingToWhatsApp, setIsRedirectingToWhatsApp] = useState(false);
   const dietFilterRef = useRef<HTMLDivElement>(null);
   const tagFilterRef = useRef<HTMLDivElement>(null);
+  const filterBarRef = useRef<HTMLDivElement>(null);
+  const filterSentinelRef = useRef<HTMLDivElement>(null);
 
   const toggleDescription = useCallback((itemId: string) => {
     setExpandedDescriptions(prev => {
@@ -1168,6 +1173,26 @@ export default function PublicMenu() {
       document.removeEventListener('keydown', handleEscape);
     };
   }, [showTagFilter, showDietFilter]);
+
+  useEffect(() => {
+    const updateFilterBarPosition = () => {
+      const sentinel = filterSentinelRef.current;
+      const filterBar = filterBarRef.current;
+      if (!sentinel || !filterBar) return;
+
+      setFilterBarHeight(filterBar.getBoundingClientRect().height);
+      setIsFilterBarFixed(sentinel.getBoundingClientRect().top <= 0);
+    };
+
+    updateFilterBarPosition();
+    window.addEventListener('scroll', updateFilterBarPosition, { passive: true });
+    window.addEventListener('resize', updateFilterBarPosition);
+
+    return () => {
+      window.removeEventListener('scroll', updateFilterBarPosition);
+      window.removeEventListener('resize', updateFilterBarPosition);
+    };
+  }, [menuData]);
 
   useEffect(() => {
     const checkAndLoad = async () => {
@@ -1482,7 +1507,7 @@ const filteredItems = menuData.menu.filter(item => {
   // This replaces the full skeleton during the fast settings fetch.
   if (isCheckingSettings || isRedirectingToWhatsApp) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-[#fff8f4] flex items-center justify-center">
         {/* <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" /> */}
       </div>
       // <></>
@@ -1491,38 +1516,38 @@ const filteredItems = menuData.menu.filter(item => {
 
   if (isLoading) {
          if (isMobileDevice) {
-       return <div className="min-h-screen bg-background" />; // blank, no flash
+       return <div className="min-h-screen bg-[#fff8f4]" />; // blank, no flash
      }
     return (
-      <div className="min-h-screen bg-background pb-24">
+      <div className="min-h-screen bg-[#fff8f4] pb-24">
         {/* Header Skeleton */}
         <div className="relative">
-          <Skeleton className="h-48 w-full" />
+          <Skeleton className="h-56 w-full rounded-[28px] bg-[#f6e5d7]" />
           <div className="px-4 -mt-16 relative z-10">
             <div className="flex items-end gap-4 mb-4">
-              <Skeleton className="w-20 h-20 rounded-2xl flex-shrink-0" />
+              <Skeleton className="w-20 h-20 rounded-2xl flex-shrink-0 bg-[#fffdfb]" />
               <div className="flex-1 pb-1 space-y-2">
-                <Skeleton className="h-7 w-48" />
-                <Skeleton className="h-4 w-64" />
+                <Skeleton className="h-7 w-48 bg-[#f0e0d1]" />
+                <Skeleton className="h-4 w-64 bg-[#f0e0d1]" />
               </div>
             </div>
             <div className="flex gap-3">
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-4 w-32 bg-[#f0e0d1]" />
+              <Skeleton className="h-4 w-24 bg-[#f0e0d1]" />
             </div>
           </div>
         </div>
 
         {/* Search & Filter Skeleton */}
-        <div className="px-4 py-3 mt-4 border-b border-border">
+        <div className="mt-6 rounded-[28px] border border-[#f0e0d1] bg-white/80 px-4 py-4 shadow-[0_18px_50px_rgba(34,26,17,0.06)]">
           <div className="flex items-center gap-3 mb-3">
-            <Skeleton className="h-10 flex-1 rounded-md" />
-            <Skeleton className="h-10 w-16 rounded-lg" />
-            <Skeleton className="h-10 w-24 rounded-lg" />
+            <Skeleton className="h-10 flex-1 rounded-full bg-[#f0e0d1]" />
+            <Skeleton className="h-10 w-16 rounded-full bg-[#f0e0d1]" />
+            <Skeleton className="h-10 w-24 rounded-full bg-[#f0e0d1]" />
           </div>
           <div className="flex gap-2">
             {[1, 2, 3, 4].map(i => (
-              <Skeleton key={i} className="h-8 w-20 rounded-full" />
+              <Skeleton key={i} className="h-8 w-20 rounded-full bg-[#f0e0d1]" />
             ))}
           </div>
         </div>
@@ -1531,16 +1556,16 @@ const filteredItems = menuData.menu.filter(item => {
         <div className="px-4 py-6 space-y-8">
           {[1, 2].map(section => (
             <div key={section}>
-              <Skeleton className="h-6 w-36 mb-4" />
-              <Skeleton className="h-4 w-24 mb-3" />
+              <Skeleton className="h-6 w-36 mb-4 bg-[#f0e0d1]" />
+              <Skeleton className="h-4 w-24 mb-3 bg-[#f0e0d1]" />
               <div className="space-y-3">
                 {[1, 2, 3].map(item => (
-                  <div key={item} className="flex gap-4 p-3 rounded-xl">
-                    <Skeleton className="w-20 h-20 rounded-lg flex-shrink-0" />
+                  <div key={item} className="flex gap-4 rounded-[22px] border border-[#f0e0d1] bg-white p-4 shadow-[0_16px_36px_rgba(34,26,17,0.06)]">
+                    <Skeleton className="w-20 h-20 rounded-2xl flex-shrink-0 bg-[#f0e0d1]" />
                     <div className="flex-1 space-y-2">
-                      <Skeleton className="h-5 w-3/4" />
-                      <Skeleton className="h-4 w-full" />
-                      <Skeleton className="h-4 w-1/2" />
+                      <Skeleton className="h-5 w-3/4 bg-[#f0e0d1]" />
+                      <Skeleton className="h-4 w-full bg-[#f0e0d1]" />
+                      <Skeleton className="h-4 w-1/2 bg-[#f0e0d1]" />
                     </div>
                   </div>
                 ))}
@@ -1554,10 +1579,10 @@ const filteredItems = menuData.menu.filter(item => {
 
   if (error || !menuData) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="min-h-screen flex items-center justify-center bg-[#fff8f4] p-4">
         <div className="text-center">
-          <h1 className="font-display text-2xl font-bold mb-2">Menu Unavailable</h1>
-          <p className="text-muted-foreground">{error || 'This menu could not be found.'}</p>
+          <h1 className="font-display mb-2 text-2xl font-semibold text-[#221a11]">Menu Unavailable</h1>
+          <p className="text-sm text-[#534433]">{error || 'This menu could not be found.'}</p>
         </div>
       </div>
     );
@@ -1596,64 +1621,124 @@ const filteredItems = menuData.menu.filter(item => {
   const popupTitle = menuOpenPopupConfig?.title?.trim() || menuData?.restaurant?.menuOpenPopup?.title?.trim() || 'NOTE';
   const popupMessage = menuOpenPopupConfig?.message?.trim() || menuData?.restaurant?.menuOpenPopup?.message?.trim() || '';
   const popupButtonText = menuOpenPopupConfig?.buttonText?.trim() || menuData?.restaurant?.menuOpenPopup?.buttonText?.trim() || 'Continue';
+  const themePreset = getMenuThemePreset(restaurant.menuAppearance?.theme);
+  const menuPrimaryColor = normalizeMenuColor(restaurant.menuAppearance?.primaryColor);
+  const menuSurfaceRgb = hexToRgbTuple(themePreset.colors.surface).join(', ');
+  const menuThemeStyle = {
+    '--menu-bg': themePreset.colors.bg,
+    '--menu-surface': themePreset.colors.surface,
+    '--menu-soft': themePreset.colors.soft,
+    '--menu-border': themePreset.colors.border,
+    '--menu-text': themePreset.colors.text,
+    '--menu-muted': themePreset.colors.muted,
+    '--menu-primary': menuPrimaryColor,
+    '--menu-surface-rgb': menuSurfaceRgb,
+  } as CSSProperties;
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen overflow-x-hidden bg-[var(--menu-bg)] text-[var(--menu-text)]" style={menuThemeStyle}>
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -left-32 top-0 h-80 w-80 rounded-full bg-[var(--menu-primary)]/10 blur-3xl" />
+        <div className="absolute right-[-6rem] top-32 h-96 w-96 rounded-full bg-[var(--menu-primary)]/8 blur-3xl" />
+        <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[var(--menu-bg)] to-transparent" />
+      </div>
+
+      <div className="relative mx-auto max-w-6xl px-4 pb-28 pt-3 sm:px-6 sm:pt-5 lg:px-8">
       {/* Header */}
-      <div className="relative">
+      <div className="relative overflow-hidden rounded-[22px] border border-[var(--menu-border)] bg-[var(--menu-surface)] shadow-[0_16px_36px_rgba(34,26,17,0.08)]">
         {restaurant.banner && (
-          <div className="h-48 w-full">
-            <img 
-              src={restaurant.banner} 
-              alt={restaurant.name}
-              className="w-full h-full object-cover"
+          <div className="relative h-36 w-full overflow-hidden sm:h-52">
+            <img
+              src={restaurant.banner}
+              alt={`${restaurant.name} banner`}
+              className="h-full w-full object-cover"
+              loading="lazy"
+              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
             />
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-background" />
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  'linear-gradient(to bottom, rgba(0,0,0,0.10) 0%, rgba(0,0,0,0.10) 28%, rgba(var(--menu-surface-rgb),0.35) 58%, rgba(var(--menu-surface-rgb),0.98) 100%)',
+              }}
+            />
+            <div
+              className="absolute inset-x-0 bottom-0 h-28"
+              style={{
+                background:
+                  'linear-gradient(to top, rgba(var(--menu-surface-rgb),1) 0%, rgba(var(--menu-surface-rgb),0.78) 30%, rgba(var(--menu-surface-rgb),0.26) 58%, rgba(var(--menu-surface-rgb),0) 100%)',
+              }}
+            />
           </div>
         )}
-        
-        <div className={cn("px-4", restaurant.banner ? "-mt-16 relative z-10" : "pt-8")}>
-          <div className="flex items-end gap-4 mb-4">
-            {restaurant.logo && (
-              <img 
-                src={restaurant.logo}
-                alt={restaurant.name}
-                className="w-20 h-20 rounded-2xl border-4 border-background object-cover bg-card cursor-pointer active:scale-95 transition-transform"
-                onClick={() => setLightboxImage(restaurant.logo!)}
+
+        <div className={cn("relative z-10 px-3.5 pb-3.5 pt-3.5 sm:px-5 sm:pb-5", restaurant.banner ? "-mt-20 sm:-mt-24" : "pt-4")}> 
+          <div className="relative flex items-end gap-3 sm:gap-4">
+            {restaurant.banner && (
+              <div
+                className="pointer-events-none absolute -inset-x-2 bottom-[-0.8rem] top-[68%] rounded-2xl bg-[var(--menu-surface)]/68 sm:-inset-x-3 sm:bottom-[-1rem] sm:top-[66%]"
+                style={{
+                  background:
+                    'linear-gradient(to right, rgba(var(--menu-surface-rgb),0.72) 0%, rgba(var(--menu-surface-rgb),0.58) 58%, rgba(var(--menu-surface-rgb),0.10) 100%)',
+                }}
               />
             )}
-            <div className="flex-1 pb-1">
-              <h1 className="font-display text-2xl font-bold">{restaurant.name}</h1>
+            {restaurant.logo && (
+              <button
+                type="button"
+                onClick={() => setLightboxImage(restaurant.logo!)}
+                className="group relative z-10 h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl border-[3px] border-[var(--menu-surface)] bg-white shadow-[0_12px_24px_rgba(34,26,17,0.14)] ring-1 ring-[var(--menu-border)] transition-transform active:scale-95 sm:h-20 sm:w-20"
+                aria-label={`${restaurant.name} logo`}
+                title={`${restaurant.name} logo`}
+              >
+                <img
+                  src={restaurant.logo}
+                  alt={`${restaurant.name} logo`}
+                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  loading="lazy"
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                />
+              </button>
+            )}
+            <div className="relative z-10 min-w-0 flex-1 pb-0.5">
+              {/* <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.26em] text-[#855300] sm:text-[11px]">Menu</p> */}
+              <h1 className="max-w-full break-words bg-gradient-to-r from-[var(--menu-text)] via-[var(--menu-primary)] to-[var(--menu-primary)] bg-clip-text font-display text-[1.5rem] font-bold leading-[1.05] text-transparent sm:text-[2.05rem]">
+                {restaurant.name}
+              </h1>
               {restaurant.description && (
-                <p className="text-muted-foreground text-sm">{restaurant.description}</p>
+                <p className="mt-1.5 line-clamp-2 max-w-2xl text-xs leading-4 text-[var(--menu-muted)] sm:text-sm sm:leading-5">
+                  {restaurant.description}
+                </p>
               )}
             </div>
           </div>
 
-          <div className="flex flex-col gap-1.5 text-sm text-muted-foreground">
-            {restaurant.address && (
-              <div className="flex items-start gap-1.5 min-h-[40px] py-1">
-                <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
+          <div className="mt-3.5 grid gap-2 text-sm text-[var(--menu-muted)] sm:mt-5">
+              {restaurant.address && (
+              <div className="flex items-start gap-2 rounded-xl border border-[var(--menu-border)] bg-[var(--menu-soft)] px-2.5 py-2 text-xs shadow-[inset_0_1px_0_rgba(255,255,255,0.28)] sm:text-sm">
+                <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-[var(--menu-surface)] text-[var(--menu-primary)] shadow-sm ring-1 ring-[var(--menu-border)]">
+                  <MapPin className="h-3 w-3" />
+                </span>
+                <div className="min-w-0 flex-1">
                   {mapsUrl ? (
                     <a
                       href={mapsUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className={cn("active:text-primary transition-colors touch-manipulation", !addressExpanded && restaurant.address.length > 40 && "line-clamp-1")}
+                      className={cn("block touch-manipulation pt-0.5 leading-4 transition-colors hover:text-[var(--menu-primary)] sm:leading-5", !addressExpanded && restaurant.address.length > 48 && "line-clamp-1")}
                     >
                       {restaurant.address}
                     </a>
                   ) : (
-                    <span className={cn(!addressExpanded && restaurant.address.length > 40 && "line-clamp-1")}>
+                    <span className={cn("block pt-0.5 leading-4 sm:leading-5", !addressExpanded && restaurant.address.length > 48 && "line-clamp-1")}>
                       {restaurant.address}
                     </span>
                   )}
                 </div>
-                {restaurant.address.length > 40 && (
+                {restaurant.address.length > 48 && (
                   <button
                     onClick={(e) => { e.preventDefault(); e.stopPropagation(); setAddressExpanded(!addressExpanded); }}
-                    className="text-xs text-primary font-medium whitespace-nowrap flex-shrink-0 border border-primary/30 rounded px-1.5 py-0.5"
+                    className="flex-shrink-0 whitespace-nowrap rounded-full border border-[var(--menu-border)] bg-[var(--menu-surface)] px-2 py-0.5 text-[10px] font-semibold text-[var(--menu-primary)] shadow-sm transition-colors hover:bg-[var(--menu-soft)]"
                     type="button"
                   >
                     {addressExpanded ? 'Show less' : 'Read more'}
@@ -1661,14 +1746,18 @@ const filteredItems = menuData.menu.filter(item => {
                 )}
               </div>
             )}
-            <div className="flex flex-wrap items-center gap-3">
+              <div className="grid grid-cols-2 gap-2">
               {restaurant.phone && (
                 <a
                   href={`tel:${restaurant.phone}`}
-                  className="flex items-center gap-1.5 min-h-[36px] py-1 active:text-primary transition-colors touch-manipulation"
+                  className="inline-flex min-h-9 min-w-0 items-center gap-1.5 rounded-xl border border-[var(--menu-border)] bg-[var(--menu-surface)] px-2 py-1.5 text-xs text-[var(--menu-text)] shadow-sm transition-colors hover:border-[var(--menu-primary)] hover:text-[var(--menu-primary)] touch-manipulation"
+                  aria-label={`Call ${restaurant.name} at ${restaurant.phone}`}
+                  title={`Call ${restaurant.phone}`}
                 >
-                  <Phone className="h-4 w-4" />
-                  {restaurant.phone}
+                  <span className="flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center rounded-full bg-[var(--menu-soft)] text-[var(--menu-primary)]">
+                    <Phone className="h-3 w-3" />
+                  </span>
+                  <span className="truncate">{restaurant.phone}</span>
                 </a>
               )}
               {instagramUrl && (
@@ -1676,10 +1765,14 @@ const filteredItems = menuData.menu.filter(item => {
                   href={instagramUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 min-h-[36px] py-1 active:text-primary transition-colors touch-manipulation"
+                  className="inline-flex min-h-9 min-w-0 items-center gap-1.5 rounded-xl border border-[var(--menu-border)] bg-[var(--menu-surface)] px-2 py-1.5 text-xs text-[var(--menu-text)] shadow-sm transition-colors hover:border-[var(--menu-primary)] hover:text-[var(--menu-primary)] touch-manipulation"
+                  aria-label={`Open ${restaurant.name} Instagram`}
+                  title="Instagram"
                 >
-                  <Instagram className="h-4 w-4" />
-                  Instagram
+                  <span className="flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center rounded-full bg-[var(--menu-soft)] text-[var(--menu-primary)]">
+                    <Instagram className="h-3 w-3" />
+                  </span>
+                  <span className="truncate">Instagram</span>
                 </a>
               )}
             </div>
@@ -1688,262 +1781,242 @@ const filteredItems = menuData.menu.filter(item => {
       </div>
 
       {/* Search & Filters */}
-      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-lg border-b border-border px-4 py-3 mt-4">
-        {/* Search */}
-        <div className="relative mb-3">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <div ref={filterSentinelRef} className="h-px" />
+      {isFilterBarFixed && <div style={{ height: filterBarHeight }} />}
+      <div
+        ref={filterBarRef}
+        className={cn(
+          "z-40 mt-6 rounded-[28px] border border-[var(--menu-border)] bg-[var(--menu-bg)]/95 px-4 py-3 shadow-[0_18px_50px_rgba(34,26,17,0.08)] backdrop-blur-xl sm:px-6",
+          isFilterBarFixed
+            ? "fixed inset-x-0 top-0 mx-auto mt-0 max-w-6xl rounded-t-none sm:top-3 sm:rounded-t-[28px]"
+            : "relative"
+        )}
+      >
+        {/* Search with inline filters */}
+        <div className="relative mb-3 flex items-center gap-2.5">
+          <Search className="absolute left-3 top-1/2 h-3 w-3 -translate-y-1/2 text-[#867461]" />
           <Input
             placeholder="Search menu..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 pr-9 bg-secondary/50 border-border/50"
+            className="h-9 flex-1 rounded-full border-[var(--menu-border)] bg-[var(--menu-surface)] pl-9 pr-8 text-xs text-[var(--menu-text)] shadow-[0_10px_26px_rgba(34,26,17,0.04)] placeholder:text-[var(--menu-muted)] focus-visible:border-[var(--menu-primary)] focus-visible:ring-[var(--menu-primary)]/20"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2"
+              className="absolute right-12 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-[var(--menu-muted)] transition-colors hover:bg-[var(--menu-soft)] hover:text-[var(--menu-text)]"
             >
-              <X className="h-4 w-4 text-muted-foreground" />
+              <X className="h-3 w-3" />
             </button>
           )}
-        </div>
 
-        <div className="mt-3 flex items-start gap-2">
-          {/* Diet filters moved into an icon popover to keep the top bar compact */}
-          <div ref={dietFilterRef} className="relative">
-            <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowDietFilter(!showDietFilter)}
-              aria-label="Filter by diet"
-              aria-expanded={showDietFilter}
-              className={cn(
-                "relative inline-flex items-center justify-center gap-2 w-[112px] h-9 px-3 rounded-xl border transition-all duration-200",
-                showDietFilter || hasActiveDietFilters
-                  ? "border-primary/40 bg-secondary text-foreground shadow-sm"
-                  : "border-border/60 bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground"
-              )}
-            >
-              <SlidersHorizontal className="h-4 w-4" />
-              <span className="text-xs font-semibold">Filters</span>
-              {hasActiveDietFilters && (
-                <span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold leading-none">
-                  {[showVegOnly, showNonVegOnly, showJainOnly, showVeganOnly, showHalfJainOnly].filter(Boolean).length}
-                </span>
-              )}
-            </button>
-
-            {hasActiveDietFilters && (
-              <button onClick={clearDietFilters} className="text-xs text-muted-foreground hover:text-foreground">
-                Clear
-              </button>
-            )}
-            </div>
-
-            {showDietFilter && (
-              <div className="absolute left-0 top-full mt-2 z-30 w-[300px] sm:w-[340px] rounded-xl border border-border/70 bg-card/95 backdrop-blur-md shadow-xl p-2.5 space-y-1">
+          {/* Filter buttons inline on right */}
+          <div className="flex items-center gap-2">
+            {/* Diet Filter */}
+            <div ref={dietFilterRef} className="relative">
               <button
-                onClick={() => {
-                  setShowVegOnly(!showVegOnly);
-                  if (!showVegOnly) setShowNonVegOnly(false);
-                }}
+                onClick={() => setShowDietFilter(!showDietFilter)}
+                aria-label="Filter by diet"
+                aria-expanded={showDietFilter}
                 className={cn(
-                  "w-full flex items-center justify-between rounded-lg px-2.5 py-2 text-xs font-semibold transition-colors",
-                  showVegOnly ? "bg-veg/15 text-veg" : "hover:bg-secondary/60 text-foreground"
+                  "relative inline-flex h-8 items-center justify-center gap-1 rounded-full border px-2 py-1 text-xs font-semibold transition-all duration-200",
+                  showDietFilter || hasActiveDietFilters
+                    ? "border-[var(--menu-primary)]/30 bg-[var(--menu-surface)] text-[var(--menu-text)] shadow-[0_12px_24px_rgba(34,26,17,0.08)]"
+                    : "border-[var(--menu-border)] bg-[var(--menu-surface)] text-[var(--menu-muted)] hover:border-[var(--menu-primary)]/30 hover:text-[var(--menu-text)]"
                 )}
               >
-                <span className="inline-flex items-center gap-2">
-                  <Leaf className="h-3.5 w-3.5" />
-                  Veg
-                </span>
-                {showVegOnly && <Check className="h-3.5 w-3.5" />}
+                <SlidersHorizontal className="h-3 w-3 text-[var(--menu-primary)]" />
+                {hasActiveDietFilters && (
+                  <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[var(--menu-primary)] text-[8px] font-bold leading-none text-white">
+                    {[showVegOnly, showNonVegOnly, showJainOnly, showVeganOnly, showHalfJainOnly].filter(Boolean).length}
+                  </span>
+                )}
               </button>
 
-              {restaurant.foodTypes?.includes('non-veg') && (
-                <button
-                  onClick={() => {
-                    setShowNonVegOnly(!showNonVegOnly);
-                    if (!showNonVegOnly) setShowVegOnly(false);
-                  }}
-                  className={cn(
-                    "w-full flex items-center justify-between rounded-lg px-2.5 py-2 text-xs font-semibold transition-colors",
-                    showNonVegOnly ? "bg-non-veg/15 text-non-veg" : "hover:bg-secondary/60 text-foreground"
-                  )}
-                >
-                  <span className="inline-flex items-center gap-2">
-                    <Drumstick className="h-3.5 w-3.5" />
-                    Non-Veg
-                  </span>
-                  {showNonVegOnly && <Check className="h-3.5 w-3.5" />}
-                </button>
-              )}
+              {showDietFilter && (
+                <div className="absolute right-0 top-full z-30 mt-2 w-[200px] space-y-0.5 rounded-lg border border-[var(--menu-border)] bg-[var(--menu-surface)] p-1.5 shadow-[0_12px_30px_rgba(34,26,17,0.10)] backdrop-blur-sm sm:w-[220px]">
+                  <button
+                    onClick={() => {
+                      setShowVegOnly(!showVegOnly);
+                      if (!showVegOnly) setShowNonVegOnly(false);
+                    }}
+                    className={cn(
+                      "flex w-full items-center justify-between rounded-md px-2 py-1 text-xs font-medium transition-colors",
+                      showVegOnly ? "bg-[var(--menu-soft)] text-[var(--menu-text)]" : "text-[var(--menu-muted)] hover:bg-[var(--menu-soft)]"
+                    )}
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      <Leaf className="h-2.5 w-2.5" />
+                      Veg
+                    </span>
+                    {showVegOnly && <Check className="h-3 w-3" />}
+                  </button>
 
-              {restaurant.foodTypes?.includes('jain') && (
-                <button
-                  onClick={() => setShowJainOnly(!showJainOnly)}
-                  className={cn(
-                    "w-full flex items-center justify-between rounded-lg px-2.5 py-2 text-xs font-semibold transition-colors",
-                    showJainOnly ? "bg-amber-500/15 text-amber-400" : "hover:bg-secondary/60 text-foreground"
+                  {restaurant.foodTypes?.includes('non-veg') && (
+                    <button
+                      onClick={() => {
+                        setShowNonVegOnly(!showNonVegOnly);
+                        if (!showNonVegOnly) setShowVegOnly(false);
+                      }}
+                      className={cn(
+                          "flex w-full items-center justify-between rounded-md px-2 py-1 text-xs font-medium transition-colors",
+                          showNonVegOnly ? "bg-[var(--menu-soft)] text-[var(--menu-text)]" : "text-[var(--menu-muted)] hover:bg-[var(--menu-soft)]"
+                      )}
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        <Drumstick className="h-2.5 w-2.5" />
+                        Non-Veg
+                      </span>
+                      {showNonVegOnly && <Check className="h-3 w-3" />}
+                    </button>
                   )}
-                >
-                  <span className="inline-flex items-center gap-2">
-                    <Sparkles className="h-3.5 w-3.5" />
-                    Jain
-                  </span>
-                  {showJainOnly && <Check className="h-3.5 w-3.5" />}
-                </button>
-              )}
 
-              {restaurant.foodTypes?.includes('vegan') && (
-                <button
-                  onClick={() => setShowVeganOnly(!showVeganOnly)}
-                  className={cn(
-                    "w-full flex items-center justify-between rounded-lg px-2.5 py-2 text-xs font-semibold transition-colors",
-                    showVeganOnly ? "bg-emerald-500/15 text-emerald-400" : "hover:bg-secondary/60 text-foreground"
+                  {restaurant.foodTypes?.includes('jain') && (
+                    <button
+                      onClick={() => setShowJainOnly(!showJainOnly)}
+                      className={cn(
+                        "flex w-full items-center justify-between rounded-md px-2 py-1 text-xs font-medium transition-colors",
+                        showJainOnly ? "bg-[var(--menu-soft)] text-[var(--menu-text)]" : "text-[var(--menu-muted)] hover:bg-[var(--menu-soft)]"
+                      )}
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        <Sparkles className="h-2.5 w-2.5" />
+                        Jain
+                      </span>
+                      {showJainOnly && <Check className="h-3 w-3" />}
+                    </button>
                   )}
-                >
-                  <span className="inline-flex items-center gap-2">
-                    <Salad className="h-3.5 w-3.5" />
-                    Vegan
-                  </span>
-                  {showVeganOnly && <Check className="h-3.5 w-3.5" />}
-                </button>
-              )}
 
-              {restaurant.foodTypes?.includes('half-jain') && (
-                <button
-                  onClick={() => setShowHalfJainOnly(!showHalfJainOnly)}
-                  className={cn(
-                    "w-full flex items-center justify-between rounded-lg px-2.5 py-2 text-xs font-semibold transition-colors",
-                    showHalfJainOnly ? "bg-orange-500/15 text-orange-400" : "hover:bg-secondary/60 text-foreground"
+                  {restaurant.foodTypes?.includes('vegan') && (
+                    <button
+                      onClick={() => setShowVeganOnly(!showVeganOnly)}
+                      className={cn(
+                        "flex w-full items-center justify-between rounded-md px-2 py-1 text-xs font-medium transition-colors",
+                        showVeganOnly ? "bg-[var(--menu-soft)] text-[var(--menu-text)]" : "text-[var(--menu-muted)] hover:bg-[var(--menu-soft)]"
+                      )}
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        <Salad className="h-2.5 w-2.5" />
+                        Vegan
+                      </span>
+                      {showVeganOnly && <Check className="h-3 w-3" />}
+                    </button>
                   )}
-                >
-                  <span className="inline-flex items-center gap-2">
-                    <CookingPot className="h-3.5 w-3.5" />
-                    Half Jain
-                  </span>
-                  {showHalfJainOnly && <Check className="h-3.5 w-3.5" />}
-                </button>
-              )}
-              </div>
-            )}
-          </div>
 
-          {/* Tag Filter - compact icon toggle with multi-select */}
-          {uniqueTags.length > 0 && (
-            <div ref={tagFilterRef} className="relative">
-              <div className="flex items-center gap-2">
+                  {restaurant.foodTypes?.includes('half-jain') && (
+                    <button
+                      onClick={() => setShowHalfJainOnly(!showHalfJainOnly)}
+                      className={cn(
+                        "flex w-full items-center justify-between rounded-md px-2 py-1 text-xs font-medium transition-colors",
+                        showHalfJainOnly ? "bg-[var(--menu-soft)] text-[var(--menu-text)]" : "text-[var(--menu-muted)] hover:bg-[var(--menu-soft)]"
+                      )}
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        <CookingPot className="h-2.5 w-2.5" />
+                        Half Jain
+                      </span>
+                      {showHalfJainOnly && <Check className="h-3 w-3" />}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Tag Filter */}
+            {uniqueTags.length > 0 && (
+              <div ref={tagFilterRef} className="relative">
                 <button
                   onClick={() => setShowTagFilter(!showTagFilter)}
                   aria-label="Filter by tags"
                   aria-expanded={showTagFilter}
                   className={cn(
-                    "relative inline-flex items-center justify-center gap-2 w-[112px] h-9 px-3 rounded-xl border transition-all duration-200",
+                    "relative inline-flex h-8 items-center justify-center gap-1 rounded-full border px-2 py-1 text-xs font-semibold transition-all duration-200",
                     showTagFilter || selectedTags.size > 0
-                      ? "border-primary/40 bg-secondary text-foreground shadow-sm"
-                      : "border-border/60 bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                      ? "border-[var(--menu-primary)]/30 bg-[var(--menu-surface)] text-[var(--menu-text)] shadow-[0_12px_24px_rgba(34,26,17,0.08)]"
+                      : "border-[var(--menu-border)] bg-[var(--menu-surface)] text-[var(--menu-muted)] hover:border-[var(--menu-primary)]/30 hover:text-[var(--menu-text)]"
                   )}
                 >
-                  <TagIcon className="h-4 w-4" />
-                  <span className="text-xs font-semibold">Tags</span>
+                  <TagIcon className="h-3 w-3" />
                   {selectedTags.size > 0 && (
-                    <span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold leading-none">
+                    <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[var(--menu-primary)] text-[8px] font-bold leading-none text-white">
                       {selectedTags.size}
                     </span>
                   )}
                 </button>
 
-                {selectedTags.size > 0 && (
-                  <button
-                    onClick={() => setSelectedTags(new Set())}
-                    className="text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    Clear
-                  </button>
-                )}
-              </div>
+                {showTagFilter && (
+                  <div className="absolute right-0 top-full z-30 mt-2 w-[200px] rounded-lg border border-[var(--menu-border)] bg-[var(--menu-surface)] p-1.5 shadow-[0_12px_30px_rgba(34,26,17,0.10)] backdrop-blur-sm sm:w-[220px]">
+                  <div className="max-h-48 overflow-y-auto pr-1 space-y-0.5">
+                      {visibleTags.length === 0 ? (
+                        <p className="px-1 py-2 text-xs text-[var(--menu-muted)]">No tags found</p>
+                      ) : (
+                        visibleTags.map(tag => {
+                          const isSelected = selectedTags.has(tag._id);
 
-              {showTagFilter && (
-                <div className="absolute left-0 top-full mt-2 z-30 w-[300px] sm:w-[340px] rounded-xl border border-border/70 bg-card/95 backdrop-blur-md shadow-xl p-2.5">
-                  <div className="relative mb-2">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                    <Input
-                      placeholder="Search tags..."
-                      value={tagSearchQuery}
-                      onChange={(e) => setTagSearchQuery(e.target.value)}
-                      className="h-8 pl-8 text-xs bg-secondary/50 border-border/50"
-                    />
-                  </div>
-
-                  <div className="max-h-56 overflow-y-auto pr-1 space-y-1">
-                    {visibleTags.length === 0 ? (
-                      <p className="text-xs text-muted-foreground py-2 px-1">No tags found</p>
-                    ) : (
-                      visibleTags.map(tag => {
-                        const isSelected = selectedTags.has(tag._id);
-
-                        return (
-                          <label
-                            key={tag._id}
-                            className={cn(
-                              "flex items-center gap-2 rounded-lg px-2 py-1.5 cursor-pointer transition-colors",
-                              isSelected ? "bg-secondary" : "hover:bg-secondary/60"
-                            )}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => {
-                                const newSelected = new Set(selectedTags);
-                                if (isSelected) {
-                                  newSelected.delete(tag._id);
-                                } else {
-                                  newSelected.add(tag._id);
-                                }
-                                setSelectedTags(newSelected);
-                              }}
-                              className="sr-only"
-                            />
-
-                            <span
+                          return (
+                            <label
+                              key={tag._id}
                               className={cn(
-                                "h-4 w-4 rounded-md border flex items-center justify-center transition-colors",
-                                isSelected
-                                  ? "bg-primary border-primary text-primary-foreground"
-                                  : "bg-background border-border/70"
+                                "flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 text-xs transition-colors",
+                                isSelected ? "bg-[var(--menu-soft)]" : "hover:bg-[var(--menu-soft)]"
                               )}
                             >
-                              {isSelected && <Check className="h-3 w-3" />}
-                            </span>
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => {
+                                  const newSelected = new Set(selectedTags);
+                                  if (isSelected) {
+                                    newSelected.delete(tag._id);
+                                  } else {
+                                    newSelected.add(tag._id);
+                                  }
+                                  setSelectedTags(newSelected);
+                                }}
+                                className="sr-only"
+                              />
 
-                            <span
-                              className="h-2.5 w-2.5 rounded-full flex-shrink-0"
-                              style={{ backgroundColor: tag.color }}
-                            />
+                              <span
+                                className={cn(
+                                  "flex h-3 w-3 items-center justify-center rounded-md border transition-colors",
+                                  isSelected
+                                    ? "border-[var(--menu-primary)] bg-[var(--menu-primary)] text-white"
+                                    : "border-[var(--menu-border)] bg-[var(--menu-surface)]"
+                                )}
+                              >
+                                {isSelected && <Check className="h-2 w-2" />}
+                              </span>
 
-                            <span className="text-xs text-foreground truncate">{tag.name}</span>
-                          </label>
-                        );
-                      })
-                    )}
+                              <span
+                                className="h-1.5 w-1.5 rounded-full flex-shrink-0"
+                                style={{ backgroundColor: tag.color }}
+                              />
+
+                              <span className="truncate text-xs text-[var(--menu-muted)]">{tag.name}</span>
+                            </label>
+                          );
+                        })
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-          )}
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Main Category Tabs - card style */}
-        <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden mt-2">
+        <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           <button
             onClick={() => {
               setSelectedMainCategory(null);
               setSelectedSubCategory(null);
             }}
             className={cn(
-              "px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all duration-200",
+              "whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all duration-200",
               !selectedMainCategory
-                ? "bg-gradient-gold text-primary-foreground shadow-md"
-                : "bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                ? "border-[var(--menu-primary)] bg-[var(--menu-primary)] text-white shadow-[0_12px_24px_rgba(34,26,17,0.16)]"
+                : "border-[var(--menu-border)] bg-[var(--menu-surface)] text-[var(--menu-muted)] hover:border-[var(--menu-primary)]/30 hover:text-[var(--menu-text)]"
             )}
           >
             All
@@ -1956,40 +2029,36 @@ const filteredItems = menuData.menu.filter(item => {
                 setSelectedSubCategory(null);
               }}
               className={cn(
-                "flex items-center px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all duration-200 h-10",
+                "flex items-center whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all duration-200",
                 cat.image ? "gap-2" : "gap-0",
                 cat.isCurrentlyAvailable === false && "opacity-70",
                 selectedMainCategory === cat._id
-                  ? "bg-gradient-gold text-primary-foreground shadow-md"
-                  : "bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  ? "border-[var(--menu-primary)] bg-[var(--menu-primary)] text-white shadow-[0_12px_24px_rgba(34,26,17,0.16)]"
+                  : "border-[var(--menu-border)] bg-[var(--menu-surface)] text-[var(--menu-muted)] hover:border-[var(--menu-primary)]/30 hover:text-[var(--menu-text)]"
               )}
               title={cat.isCurrentlyAvailable === false ? `${cat.name} is not available right now` : undefined}
             >
               {cat.image && (
-                <img
-                  src={cat.image}
-                  alt={cat.name}
-                  className="w-6 h-6 rounded-lg object-cover flex-shrink-0"
-                />
+                <img src={cat.image} alt={cat.name} className="h-5 w-5 flex-shrink-0 rounded-lg object-cover" />
               )}
               <span className="truncate">{cat.name}</span>
               {cat.isCurrentlyAvailable === false && (
-                <span className="ml-2 text-[10px] font-bold text-red-500">Unavailable</span>
+                <span className="ml-2 text-[10px] font-bold text-[#b34b39]">Unavailable</span>
               )}
             </button>
           ))}
         </div>
 
-        {/* Subcategory Pills - underline style */}
+        {/* Subcategory Pills - same as main category */}
         {selectedMainCategory && subCategories.length > 0 && (
-          <div className="flex gap-3 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden mt-2 border-t border-border/30 pt-2">
+          <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             <button
               onClick={() => setSelectedSubCategory(null)}
               className={cn(
-                "px-3 py-1 text-xs font-medium whitespace-nowrap transition-all duration-200 border-b-2",
+                "whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all duration-200",
                 !selectedSubCategory
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
+                  ? "border-[var(--menu-primary)] bg-[var(--menu-primary)] text-white shadow-[0_12px_24px_rgba(34,26,17,0.16)]"
+                  : "border-[var(--menu-border)] bg-[var(--menu-surface)] text-[var(--menu-muted)] hover:border-[var(--menu-primary)]/30 hover:text-[var(--menu-text)]"
               )}
             >
               All
@@ -1999,12 +2068,12 @@ const filteredItems = menuData.menu.filter(item => {
                 key={cat._id}
                 onClick={() => setSelectedSubCategory(cat._id)}
                 className={cn(
-                  "flex items-center px-3 py-1 text-xs font-medium whitespace-nowrap transition-all duration-200 border-b-2 h-8",
-                  cat.image ? "gap-1.5" : "gap-0",
+                  "flex items-center whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all duration-200",
+                  cat.image ? "gap-2" : "gap-0",
                   cat.isCurrentlyAvailable === false && "opacity-70",
                   selectedSubCategory === cat._id
-                    ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
+                    ? "border-[var(--menu-primary)] bg-[var(--menu-primary)] text-white shadow-[0_12px_24px_rgba(34,26,17,0.16)]"
+                    : "border-[var(--menu-border)] bg-[var(--menu-surface)] text-[var(--menu-muted)] hover:border-[var(--menu-primary)]/30 hover:text-[var(--menu-text)]"
                 )}
                 title={cat.isCurrentlyAvailable === false ? `${cat.name} is not available right now` : undefined}
               >
@@ -2012,12 +2081,12 @@ const filteredItems = menuData.menu.filter(item => {
                   <img
                     src={cat.image}
                     alt={cat.name}
-                    className="w-4 h-4 rounded object-cover flex-shrink-0"
+                    className="h-5 w-5 flex-shrink-0 rounded-lg object-cover"
                   />
                 )}
                 <span className="truncate">{cat.name}</span>
                 {cat.isCurrentlyAvailable === false && (
-                  <span className="ml-1 text-[9px] font-semibold text-red-500">Off</span>
+                  <span className="ml-2 text-[10px] font-bold text-[#b34b39]">Unavailable</span>
                 )}
               </button>
             ))}
@@ -2026,30 +2095,33 @@ const filteredItems = menuData.menu.filter(item => {
       </div>
 
       {/* Menu Items */}
-      <div className="px-4 py-6 space-y-8">
+      <div className="space-y-10 pt-8">
         {groupedItems.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">No items found</p>
+          <div className="rounded-[28px] border border-[var(--menu-border)] bg-[var(--menu-surface)]/80 px-6 py-14 text-center shadow-[0_18px_50px_rgba(34,26,17,0.06)]">
+            <p className="text-sm text-[var(--menu-muted)]">No items found</p>
           </div>
         ) : (
           groupedItems.map(mainCat => {
             const mainCatImage = mainCategoryById.get(mainCat._id)?.image;
             return (
-            <div key={mainCat._id}>
+            <div key={mainCat._id} className="scroll-mt-32">
               {/* Main Category Header */}
-              <div className={cn("flex items-center mb-5 pb-2 border-b border-border/40", mainCatImage ? "gap-3" : "gap-0")}>
+              <div className={cn("mb-5 flex items-center pb-3", mainCatImage ? "gap-3" : "gap-0")}> 
                 {mainCatImage && (
                   <img 
                     src={mainCatImage} 
                     alt={mainCat.name}
-                    className="w-10 h-10 rounded-xl object-cover ring-2 ring-primary/20"
+                    className="h-12 w-12 rounded-2xl object-cover shadow-[0_12px_28px_rgba(34,26,17,0.10)] ring-1 ring-[var(--menu-border)]"
                   />
                 )}
                 <div>
-                  <h2 className="font-display text-lg font-bold text-gradient-gold">
+                  <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.28em] text-[var(--menu-muted)]">
+                    Section
+                  </p>
+                  <h2 className="font-display text-[1.5rem] font-semibold text-[var(--menu-text)] sm:text-[1.9rem]">
                     {mainCat.name}
                   </h2>
-                  <div className="h-0.5 w-8 bg-gradient-gold rounded-full mt-1" />
+                  <div className="mt-2 h-px w-12 bg-[var(--menu-primary)]/40" />
                 </div>
               </div>
               
@@ -2058,29 +2130,29 @@ const filteredItems = menuData.menu.filter(item => {
                 return (
                 <div key={subCat._id} className="mb-6">
                   {/* Subcategory Header */}
-                  <div className={cn("flex items-center mb-3 ml-1", subCatImage ? "gap-2" : "gap-0")}>
+                  <div className={cn("mb-3 flex items-center", subCatImage ? "gap-2" : "gap-0")}> 
                     {subCatImage && (
                       <img 
                         src={subCatImage} 
                         alt={subCat.name}
-                        className="w-6 h-6 rounded-md object-cover"
+                        className="h-6 w-6 rounded-md object-cover ring-1 ring-[var(--menu-border)]"
                       />
                     )}
-                    <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+                    <h3 className="text-[11px] font-bold uppercase tracking-[0.28em] text-[var(--menu-muted)]">
                       {subCat.name}
                     </h3>
-                    <div className="flex-1 h-px bg-border/30 ml-2" />
+                    <div className="ml-2 h-px flex-1 bg-[var(--menu-border)]" />
                   </div>
                   
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {subCat.items.map(item => (
                       <div
                         key={item._id}
                         className={cn(
-                          "flex gap-3 p-3 rounded-xl transition-colors cursor-pointer border border-border/30",
+                          "flex cursor-pointer gap-4 rounded-[22px] border-b border-l border-r border-t-4 border-b-[var(--menu-border)] border-l-[var(--menu-border)] border-r-[var(--menu-border)] border-t-[var(--menu-primary)] p-4 transition-all duration-200",
                           item.isCurrentlyAvailable === false
-                            ? "bg-card/30 opacity-75"
-                            : "bg-card/50 hover:bg-card"
+                            ? "bg-[var(--menu-surface)]/60 opacity-75"
+                            : "bg-[var(--menu-surface)] shadow-[0_16px_36px_rgba(34,26,17,0.06)] hover:-translate-y-0.5 hover:shadow-[0_20px_42px_rgba(34,26,17,0.10)]"
                         )}
                         onClick={() => setSelectedItem(item)}
                       >
@@ -2088,62 +2160,62 @@ const filteredItems = menuData.menu.filter(item => {
                           <img
                             src={item.image}
                             alt={item.name}
-                            className="w-24 h-24 rounded-xl object-cover flex-shrink-0 cursor-pointer active:scale-95 transition-transform"
+                            className="h-24 w-24 flex-shrink-0 cursor-pointer rounded-2xl object-cover transition-transform active:scale-95"
                             onClick={(e) => {
                               e.stopPropagation();
                               setLightboxImage(item.image!);
                             }}
                           />
                         )}
-                        <div className="flex-1 min-w-0 flex flex-col gap-1">
+                        <div className="flex min-w-0 flex-1 flex-col gap-2">
                           {/* Row 1: veg dot + name + price */}
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex items-center gap-1.5 min-w-0">
                               {item.isVeg ? (
-                                <div className="p-0.5 border border-veg rounded flex-shrink-0">
-                                  <div className="w-1.5 h-1.5 bg-veg rounded-full" />
+                                <div className="flex-shrink-0 rounded-full border border-[#2f7a34]/35 p-0.5">
+                                  <div className="h-1.5 w-1.5 rounded-full bg-[#2f7a34]" />
                                 </div>
                               ) : (
-                                <div className="p-0.5 border border-non-veg rounded flex-shrink-0">
-                                  <div className="w-1.5 h-1.5 bg-non-veg rounded-full" />
+                                <div className="flex-shrink-0 rounded-full border border-[#9c2f2f]/35 p-0.5">
+                                  <div className="h-1.5 w-1.5 rounded-full bg-[#9c2f2f]" />
                                 </div>
                               )}
-                              <h4 className="font-semibold text-sm leading-snug truncate">{item.name}</h4>
+                              <h4 className="truncate text-sm font-semibold leading-snug text-[var(--menu-text)]">{item.name}</h4>
                               {item.isCurrentlyAvailable === false && (
-                                <span className="px-1.5 py-0.5 text-[9px] font-bold bg-red-500/15 text-red-400 rounded-full border border-red-500/30 whitespace-nowrap">
+                                <span className="whitespace-nowrap rounded-full border border-[#b34b39]/25 bg-[#f8e3df] px-1.5 py-0.5 text-[9px] font-bold text-[#b34b39]">
                                   Not available now
                                 </span>
                               )}
                             </div>
-                            <span className="font-bold text-primary text-sm flex-shrink-0">
+                            <span className="flex-shrink-0 rounded-full bg-[var(--menu-soft)] px-3 py-1 text-sm font-bold text-[var(--menu-primary)]">
                               ₹{item.price}
                             </span>
                           </div>
 
                           {/* Row 2: badges (tags + dietary) */}
                           {(item.tags?.length || item.isJain || item.isVegan || item.isHalfJain) ? (
-                            <div className="flex flex-wrap gap-1">
+                            <div className="flex flex-wrap gap-1.5">
                               {item.tags?.map(tag => (
                                 <span
                                   key={tag._id}
-                                  className="px-1.5 py-0.5 text-[9px] font-bold text-white rounded-full"
+                                  className="rounded-full px-2 py-0.5 text-[9px] font-bold text-white"
                                   style={{ backgroundColor: tag.color }}
                                 >
                                   {tag.name}
                                 </span>
                               ))}
                               {item.isJain && (
-                                <span className="px-1.5 py-0.5 text-[9px] font-bold bg-amber-500/15 text-amber-400 rounded-full">
+                                <span className="rounded-full bg-[#f4ead6] px-2 py-0.5 text-[9px] font-bold text-[#8b5b14]">
                                   JAIN
                                 </span>
                               )}
                               {item.isVegan && (
-                                <span className="px-1.5 py-0.5 text-[9px] font-bold bg-emerald-500/15 text-emerald-400 rounded-full">
+                                <span className="rounded-full bg-[#e6f2e7] px-2 py-0.5 text-[9px] font-bold text-[#2f7a34]">
                                   VEGAN
                                 </span>
                               )}
                               {item.isHalfJain && (
-                                <span className="px-1.5 py-0.5 text-[9px] font-bold bg-orange-500/15 text-orange-400 rounded-full">
+                                <span className="rounded-full bg-[#f7e3d3] px-2 py-0.5 text-[9px] font-bold text-[#b8671e]">
                                   HALF JAIN
                                 </span>
                               )}
@@ -2154,7 +2226,7 @@ const filteredItems = menuData.menu.filter(item => {
                           {item.description && (
                             <div>
                               <p className={cn(
-                                "text-xs text-muted-foreground leading-relaxed",
+                                "text-xs leading-relaxed text-[var(--menu-muted)]",
                                 !expandedDescriptions.has(item._id) && "line-clamp-2"
                               )}>
                                 {item.description}
@@ -2162,7 +2234,7 @@ const filteredItems = menuData.menu.filter(item => {
                               {item.description.length > 80 && (
                                 <button
                                   onClick={(e) => { e.stopPropagation(); toggleDescription(item._id); }}
-                                  className="text-xs text-primary font-medium mt-0.5"
+                                  className="mt-0.5 text-xs font-semibold text-[var(--menu-primary)]"
                                 >
                                   {expandedDescriptions.has(item._id) ? 'Show less' : 'Read more'}
                                 </button>
@@ -2172,11 +2244,11 @@ const filteredItems = menuData.menu.filter(item => {
 
                           {/* Row 4: add-ons */}
                           {item.effectiveAddOns && item.effectiveAddOns.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-auto pt-1">
+                            <div className="mt-auto flex flex-wrap gap-1 pt-1">
                               {item.effectiveAddOns.map(addOn => (
                                 <span
                                   key={addOn._id}
-                                  className="px-2 py-0.5 text-[10px] font-medium bg-secondary/60 text-muted-foreground rounded-full border border-border/50"
+                                  className="rounded-full border border-[var(--menu-border)] bg-[var(--menu-soft)] px-2 py-0.5 text-[10px] font-medium text-[var(--menu-muted)]"
                                 >
                                   +{addOn.name} ₹{addOn.price}
                                 </span>
@@ -2197,9 +2269,9 @@ const filteredItems = menuData.menu.filter(item => {
       </div>
 
       {/* Powered By Footer */}
-      <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-lg border-t border-border px-4 py-3">
-        <p className="text-center text-xs text-muted-foreground">
-          Powered by <span className="text-gradient-gold font-semibold">oneQr</span>
+      <div className="fixed inset-x-0 bottom-0 border-t border-[var(--menu-border)] bg-[var(--menu-surface)]/92 px-4 py-3 backdrop-blur-xl">
+        <p className="text-center text-xs text-[var(--menu-muted)]">
+          Powered by <span className="font-semibold text-[var(--menu-primary)]">oneQr</span>
         </p>
       </div>
 
@@ -2210,83 +2282,87 @@ const filteredItems = menuData.menu.filter(item => {
           if (!open) setSelectedItem(null);
         }}
       >
-        <DrawerContent className="max-h-[88vh]">
+        <DrawerContent
+          className="max-h-[88vh] rounded-t-[28px] border-t border-[var(--menu-border)] bg-[var(--menu-surface)] text-[var(--menu-text)]"
+          style={menuThemeStyle}
+        >
           {selectedItem && (
             <div className="relative overflow-y-auto pb-6">
               <DrawerTitle className="sr-only">{selectedItem.name} details</DrawerTitle>
 
               {/* Extra top tap area to close quickly */}
               <DrawerClose asChild>
-                <button className="w-full h-3" aria-label="Close" />
+                <button className="h-3 w-full" aria-label="Close" />
               </DrawerClose>
 
               {selectedItem.image && (
                 <img
                   src={selectedItem.image}
                   alt={selectedItem.name}
-                  className="w-full h-52 object-cover"
+                  className="h-56 w-full object-cover sm:h-64"
                   onClick={() => setLightboxImage(selectedItem.image!)}
                 />
               )}
 
-              <div className="px-4 pt-4 space-y-4">
-                <div className="flex items-start justify-between gap-3">
+              <div className="space-y-5 px-4 pt-5 sm:px-6">
+                <div className="flex items-start justify-between gap-4">
                   <div className="space-y-2">
-                    <h3 className="text-lg font-bold leading-tight">{selectedItem.name}</h3>
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-[var(--menu-muted)]">Item details</p>
+                    <h3 className="font-display text-2xl font-semibold leading-tight text-[var(--menu-text)]">{selectedItem.name}</h3>
+                    <div className="flex flex-wrap items-center gap-2">
                       {selectedItem.isVeg ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-veg/15 text-veg border border-veg/40">
-                          <span className="h-1.5 w-1.5 rounded-full bg-veg" />
+                        <span className="inline-flex items-center gap-1 rounded-full border border-[#2f7a34]/25 bg-[#eaf6e5] px-2 py-0.5 text-[10px] font-bold text-[#2f7a34]">
+                          <span className="h-1.5 w-1.5 rounded-full bg-[#2f7a34]" />
                           VEG
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-non-veg/15 text-non-veg border border-non-veg/40">
-                          <span className="h-1.5 w-1.5 rounded-full bg-non-veg" />
+                        <span className="inline-flex items-center gap-1 rounded-full border border-[#9c2f2f]/25 bg-[#f8e3df] px-2 py-0.5 text-[10px] font-bold text-[#9c2f2f]">
+                          <span className="h-1.5 w-1.5 rounded-full bg-[#9c2f2f]" />
                           NON-VEG
                         </span>
                       )}
                       {selectedItem.isJain && (
-                        <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-500/15 text-amber-400 rounded-full">JAIN</span>
+                        <span className="rounded-full bg-[#f4ead6] px-2 py-0.5 text-[10px] font-bold text-[#8b5b14]">JAIN</span>
                       )}
                       {selectedItem.isVegan && (
-                        <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-500/15 text-emerald-400 rounded-full">VEGAN</span>
+                        <span className="rounded-full bg-[#e6f2e7] px-2 py-0.5 text-[10px] font-bold text-[#2f7a34]">VEGAN</span>
                       )}
                       {selectedItem.isHalfJain && (
-                        <span className="px-2 py-0.5 text-[10px] font-bold bg-orange-500/15 text-orange-400 rounded-full">HALF JAIN</span>
+                        <span className="rounded-full bg-[#f7e3d3] px-2 py-0.5 text-[10px] font-bold text-[#b8671e]">HALF JAIN</span>
                       )}
                       {selectedItem.tags?.map(tag => (
                         <span
                           key={tag._id}
-                          className="px-2 py-0.5 text-[10px] font-bold text-white rounded-full"
+                          className="rounded-full px-2 py-0.5 text-[10px] font-bold text-white"
                           style={{ backgroundColor: tag.color }}
                         >
                           {tag.name}
                         </span>
                       ))}
                       {selectedItem.isCurrentlyAvailable === false && (
-                        <span className="px-2 py-0.5 text-[10px] font-bold bg-red-500/15 text-red-400 rounded-full border border-red-500/30">
+                        <span className="rounded-full border border-[#b34b39]/25 bg-[#f8e3df] px-2 py-0.5 text-[10px] font-bold text-[#b34b39]">
                           NOT AVAILABLE NOW
                         </span>
                       )}
                     </div>
                   </div>
-                  <span className="text-xl font-bold text-primary whitespace-nowrap">₹{selectedItem.price}</span>
+                  <span className="whitespace-nowrap rounded-full bg-[var(--menu-primary)] px-4 py-2 text-xl font-bold text-white shadow-[0_14px_30px_rgba(34,26,17,0.18)]">₹{selectedItem.price}</span>
                 </div>
 
                 {selectedItem.description && (
-                  <div className="rounded-xl border border-border/50 bg-secondary/30 p-3">
-                    <p className="text-sm text-muted-foreground leading-relaxed">{selectedItem.description}</p>
+                  <div className="rounded-[22px] border border-[var(--menu-border)] bg-[var(--menu-soft)] p-4">
+                    <p className="text-sm leading-relaxed text-[var(--menu-muted)]">{selectedItem.description}</p>
                   </div>
                 )}
 
                 {selectedItem.effectiveAddOns && selectedItem.effectiveAddOns.length > 0 && (
                   <div>
-                    <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Available Add-ons</h4>
+                    <h4 className="mb-2 text-[11px] font-bold uppercase tracking-[0.28em] text-[var(--menu-muted)]">Available Add-ons</h4>
                     <div className="space-y-2">
                       {selectedItem.effectiveAddOns.map(addOn => (
-                        <div key={addOn._id} className="flex items-center justify-between rounded-lg border border-border/50 bg-card/60 px-3 py-2">
-                          <span className="text-sm">{addOn.name}</span>
-                          <span className="text-sm font-semibold text-primary">+₹{addOn.price}</span>
+                        <div key={addOn._id} className="flex items-center justify-between rounded-2xl border border-[var(--menu-border)] bg-[var(--menu-surface)] px-4 py-3 shadow-sm">
+                          <span className="text-sm text-[var(--menu-text)]">{addOn.name}</span>
+                          <span className="text-sm font-semibold text-[var(--menu-primary)]">+₹{addOn.price}</span>
                         </div>
                       ))}
                     </div>
@@ -2301,37 +2377,37 @@ const filteredItems = menuData.menu.filter(item => {
       {/* Fullscreen Image Lightbox */}
       {lightboxImage && (
         <div 
-          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#221a11]/90 p-4 backdrop-blur-sm"
           onClick={() => setLightboxImage(null)}
         >
           <button
             onClick={() => setLightboxImage(null)}
-            className="absolute top-4 right-4 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
+            className="absolute right-4 top-4 rounded-full border border-white/15 bg-white/10 p-2 text-white transition-colors hover:bg-white/20"
           >
             <X className="h-6 w-6" />
           </button>
           <img
             src={lightboxImage}
             alt="Full view"
-            className="max-w-full max-h-[85vh] object-contain rounded-lg"
+            className="max-h-[85vh] max-w-full rounded-2xl object-contain shadow-[0_28px_80px_rgba(0,0,0,0.45)]"
             onClick={(e) => e.stopPropagation()}
           />
         </div>
       )}
 
       {showMenuOpenPopup && popupMessage && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-          <div className="w-full max-w-lg rounded-xl overflow-hidden bg-white shadow-2xl">
-            <div className="bg-black text-white text-center py-3 font-bold tracking-wide uppercase text-lg">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#221a11]/55 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg overflow-hidden rounded-[28px] border border-[#d9c3ad] bg-[#fffdfb] shadow-[0_30px_90px_rgba(34,26,17,0.22)]">
+            <div className="bg-[#855300] px-6 py-4 text-center text-sm font-bold uppercase tracking-[0.3em] text-white">
               {popupTitle}
             </div>
-            <div className="px-5 py-6">
-              <p className="text-gray-800 text-xl leading-relaxed whitespace-pre-wrap">{popupMessage}</p>
-              <div className="mt-6 flex justify-center">
+            <div className="px-6 py-7 sm:px-7">
+              <p className="whitespace-pre-wrap text-[1.15rem] leading-[1.8] text-[#221a11]">{popupMessage}</p>
+              <div className="mt-7 flex justify-center">
                 <button
                   type="button"
                   onClick={() => setShowMenuOpenPopup(false)}
-                  className="bg-green-600 hover:bg-green-700 text-white font-bold px-7 py-2 rounded-md uppercase tracking-wide"
+                  className="rounded-full bg-[#855300] px-7 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-white shadow-[0_14px_30px_rgba(133,83,0,0.18)] transition-colors hover:bg-[#6d4200]"
                 >
                   {popupButtonText}
                 </button>
@@ -2340,6 +2416,9 @@ const filteredItems = menuData.menu.filter(item => {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
+
+

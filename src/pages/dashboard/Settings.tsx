@@ -15,11 +15,12 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { restaurantApi, Restaurant, menuApi } from '@/lib/api';
-import { Loader2, Save, Upload, Download, Trash2, Leaf, Drumstick, Sparkles, Salad, CheckCircle2 } from 'lucide-react';
+import { Loader2, Save, Upload, Download, Trash2, Leaf, Drumstick, Sparkles, Salad, CheckCircle2, Palette } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { DEFAULT_MENU_APPEARANCE, MENU_THEME_PRESETS, normalizeMenuColor, type MenuThemeId } from '@/lib/menuAppearance';
 
 export default function Settings() {
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
@@ -32,6 +33,7 @@ export default function Settings() {
     banner: '',
     Instaurl: '',
     locationLink: '',
+    menuAppearance: DEFAULT_MENU_APPEARANCE,
     menuOpenPopup: {
       isEnabled: false,
       title: 'NOTE',
@@ -65,6 +67,10 @@ export default function Settings() {
           banner: data.banner || '',
           Instaurl: data.Instaurl || '',
           locationLink: data.locationLink || '',
+          menuAppearance: {
+            theme: data.menuAppearance?.theme || DEFAULT_MENU_APPEARANCE.theme,
+            primaryColor: normalizeMenuColor(data.menuAppearance?.primaryColor),
+          },
           menuOpenPopup: {
             isEnabled: data.menuOpenPopup?.isEnabled || false,
             title: data.menuOpenPopup?.title || 'NOTE',
@@ -97,10 +103,35 @@ export default function Settings() {
     }));
   };
 
+  const handleMenuAppearanceChange = (updates: Partial<typeof formData.menuAppearance>) => {
+    setFormData(prev => ({
+      ...prev,
+      menuAppearance: {
+        ...prev.menuAppearance,
+        ...updates,
+      },
+    }));
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await restaurantApi.update(formData);
+      const payload = {
+        ...formData,
+        menuAppearance: {
+          ...formData.menuAppearance,
+          primaryColor: normalizeMenuColor(formData.menuAppearance.primaryColor),
+        },
+      };
+      const savedRestaurant = await restaurantApi.update(payload);
+      setRestaurant(savedRestaurant);
+      setFormData(prev => ({
+        ...prev,
+        menuAppearance: {
+          theme: savedRestaurant.menuAppearance?.theme || prev.menuAppearance.theme,
+          primaryColor: normalizeMenuColor(savedRestaurant.menuAppearance?.primaryColor),
+        },
+      }));
       toast({ title: 'Settings saved!' });
     } catch (error) {
       toast({ 
@@ -307,6 +338,103 @@ export default function Settings() {
               placeholder="https://maps.google.com/..."
             />
             <p className="text-xs text-muted-foreground">Paste your Google Maps link so customers can navigate to your restaurant</p>
+          </div>
+
+          <div className="space-y-4 rounded-lg border border-border/70 p-4">
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 rounded-lg bg-primary/10 p-2 text-primary">
+                <Palette className="h-4 w-4" />
+              </span>
+              <div>
+                <Label>Public Menu Theme</Label>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Choose the menu style guests see, then set your brand accent color.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              {MENU_THEME_PRESETS.map(theme => {
+                const selected = formData.menuAppearance.theme === theme.id;
+                return (
+                  <button
+                    key={theme.id}
+                    type="button"
+                    onClick={() => handleMenuAppearanceChange({
+                      theme: theme.id as MenuThemeId,
+                      primaryColor: theme.defaultPrimaryColor,
+                    })}
+                    className={`rounded-xl border p-3 text-left transition-all ${
+                      selected
+                        ? 'border-primary bg-primary/10 shadow-sm'
+                        : 'border-border/70 bg-background/50 hover:border-primary/40'
+                    }`}
+                  >
+                    <div className="mb-3 flex gap-1">
+                      {theme.preview.map(color => (
+                        <span
+                          key={color}
+                          className="h-5 flex-1 rounded-md border border-black/5"
+                          style={{ backgroundColor: color }}
+                        />
+                      ))}
+                    </div>
+                    <p className="text-sm font-semibold">{theme.name}</p>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">{theme.description}</p>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-[auto_1fr] sm:items-end">
+              <div className="space-y-2">
+                <Label htmlFor="menuPrimaryColor">Accent Color</Label>
+                <Input
+                  id="menuPrimaryColor"
+                  type="color"
+                  value={formData.menuAppearance.primaryColor}
+                  onChange={(e) => handleMenuAppearanceChange({ primaryColor: e.target.value })}
+                  className="h-10 w-20 cursor-pointer p-1"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="menuPrimaryColorHex">Hex Code</Label>
+                <Input
+                  id="menuPrimaryColorHex"
+                  value={formData.menuAppearance.primaryColor}
+                  onChange={(e) => handleMenuAppearanceChange({ primaryColor: e.target.value })}
+                  onBlur={() => handleMenuAppearanceChange({ primaryColor: normalizeMenuColor(formData.menuAppearance.primaryColor) })}
+                  placeholder="#855300"
+                />
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-border/70 bg-background/50 p-3">
+              <p className="mb-2 text-xs font-medium text-muted-foreground">Accent preview</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className="rounded-full px-3 py-1.5 text-xs font-semibold text-white"
+                  style={{ backgroundColor: normalizeMenuColor(formData.menuAppearance.primaryColor) }}
+                >
+                  Selected category
+                </span>
+                <span
+                  className="rounded-full px-3 py-1.5 text-xs font-bold text-white"
+                  style={{ backgroundColor: normalizeMenuColor(formData.menuAppearance.primaryColor) }}
+                >
+                  ₹240
+                </span>
+                <span
+                  className="text-xs font-semibold"
+                  style={{ color: normalizeMenuColor(formData.menuAppearance.primaryColor) }}
+                >
+                  Read more
+                </span>
+              </div>
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Save changes, then refresh the public menu to apply it there.
+              </p>
+            </div>
           </div>
 
           <div className="space-y-3 rounded-lg border border-border/70 p-4">
