@@ -2,8 +2,8 @@
 // const BASE_URL = 'https://oneqr.onrender.com';
 
 // LOCAL DEV BACKEND LINK
-const API_BASE = 'http://localhost:5001/api';
-const BASE_URL = 'http://localhost:5001';
+const API_BASE = 'http://localhost:5000/api';
+const BASE_URL = 'http://localhost:5000';
 
 // LOCAL NGINX DEV BACKEND LINK
 // const API_BASE = 'https://54c2-36-255-170-81.ngrok-free.app/api';
@@ -541,6 +541,10 @@ export interface Restaurant {
   user: string;
   foodTypes?: ('jain' | 'veg' | 'non-veg' | 'vegan' | 'half-jain')[];
   locationLink?: string;
+  menuAppearance?: {
+    theme?: 'classic' | 'midnight' | 'fresh' | 'rose';
+    primaryColor?: string;
+  };
   menuOpenPopup?: {
     isEnabled?: boolean;
     title?: string;
@@ -559,6 +563,10 @@ export interface CreateRestaurantData {
   phone?: string;
   foodTypes?: ('jain' | 'veg' | 'non-veg' | 'vegan' | 'half-jain')[];
   locationLink?: string;
+  menuAppearance?: {
+    theme?: 'classic' | 'midnight' | 'fresh' | 'rose';
+    primaryColor?: string;
+  };
   menuOpenPopup?: {
     isEnabled?: boolean;
     title?: string;
