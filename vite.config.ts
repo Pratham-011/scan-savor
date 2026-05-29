@@ -14,7 +14,7 @@ export default defineConfig(({ mode }) => ({
     allowedHosts: ["cluster-besides-toolbar-theories.trycloudflare.com"],
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: 'http://localhost:5001',
         changeOrigin: true,
       },
     },
