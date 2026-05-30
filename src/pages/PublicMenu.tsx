@@ -1062,9 +1062,11 @@ import { useEffect, useState, useMemo, useCallback, useRef, type CSSProperties }
 import { useParams } from 'react-router-dom';
 import { publicMenuApi, PublicMenuResponse, PublicMenuItem } from '@/lib/api';
 import { demoMenuData } from '@/lib/demoData';
-import { MapPin, Phone, Instagram, Leaf, Search, X, Sparkles, Salad, Drumstick, CookingPot, TagIcon, Check, SlidersHorizontal } from 'lucide-react';
+import { MapPin, Phone, Instagram, Leaf, Search, X, Sparkles, Salad, Drumstick, CookingPot, TagIcon, Check, SlidersHorizontal, UtensilsCrossed, Plus, ChevronUp } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Drawer, DrawerClose, DrawerContent, DrawerTitle } from '@/components/ui/drawer';
 import { cn } from '@/lib/utils';
 import { getMenuThemePreset, hexToRgbTuple, normalizeMenuColor } from '@/lib/menuAppearance';
@@ -1094,8 +1096,10 @@ export default function PublicMenu() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedMainCategory, setSelectedMainCategory] = useState<string | null>(null);
-  const [selectedSubCategory, setSelectedSubCategory] = useState<string | null>(null);
+  const [selectedMainCategories, setSelectedMainCategories] = useState<Set<string>>(new Set());
+  const [selectedSubCategories, setSelectedSubCategories] = useState<Set<string>>(new Set());
+  const [draftMainCategories, setDraftMainCategories] = useState<Set<string>>(new Set());
+  const [draftSubCategories, setDraftSubCategories] = useState<Set<string>>(new Set());
   const [showVegOnly, setShowVegOnly] = useState(false);
   const [showNonVegOnly, setShowNonVegOnly] = useState(false);
   const [showJainOnly, setShowJainOnly] = useState(false);
@@ -1111,6 +1115,8 @@ export default function PublicMenu() {
   const [addressExpanded, setAddressExpanded] = useState(false);
   const [isFilterBarFixed, setIsFilterBarFixed] = useState(false);
   const [filterBarHeight, setFilterBarHeight] = useState(0);
+  const [isCategoryDrawerOpen, setIsCategoryDrawerOpen] = useState(false);
+  const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(null);
   const [showMenuOpenPopup, setShowMenuOpenPopup] = useState(false);
   const [menuOpenPopupConfig, setMenuOpenPopupConfig] = useState<{
     isEnabled?: boolean;
@@ -1118,6 +1124,8 @@ export default function PublicMenu() {
     message?: string;
     buttonText?: string;
   } | null>(null);
+  const [pendingScrollMainCategoryId, setPendingScrollMainCategoryId] = useState<string | null>(null);
+  const [pendingScrollAllItems, setPendingScrollAllItems] = useState(false);
 
     const isMobileDevice =
     /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
@@ -1358,14 +1366,39 @@ export default function PublicMenu() {
     return Array.from(mainCategoryById.values()).sort((a, b) => (a.order || 0) - (b.order || 0));
   }, [mainCategoryById]);
 
-  // Extract subcategories for selected main category (only currently available ones)
-  const subCategories = useMemo(() => {
-    if (!selectedMainCategory) return [];
+  const mainCategoryItemCounts = useMemo(() => {
+    const counts = new Map<string, number>();
 
-    return Array.from(subCategoryById.values())
-      .filter(subCategory => subCategory.mainCategoryId === selectedMainCategory)
-      .sort((a, b) => (a.order || 0) - (b.order || 0));
-  }, [subCategoryById, selectedMainCategory]);
+    menuData?.menu?.forEach(item => {
+      counts.set(item.mainCategory._id, (counts.get(item.mainCategory._id) || 0) + 1);
+    });
+
+    return counts;
+  }, [menuData]);
+
+  const subCategoryItemCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+
+    menuData?.menu?.forEach(item => {
+      counts.set(item.category._id, (counts.get(item.category._id) || 0) + 1);
+    });
+
+    return counts;
+  }, [menuData]);
+
+  const totalMenuItemCount = menuData?.menu?.length || 0;
+
+  const selectedMainCategoryLabels = useMemo(
+    () => Array.from(selectedMainCategories).map(id => ({ id, label: mainCategoryById.get(id)?.name ?? id })),
+    [mainCategoryById, selectedMainCategories]
+  );
+
+  const selectedSubCategoryLabels = useMemo(
+    () => Array.from(selectedSubCategories).map(id => ({ id, label: subCategoryById.get(id)?.name ?? id })),
+    [selectedSubCategories, subCategoryById]
+  );
+
+  const activeCategoryCount = selectedMainCategories.size + selectedSubCategories.size;
 
 // Extract unique tags from menu items
 const uniqueTags = useMemo(() => {
@@ -1393,6 +1426,18 @@ const visibleTags = useMemo(() => {
 
 const hasActiveDietFilters = showVegOnly || showNonVegOnly || showJainOnly || showVeganOnly || showHalfJainOnly;
 
+  const openCategoryDrawer = useCallback(() => {
+    setDraftMainCategories(new Set(selectedMainCategories));
+    setDraftSubCategories(new Set(selectedSubCategories));
+
+    const firstSelectedMain = Array.from(selectedMainCategories)[0];
+    const firstSelectedSub = Array.from(selectedSubCategories)[0];
+    const expandedFromSelection = firstSelectedMain || (firstSelectedSub ? subCategoryById.get(firstSelectedSub)?.mainCategoryId ?? null : null);
+
+    setExpandedCategoryId(expandedFromSelection ?? null);
+    setIsCategoryDrawerOpen(true);
+  }, [mainCategories, selectedMainCategories, selectedSubCategories, subCategoryById]);
+
 const clearDietFilters = useCallback(() => {
   setShowVegOnly(false);
   setShowNonVegOnly(false);
@@ -1414,10 +1459,9 @@ const filteredItems = menuData.menu.filter(item => {
     item.description?.toLowerCase().includes(searchQuery.toLowerCase());
 
   const matchesCategory =
-    !selectedMainCategory || item.mainCategory._id === selectedMainCategory;
-
-  const matchesSubCategory =
-    !selectedSubCategory || item.category._id === selectedSubCategory;
+    (selectedMainCategories.size === 0 && selectedSubCategories.size === 0) ||
+    selectedMainCategories.has(item.mainCategory._id) ||
+    selectedSubCategories.has(item.category._id);
 
   const matchesVeg = !showVegOnly || item.isVeg;
   const matchesNonVeg = !showNonVegOnly || !item.isVeg;
@@ -1429,7 +1473,6 @@ const filteredItems = menuData.menu.filter(item => {
   return (
     matchesSearch &&
     matchesCategory &&
-    matchesSubCategory &&
     matchesVeg &&
     matchesNonVeg &&
     matchesJain &&
@@ -1485,7 +1528,27 @@ const filteredItems = menuData.menu.filter(item => {
             items: subCat.items.sort((a, b) => (a.order || 0) - (b.order || 0))
           }))
       }));
-  }, [menuData, searchQuery, selectedMainCategory, selectedSubCategory, showVegOnly, showNonVegOnly, showJainOnly, showVeganOnly, showHalfJainOnly, selectedTags]);
+  }, [menuData, searchQuery, selectedMainCategories, selectedSubCategories, showVegOnly, showNonVegOnly, showJainOnly, showVeganOnly, showHalfJainOnly, selectedTags]);
+
+  useEffect(() => {
+    if (!pendingScrollMainCategoryId) return;
+
+    const target = document.getElementById(`public-menu-category-${pendingScrollMainCategoryId}`);
+    if (!target) return;
+
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setPendingScrollMainCategoryId(null);
+  }, [pendingScrollMainCategoryId, groupedItems]);
+
+  useEffect(() => {
+    if (!pendingScrollAllItems) return;
+
+    const target = document.getElementById('public-menu-items');
+    if (!target) return;
+
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setPendingScrollAllItems(false);
+  }, [pendingScrollAllItems, groupedItems]);
 
   	
   // Show a clean screen while the browser navigates to WhatsApp.
@@ -1624,6 +1687,8 @@ const filteredItems = menuData.menu.filter(item => {
   const themePreset = getMenuThemePreset(restaurant.menuAppearance?.theme);
   const menuPrimaryColor = normalizeMenuColor(restaurant.menuAppearance?.primaryColor);
   const menuSurfaceRgb = hexToRgbTuple(themePreset.colors.surface).join(', ');
+  const menuPrimaryRgb = menuPrimaryColor ? hexToRgbTuple(menuPrimaryColor).join(', ') : '';
+  const isDarkTheme = themePreset.id === 'midnight';
   const menuThemeStyle = {
     '--menu-bg': themePreset.colors.bg,
     '--menu-surface': themePreset.colors.surface,
@@ -1632,6 +1697,7 @@ const filteredItems = menuData.menu.filter(item => {
     '--menu-text': themePreset.colors.text,
     '--menu-muted': themePreset.colors.muted,
     '--menu-primary': menuPrimaryColor,
+    '--menu-primary-rgb': menuPrimaryRgb,
     '--menu-surface-rgb': menuSurfaceRgb,
   } as CSSProperties;
 
@@ -1643,7 +1709,7 @@ const filteredItems = menuData.menu.filter(item => {
         <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[var(--menu-bg)] to-transparent" />
       </div>
 
-      <div className="relative mx-auto max-w-6xl px-4 pb-28 pt-3 sm:px-6 sm:pt-5 lg:px-8">
+      <div className="relative mx-auto max-w-6xl px-4 pb-40 pt-3 sm:px-6 sm:pt-5 lg:px-8">
       {/* Header */}
       <div className="relative overflow-hidden rounded-[22px] border border-[var(--menu-border)] bg-[var(--menu-surface)] shadow-[0_16px_36px_rgba(34,26,17,0.08)]">
         {restaurant.banner && (
@@ -2005,97 +2071,276 @@ const filteredItems = menuData.menu.filter(item => {
           </div>
         </div>
 
-        {/* Main Category Tabs - card style */}
-        <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-          <button
-            onClick={() => {
-              setSelectedMainCategory(null);
-              setSelectedSubCategory(null);
-            }}
-            className={cn(
-              "whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all duration-200",
-              !selectedMainCategory
-                ? "border-[var(--menu-primary)] bg-[var(--menu-primary)] text-white shadow-[0_12px_24px_rgba(34,26,17,0.16)]"
-                : "border-[var(--menu-border)] bg-[var(--menu-surface)] text-[var(--menu-muted)] hover:border-[var(--menu-primary)]/30 hover:text-[var(--menu-text)]"
-            )}
-          >
-            All
-          </button>
-          {mainCategories.map(cat => (
-            <button
-              key={cat._id}
-              onClick={() => {
-                setSelectedMainCategory(cat._id);
-                setSelectedSubCategory(null);
-              }}
-              className={cn(
-                "flex items-center whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all duration-200",
-                cat.image ? "gap-2" : "gap-0",
-                cat.isCurrentlyAvailable === false && "opacity-70",
-                selectedMainCategory === cat._id
-                  ? "border-[var(--menu-primary)] bg-[var(--menu-primary)] text-white shadow-[0_12px_24px_rgba(34,26,17,0.16)]"
-                  : "border-[var(--menu-border)] bg-[var(--menu-surface)] text-[var(--menu-muted)] hover:border-[var(--menu-primary)]/30 hover:text-[var(--menu-text)]"
-              )}
-              title={cat.isCurrentlyAvailable === false ? `${cat.name} is not available right now` : undefined}
-            >
-              {cat.image && (
-                <img src={cat.image} alt={cat.name} className="h-5 w-5 flex-shrink-0 rounded-lg object-cover" />
-              )}
-              <span className="truncate">{cat.name}</span>
-              {cat.isCurrentlyAvailable === false && (
-                <span className="ml-2 text-[10px] font-bold text-[#b34b39]">Unavailable</span>
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* Subcategory Pills - same as main category */}
-        {selectedMainCategory && subCategories.length > 0 && (
-          <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-            <button
-              onClick={() => setSelectedSubCategory(null)}
-              className={cn(
-                "whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all duration-200",
-                !selectedSubCategory
-                  ? "border-[var(--menu-primary)] bg-[var(--menu-primary)] text-white shadow-[0_12px_24px_rgba(34,26,17,0.16)]"
-                  : "border-[var(--menu-border)] bg-[var(--menu-surface)] text-[var(--menu-muted)] hover:border-[var(--menu-primary)]/30 hover:text-[var(--menu-text)]"
-              )}
-            >
-              All
-            </button>
-            {subCategories.map(cat => (
-              <button
-                key={cat._id}
-                onClick={() => setSelectedSubCategory(cat._id)}
-                className={cn(
-                  "flex items-center whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all duration-200",
-                  cat.image ? "gap-2" : "gap-0",
-                  cat.isCurrentlyAvailable === false && "opacity-70",
-                  selectedSubCategory === cat._id
-                    ? "border-[var(--menu-primary)] bg-[var(--menu-primary)] text-white shadow-[0_12px_24px_rgba(34,26,17,0.16)]"
-                    : "border-[var(--menu-border)] bg-[var(--menu-surface)] text-[var(--menu-muted)] hover:border-[var(--menu-primary)]/30 hover:text-[var(--menu-text)]"
-                )}
-                title={cat.isCurrentlyAvailable === false ? `${cat.name} is not available right now` : undefined}
-              >
-                {cat.image && (
-                  <img
-                    src={cat.image}
-                    alt={cat.name}
-                    className="h-5 w-5 flex-shrink-0 rounded-lg object-cover"
-                  />
-                )}
-                <span className="truncate">{cat.name}</span>
-                {cat.isCurrentlyAvailable === false && (
-                  <span className="ml-2 text-[10px] font-bold text-[#b34b39]">Unavailable</span>
-                )}
-              </button>
-            ))}
-          </div>
-        )}
+      </div>
+      
+      <div className="pointer-events-none fixed bottom-12 right-1 z-[80] sm:right-6">
+        <button
+          type="button"
+          onClick={() => {
+            openCategoryDrawer();
+          }}
+          className="pointer-events-auto relative z-[80] inline-flex items-center gap-2 rounded-full border border-[var(--menu-border)] bg-[var(--menu-surface)]/95 px-3 py-2 text-sm font-semibold text-[var(--menu-text)] shadow-[0_18px_40px_rgba(34,26,17,0.18)] backdrop-blur-xl transition-transform active:scale-95"
+          aria-label={isCategoryDrawerOpen ? 'Close menu categories' : 'Open menu categories'}
+        >
+          {!isCategoryDrawerOpen && (
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--menu-primary)] text-white">
+              <UtensilsCrossed className="h-4 w-4" />
+            </span>
+          )}
+          <span className={cn(isCategoryDrawerOpen ? 'text-white' : 'text-[var(--menu-text)]')}>
+            {isCategoryDrawerOpen ? 'Close' : 'Menu'}
+          </span>
+          {activeCategoryCount > 0 && (
+            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--menu-primary)] px-1.5 text-[10px] font-bold leading-none text-white">
+              {activeCategoryCount}
+            </span>
+          )}
+        </button>
       </div>
 
+      <Dialog
+        open={isCategoryDrawerOpen}
+        onOpenChange={(open) => {
+          setIsCategoryDrawerOpen(open);
+          if (!open) {
+            setExpandedCategoryId(null);
+          }
+        }}
+      >
+        <DialogContent
+          hideClose
+          className={cn(
+            "left-auto right-1 top-auto bottom-28 w-[calc(100vw-2.5rem)] max-w-[348px] translate-x-0 translate-y-0 origin-bottom-right overflow-hidden border p-0 text-[var(--menu-text)] rounded-[28px] sm:max-w-[372px] sm:rounded-[30px]",
+            isDarkTheme
+              ? "border-[var(--menu-border)] bg-[linear-gradient(180deg,rgba(28,24,20,0.98)_0%,rgba(21,18,15,0.98)_55%,rgba(16,13,11,0.99)_100%)] shadow-[0_24px_70px_rgba(0,0,0,0.55)]"
+              : "border-[var(--menu-border)] bg-[linear-gradient(180deg,rgba(255,251,245,0.99)_0%,rgba(255,255,255,0.98)_42%,rgba(247,241,233,0.98)_100%)] shadow-[0_22px_60px_rgba(34,26,17,0.18)]"
+          )}
+          style={menuThemeStyle}
+        >
+          <DialogTitle className="sr-only">Menu categories</DialogTitle>
+          <div className="max-h-[64vh] overflow-y-auto px-2.5 pb-3 pt-2.5 sm:max-h-[66vh] sm:px-4">
+            <div className="mb-3 flex justify-center">
+              <div className={cn("h-1 w-12 rounded-full", isDarkTheme ? "bg-[var(--menu-primary)]/30" : "bg-[var(--menu-primary)]/18")} />
+            </div>
+
+            <div className="mb-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setDraftMainCategories(new Set());
+                  setSelectedMainCategories(new Set());
+                  setDraftSubCategories(new Set());
+                  setSelectedSubCategories(new Set());
+                  setPendingScrollAllItems(true);
+                  setIsCategoryDrawerOpen(false);
+                }}
+                className={cn(
+                  "flex w-full items-center justify-between rounded-[20px] border px-3 py-2 text-left transition-all duration-200",
+                  activeCategoryCount === 0
+                    ? isDarkTheme
+                      ? "border-[var(--menu-primary)]/30 bg-[linear-gradient(135deg,rgba(var(--menu-primary-rgb),0.16)_0%,rgba(var(--menu-surface-rgb),0.98)_100%)] text-[var(--menu-text)] shadow-[0_12px_24px_rgba(0,0,0,0.22)]"
+                      : "border-[var(--menu-primary)]/30 bg-[linear-gradient(135deg,rgba(var(--menu-surface-rgb),0.98)_0%,rgba(255,245,232,0.98)_100%)] text-[var(--menu-text)] shadow-[0_10px_20px_rgba(34,26,17,0.05)]"
+                    : "border-[var(--menu-border)] bg-[var(--menu-surface)]/80 text-[var(--menu-muted)] hover:bg-[var(--menu-soft)]/70 hover:text-[var(--menu-text)]"
+                )}
+              >
+                <span className="text-[0.88rem] font-semibold tracking-[-0.01em]">All Items</span>
+                <span className="rounded-full bg-[var(--menu-soft)] px-2 py-1 text-[10px] font-bold text-[var(--menu-primary)]">All</span>
+              </button>
+            </div>
+
+            <div className="space-y-1.5">
+              {mainCategories.map(cat => {
+                const isExpanded = expandedCategoryId === cat._id;
+                const subcategoryRows = Array.from(subCategoryById.values())
+                  .filter(subCategory => subCategory.mainCategoryId === cat._id)
+                  .sort((a, b) => (a.order || 0) - (b.order || 0));
+                const categoryCount = mainCategoryItemCounts.get(cat._id) || 0;
+                const hasSelectedMain = draftMainCategories.has(cat._id);
+                const selectedSubCount = subcategoryRows.filter(subCategory => draftSubCategories.has(subCategory._id)).length;
+                const hasSelectedCategory = hasSelectedMain || selectedSubCount > 0;
+
+                return (
+                  <div key={cat._id} className={cn(
+                    "rounded-[24px] border p-1.5 transition-all duration-200",
+                    isDarkTheme
+                      ? "border-[var(--menu-border)] bg-[linear-gradient(180deg,rgba(35,30,24,0.98)_0%,rgba(24,20,16,0.98)_100%)] shadow-[0_10px_24px_rgba(0,0,0,0.28)]"
+                      : "border-[var(--menu-border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(252,248,242,0.96)_100%)] shadow-[0_8px_18px_rgba(34,26,17,0.05)]",
+                    hasSelectedCategory && (isDarkTheme ? "shadow-[0_14px_34px_rgba(0,0,0,0.34)]" : "shadow-[0_12px_30px_rgba(34,26,17,0.08)]")
+                  )}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const isAlreadySelected = draftMainCategories.has(cat._id);
+
+                        setDraftMainCategories(isAlreadySelected ? new Set() : new Set([cat._id]));
+                        setSelectedMainCategories(isAlreadySelected ? new Set() : new Set([cat._id]));
+
+                        setDraftSubCategories(new Set());
+                        setSelectedSubCategories(new Set());
+
+                        if (subcategoryRows.length > 0) {
+                          setExpandedCategoryId(prev => (prev === cat._id ? null : cat._id));
+                        }
+                      }}
+                      className={cn(
+                        "group flex w-full items-center justify-between rounded-[18px] px-2.5 py-2 text-left transition-all duration-200",
+                        hasSelectedCategory
+                          ? isDarkTheme
+                            ? "bg-[linear-gradient(135deg,rgba(var(--menu-primary-rgb),0.14)_0%,rgba(var(--menu-surface-rgb),0.98)_100%)] text-[var(--menu-text)] shadow-[0_10px_22px_rgba(0,0,0,0.22)]"
+                            : "bg-[linear-gradient(135deg,rgba(var(--menu-surface-rgb),0.98)_0%,rgba(255,245,232,0.98)_100%)] text-[var(--menu-text)] shadow-[0_10px_20px_rgba(34,26,17,0.05)]"
+                          : isDarkTheme
+                            ? "hover:bg-[rgba(255,255,255,0.04)]"
+                            : "hover:bg-[var(--menu-soft)]/60"
+                      )}
+                      title={cat.isCurrentlyAvailable === false ? `${cat.name} is not available right now` : undefined}
+                    >
+                      <div className="min-w-0 flex-1 pr-3">
+                        <div className="flex items-center gap-2">
+                          {cat.image && (
+                            <img src={cat.image} alt={cat.name} className="h-8 w-8 flex-shrink-0 rounded-2xl object-cover ring-1 ring-[var(--menu-border)] transition-transform duration-200 group-hover:scale-[1.02]" />
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[0.84rem] font-semibold tracking-[-0.01em]">{cat.name}</p>
+                            <p className="text-[10px] text-[var(--menu-muted)]">{categoryCount} items</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {cat.isCurrentlyAvailable === false && (
+                          <span className={cn("rounded-full px-2 py-1 text-[10px] font-bold", isDarkTheme ? "bg-[rgba(197,154,74,0.16)] text-[#f2d49a]" : "bg-[#f8e3df] text-[#b34b39]")}>Unavailable</span>
+                        )}
+                        {subcategoryRows.length > 0 ? (
+                            <span className={cn("inline-flex h-6 w-6 items-center justify-center rounded-full border transition-all duration-200", isExpanded ? "border-[var(--menu-primary)] bg-[var(--menu-primary)] text-white shadow-[0_10px_18px_rgba(34,26,17,0.12)]" : "border-[var(--menu-border)] bg-[var(--menu-surface)] text-[var(--menu-primary)]") }>
+                            {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-[var(--menu-soft)] px-2 py-0.5 text-[10px] font-bold text-[var(--menu-primary)]">Open</span>
+                        )}
+                      </div>
+                    </button>
+
+                    {subcategoryRows.length > 0 && (
+                      <div
+                        className={cn(
+                          "grid overflow-hidden transition-all duration-300 ease-out",
+                          isExpanded ? "grid-rows-[1fr] opacity-100 mt-2" : "grid-rows-[0fr] opacity-0 mt-0 pointer-events-none"
+                        )}
+                      >
+                        <div className="overflow-hidden">
+                        <div className={cn("space-y-1 rounded-[22px] p-1.5 backdrop-blur-sm", isDarkTheme ? "bg-[linear-gradient(180deg,rgba(16,13,11,0.92)_0%,rgba(27,22,18,0.92)_100%)]" : "bg-[linear-gradient(180deg,rgba(var(--menu-surface-rgb),0.72)_0%,rgba(var(--menu-soft),0.76)_100%)]")}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDraftMainCategories(new Set([cat._id]));
+                              setSelectedMainCategories(new Set([cat._id]));
+                              setDraftSubCategories(new Set());
+                              setSelectedSubCategories(new Set());
+                              setIsCategoryDrawerOpen(false);
+                            }}
+                            className={cn(
+                              "flex w-full items-center justify-between rounded-[18px] border border-transparent px-3 py-2 text-left transition-all duration-200",
+                              hasSelectedMain
+                                ? isDarkTheme
+                                  ? "border-[var(--menu-border)] bg-[rgba(255,255,255,0.05)] text-[var(--menu-text)] shadow-[0_8px_18px_rgba(0,0,0,0.18)]"
+                                  : "border-[var(--menu-border)] bg-[var(--menu-surface)] text-[var(--menu-text)] shadow-[0_8px_18px_rgba(34,26,17,0.05)]"
+                                : isDarkTheme
+                                  ? "bg-[rgba(255,255,255,0.02)] text-[var(--menu-muted)] hover:border-[var(--menu-border)] hover:bg-[rgba(255,255,255,0.05)] hover:text-[var(--menu-text)]"
+                                  : "bg-[var(--menu-surface)]/70 text-[var(--menu-muted)] hover:border-[var(--menu-border)] hover:text-[var(--menu-text)]"
+                            )}
+                          >
+                            <span className="text-[0.88rem] font-medium tracking-[-0.01em]">All in {cat.name}</span>
+                            <span className="rounded-full bg-[var(--menu-soft)] px-2 py-1 text-[10px] font-bold text-[var(--menu-primary)]">{categoryCount}</span>
+                          </button>
+
+                        {subcategoryRows.map(subCat => {
+                          const subCount = subCategoryItemCounts.get(subCat._id) || 0;
+                          const isSelected = draftSubCategories.has(subCat._id);
+
+                          return (
+                            <button
+                              key={subCat._id}
+                              type="button"
+                              onClick={() => {
+                                const isAlreadySelected = draftSubCategories.has(subCat._id);
+
+                                setDraftMainCategories(new Set());
+                                setSelectedMainCategories(new Set());
+
+                                setDraftSubCategories(isAlreadySelected ? new Set() : new Set([subCat._id]));
+                                setSelectedSubCategories(isAlreadySelected ? new Set() : new Set([subCat._id]));
+
+                                setPendingScrollMainCategoryId(subCategoryById.get(subCat._id)?.mainCategoryId ?? null);
+                                setIsCategoryDrawerOpen(false);
+                              }}
+                              className={cn(
+                                "flex w-full items-center justify-between rounded-[16px] px-2.5 py-1.5 text-left transition-all duration-200",
+                                isSelected
+                                  ? "bg-[var(--menu-surface)] text-[var(--menu-text)] shadow-[0_10px_20px_rgba(34,26,17,0.08)]"
+                                  : "bg-transparent text-[var(--menu-muted)] hover:bg-[var(--menu-surface)]/80 hover:text-[var(--menu-text)]"
+                              )}
+                            >
+                              <div className="flex min-w-0 items-center gap-2">
+                                {subCat.image && (
+                                  <img src={subCat.image} alt={subCat.name} className="h-6 w-6 flex-shrink-0 rounded-xl object-cover ring-1 ring-[var(--menu-border)] transition-transform duration-200 group-hover:scale-[1.02]" />
+                                )}
+                                <span className="truncate text-[0.82rem] font-medium tracking-[-0.01em]">{subCat.name}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {isSelected && (
+                                  <span
+                                    className="inline-flex h-5 w-5 items-center justify-center rounded-full"
+                                    style={{ border: '1px solid rgba(var(--menu-primary-rgb), 0.2)', backgroundColor: 'rgba(var(--menu-primary-rgb), 0.12)', color: 'var(--menu-primary)'}}
+                                  >
+                                    <Check className="h-3 w-3" />
+                                  </span>
+                                )}
+                                <span className="rounded-full bg-[var(--menu-soft)] px-2 py-0.5 text-[10px] font-bold text-[var(--menu-primary)]">{subCount}</span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* <div className="mt-4 rounded-[24px] border border-[var(--menu-border)] bg-[var(--menu-surface)]/90 p-3 shadow-[0_12px_30px_rgba(34,26,17,0.06)]">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--menu-muted)]">Selected items</p>
+                <span className="rounded-full bg-[var(--menu-soft)] px-2 py-1 text-[10px] font-bold text-[var(--menu-primary)]">
+                  {draftMainCategories.size + draftSubCategories.size}
+                </span>
+              </div>
+
+              {(draftMainCategories.size !== 0 || draftSubCategories.size !== 0) && (
+                <div className="flex flex-wrap gap-2">
+                  {Array.from(draftMainCategories).map(id => (
+                    <span key={id} className="rounded-full border border-[var(--menu-primary)]/25 bg-[var(--menu-soft)] px-3 py-1 text-xs font-semibold text-[var(--menu-primary)]">
+                      {mainCategoryById.get(id)?.name ?? id}
+                    </span>
+                  ))}
+                  {Array.from(draftSubCategories).map(id => (
+                    <span key={id} className="rounded-full border border-[var(--menu-primary)]/25 bg-white px-3 py-1 text-xs font-semibold text-[var(--menu-text)] shadow-[0_6px_16px_rgba(34,26,17,0.05)]">
+                      {subCategoryById.get(id)?.name ?? id}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div> */}
+
+            {/* <div className="sticky bottom-0 mt-4 border-t border-[var(--menu-border)] bg-[linear-gradient(180deg,rgba(255,251,245,0.65)_0%,rgba(255,251,245,0.98)_32%)] px-1 pt-4 pb-1 backdrop-blur-sm" /> */}
+
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Menu Items */}
-      <div className="space-y-10 pt-8">
+      <div id="public-menu-items" className="space-y-10 pt-8">
         {groupedItems.length === 0 ? (
           <div className="rounded-[28px] border border-[var(--menu-border)] bg-[var(--menu-surface)]/80 px-6 py-14 text-center shadow-[0_18px_50px_rgba(34,26,17,0.06)]">
             <p className="text-sm text-[var(--menu-muted)]">No items found</p>
@@ -2104,7 +2349,7 @@ const filteredItems = menuData.menu.filter(item => {
           groupedItems.map(mainCat => {
             const mainCatImage = mainCategoryById.get(mainCat._id)?.image;
             return (
-            <div key={mainCat._id} className="scroll-mt-32">
+            <div key={mainCat._id} id={`public-menu-category-${mainCat._id}`} className="scroll-mt-32">
               {/* Main Category Header */}
               <div className={cn("mb-5 flex items-center pb-3", mainCatImage ? "gap-3" : "gap-0")}> 
                 {mainCatImage && (
@@ -2115,9 +2360,9 @@ const filteredItems = menuData.menu.filter(item => {
                   />
                 )}
                 <div>
-                  <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.28em] text-[var(--menu-muted)]">
+                  {/* <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.28em] text-[var(--menu-muted)]">
                     Section
-                  </p>
+                  </p> */}
                   <h2 className="font-display text-[1.5rem] font-semibold text-[var(--menu-text)] sm:text-[1.9rem]">
                     {mainCat.name}
                   </h2>
