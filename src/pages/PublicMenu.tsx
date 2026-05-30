@@ -1124,6 +1124,8 @@ export default function PublicMenu() {
     message?: string;
     buttonText?: string;
   } | null>(null);
+  const [pendingScrollMainCategoryId, setPendingScrollMainCategoryId] = useState<string | null>(null);
+  const [pendingScrollAllItems, setPendingScrollAllItems] = useState(false);
 
     const isMobileDevice =
     /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
@@ -1528,6 +1530,26 @@ const filteredItems = menuData.menu.filter(item => {
       }));
   }, [menuData, searchQuery, selectedMainCategories, selectedSubCategories, showVegOnly, showNonVegOnly, showJainOnly, showVeganOnly, showHalfJainOnly, selectedTags]);
 
+  useEffect(() => {
+    if (!pendingScrollMainCategoryId) return;
+
+    const target = document.getElementById(`public-menu-category-${pendingScrollMainCategoryId}`);
+    if (!target) return;
+
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setPendingScrollMainCategoryId(null);
+  }, [pendingScrollMainCategoryId, groupedItems]);
+
+  useEffect(() => {
+    if (!pendingScrollAllItems) return;
+
+    const target = document.getElementById('public-menu-items');
+    if (!target) return;
+
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setPendingScrollAllItems(false);
+  }, [pendingScrollAllItems, groupedItems]);
+
   	
   // Show a clean screen while the browser navigates to WhatsApp.
   // This prevents the skeleton or "Menu Unavailable" from flashing.
@@ -1666,6 +1688,7 @@ const filteredItems = menuData.menu.filter(item => {
   const menuPrimaryColor = normalizeMenuColor(restaurant.menuAppearance?.primaryColor);
   const menuSurfaceRgb = hexToRgbTuple(themePreset.colors.surface).join(', ');
   const menuPrimaryRgb = menuPrimaryColor ? hexToRgbTuple(menuPrimaryColor).join(', ') : '';
+  const isDarkTheme = themePreset.id === 'midnight';
   const menuThemeStyle = {
     '--menu-bg': themePreset.colors.bg,
     '--menu-surface': themePreset.colors.surface,
@@ -2084,11 +2107,45 @@ const filteredItems = menuData.menu.filter(item => {
           }
         }}
       >
-        <DialogContent hideClose className="left-auto right-1 top-auto bottom-28 w-[calc(100vw-2.5rem)] max-w-[348px] translate-x-0 translate-y-0 origin-bottom-right overflow-hidden border border-[var(--menu-border)] bg-[linear-gradient(180deg,rgba(255,251,245,0.99)_0%,rgba(255,255,255,0.98)_42%,rgba(247,241,233,0.98)_100%)] p-0 text-[var(--menu-text)] shadow-[0_22px_60px_rgba(34,26,17,0.18)] rounded-[28px] sm:max-w-[372px] sm:rounded-[30px]" style={menuThemeStyle}>
+        <DialogContent
+          hideClose
+          className={cn(
+            "left-auto right-1 top-auto bottom-28 w-[calc(100vw-2.5rem)] max-w-[348px] translate-x-0 translate-y-0 origin-bottom-right overflow-hidden border p-0 text-[var(--menu-text)] rounded-[28px] sm:max-w-[372px] sm:rounded-[30px]",
+            isDarkTheme
+              ? "border-[var(--menu-border)] bg-[linear-gradient(180deg,rgba(28,24,20,0.98)_0%,rgba(21,18,15,0.98)_55%,rgba(16,13,11,0.99)_100%)] shadow-[0_24px_70px_rgba(0,0,0,0.55)]"
+              : "border-[var(--menu-border)] bg-[linear-gradient(180deg,rgba(255,251,245,0.99)_0%,rgba(255,255,255,0.98)_42%,rgba(247,241,233,0.98)_100%)] shadow-[0_22px_60px_rgba(34,26,17,0.18)]"
+          )}
+          style={menuThemeStyle}
+        >
           <DialogTitle className="sr-only">Menu categories</DialogTitle>
           <div className="max-h-[64vh] overflow-y-auto px-2.5 pb-3 pt-2.5 sm:max-h-[66vh] sm:px-4">
             <div className="mb-3 flex justify-center">
-              <div className="h-1 w-12 rounded-full bg-[var(--menu-primary)]/18" />
+              <div className={cn("h-1 w-12 rounded-full", isDarkTheme ? "bg-[var(--menu-primary)]/30" : "bg-[var(--menu-primary)]/18")} />
+            </div>
+
+            <div className="mb-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setDraftMainCategories(new Set());
+                  setSelectedMainCategories(new Set());
+                  setDraftSubCategories(new Set());
+                  setSelectedSubCategories(new Set());
+                  setPendingScrollAllItems(true);
+                  setIsCategoryDrawerOpen(false);
+                }}
+                className={cn(
+                  "flex w-full items-center justify-between rounded-[20px] border px-3 py-2 text-left transition-all duration-200",
+                  activeCategoryCount === 0
+                    ? isDarkTheme
+                      ? "border-[var(--menu-primary)]/30 bg-[linear-gradient(135deg,rgba(var(--menu-primary-rgb),0.16)_0%,rgba(var(--menu-surface-rgb),0.98)_100%)] text-[var(--menu-text)] shadow-[0_12px_24px_rgba(0,0,0,0.22)]"
+                      : "border-[var(--menu-primary)]/30 bg-[linear-gradient(135deg,rgba(var(--menu-surface-rgb),0.98)_0%,rgba(255,245,232,0.98)_100%)] text-[var(--menu-text)] shadow-[0_10px_20px_rgba(34,26,17,0.05)]"
+                    : "border-[var(--menu-border)] bg-[var(--menu-surface)]/80 text-[var(--menu-muted)] hover:bg-[var(--menu-soft)]/70 hover:text-[var(--menu-text)]"
+                )}
+              >
+                <span className="text-[0.88rem] font-semibold tracking-[-0.01em]">All Items</span>
+                <span className="rounded-full bg-[var(--menu-soft)] px-2 py-1 text-[10px] font-bold text-[var(--menu-primary)]">All</span>
+              </button>
             </div>
 
             <div className="space-y-1.5">
@@ -2104,8 +2161,11 @@ const filteredItems = menuData.menu.filter(item => {
 
                 return (
                   <div key={cat._id} className={cn(
-                    "rounded-[24px] border border-[var(--menu-border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(252,248,242,0.96)_100%)] p-1.5 shadow-[0_8px_18px_rgba(34,26,17,0.05)] transition-all duration-200",
-                    hasSelectedCategory && "shadow-[0_12px_30px_rgba(34,26,17,0.08)]"
+                    "rounded-[24px] border p-1.5 transition-all duration-200",
+                    isDarkTheme
+                      ? "border-[var(--menu-border)] bg-[linear-gradient(180deg,rgba(35,30,24,0.98)_0%,rgba(24,20,16,0.98)_100%)] shadow-[0_10px_24px_rgba(0,0,0,0.28)]"
+                      : "border-[var(--menu-border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(252,248,242,0.96)_100%)] shadow-[0_8px_18px_rgba(34,26,17,0.05)]",
+                    hasSelectedCategory && (isDarkTheme ? "shadow-[0_14px_34px_rgba(0,0,0,0.34)]" : "shadow-[0_12px_30px_rgba(34,26,17,0.08)]")
                   )}>
                     <button
                       type="button"
@@ -2125,8 +2185,12 @@ const filteredItems = menuData.menu.filter(item => {
                       className={cn(
                         "group flex w-full items-center justify-between rounded-[18px] px-2.5 py-2 text-left transition-all duration-200",
                         hasSelectedCategory
-                          ? "bg-[linear-gradient(135deg,rgba(var(--menu-surface-rgb),0.98)_0%,rgba(255,245,232,0.98)_100%)] text-[var(--menu-text)] shadow-[0_10px_20px_rgba(34,26,17,0.05)]"
-                          : "hover:bg-[var(--menu-soft)]/60"
+                          ? isDarkTheme
+                            ? "bg-[linear-gradient(135deg,rgba(var(--menu-primary-rgb),0.14)_0%,rgba(var(--menu-surface-rgb),0.98)_100%)] text-[var(--menu-text)] shadow-[0_10px_22px_rgba(0,0,0,0.22)]"
+                            : "bg-[linear-gradient(135deg,rgba(var(--menu-surface-rgb),0.98)_0%,rgba(255,245,232,0.98)_100%)] text-[var(--menu-text)] shadow-[0_10px_20px_rgba(34,26,17,0.05)]"
+                          : isDarkTheme
+                            ? "hover:bg-[rgba(255,255,255,0.04)]"
+                            : "hover:bg-[var(--menu-soft)]/60"
                       )}
                       title={cat.isCurrentlyAvailable === false ? `${cat.name} is not available right now` : undefined}
                     >
@@ -2144,7 +2208,7 @@ const filteredItems = menuData.menu.filter(item => {
 
                       <div className="flex items-center gap-2">
                         {cat.isCurrentlyAvailable === false && (
-                          <span className="rounded-full bg-[#f8e3df] px-2 py-1 text-[10px] font-bold text-[#b34b39]">Unavailable</span>
+                          <span className={cn("rounded-full px-2 py-1 text-[10px] font-bold", isDarkTheme ? "bg-[rgba(197,154,74,0.16)] text-[#f2d49a]" : "bg-[#f8e3df] text-[#b34b39]")}>Unavailable</span>
                         )}
                         {subcategoryRows.length > 0 ? (
                             <span className={cn("inline-flex h-6 w-6 items-center justify-center rounded-full border transition-all duration-200", isExpanded ? "border-[var(--menu-primary)] bg-[var(--menu-primary)] text-white shadow-[0_10px_18px_rgba(34,26,17,0.12)]" : "border-[var(--menu-border)] bg-[var(--menu-surface)] text-[var(--menu-primary)]") }>
@@ -2164,27 +2228,30 @@ const filteredItems = menuData.menu.filter(item => {
                         )}
                       >
                         <div className="overflow-hidden">
-                      <div className="space-y-1 rounded-[22px] bg-[linear-gradient(180deg,rgba(var(--menu-surface-rgb),0.72)_0%,rgba(var(--menu-soft),0.76)_100%)] p-1.5 backdrop-blur-sm">
-                        {/* <button
-                          type="button"
-                          onClick={() => {
-                            setDraftMainCategories(prev => {
-                              const next = new Set(prev);
-                              if (next.has(cat._id)) next.delete(cat._id);
-                              else next.add(cat._id);
-                              return next;
-                            });
-                          }}
-                          className={cn(
-                            "flex w-full items-center justify-between rounded-[18px] border border-transparent px-3 py-2 text-left transition-all duration-200",
-                            hasSelectedMain
-                              ? "border-[var(--menu-border)] bg-[var(--menu-surface)] text-[var(--menu-text)] shadow-[0_8px_18px_rgba(34,26,17,0.05)]"
-                              : "bg-[var(--menu-surface)]/70 text-[var(--menu-muted)] hover:border-[var(--menu-border)] hover:text-[var(--menu-text)]"
-                          )}
-                        >
-                          <span className="text-[0.88rem] font-medium tracking-[-0.01em]">All in {cat.name}</span>
-                          <span className="rounded-full bg-[var(--menu-soft)] px-2 py-1 text-[10px] font-bold text-[var(--menu-primary)]">{categoryCount}</span>
-                        </button> */}
+                        <div className={cn("space-y-1 rounded-[22px] p-1.5 backdrop-blur-sm", isDarkTheme ? "bg-[linear-gradient(180deg,rgba(16,13,11,0.92)_0%,rgba(27,22,18,0.92)_100%)]" : "bg-[linear-gradient(180deg,rgba(var(--menu-surface-rgb),0.72)_0%,rgba(var(--menu-soft),0.76)_100%)]")}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDraftMainCategories(new Set([cat._id]));
+                              setSelectedMainCategories(new Set([cat._id]));
+                              setDraftSubCategories(new Set());
+                              setSelectedSubCategories(new Set());
+                              setIsCategoryDrawerOpen(false);
+                            }}
+                            className={cn(
+                              "flex w-full items-center justify-between rounded-[18px] border border-transparent px-3 py-2 text-left transition-all duration-200",
+                              hasSelectedMain
+                                ? isDarkTheme
+                                  ? "border-[var(--menu-border)] bg-[rgba(255,255,255,0.05)] text-[var(--menu-text)] shadow-[0_8px_18px_rgba(0,0,0,0.18)]"
+                                  : "border-[var(--menu-border)] bg-[var(--menu-surface)] text-[var(--menu-text)] shadow-[0_8px_18px_rgba(34,26,17,0.05)]"
+                                : isDarkTheme
+                                  ? "bg-[rgba(255,255,255,0.02)] text-[var(--menu-muted)] hover:border-[var(--menu-border)] hover:bg-[rgba(255,255,255,0.05)] hover:text-[var(--menu-text)]"
+                                  : "bg-[var(--menu-surface)]/70 text-[var(--menu-muted)] hover:border-[var(--menu-border)] hover:text-[var(--menu-text)]"
+                            )}
+                          >
+                            <span className="text-[0.88rem] font-medium tracking-[-0.01em]">All in {cat.name}</span>
+                            <span className="rounded-full bg-[var(--menu-soft)] px-2 py-1 text-[10px] font-bold text-[var(--menu-primary)]">{categoryCount}</span>
+                          </button>
 
                         {subcategoryRows.map(subCat => {
                           const subCount = subCategoryItemCounts.get(subCat._id) || 0;
@@ -2203,6 +2270,7 @@ const filteredItems = menuData.menu.filter(item => {
                                 setDraftSubCategories(isAlreadySelected ? new Set() : new Set([subCat._id]));
                                 setSelectedSubCategories(isAlreadySelected ? new Set() : new Set([subCat._id]));
 
+                                setPendingScrollMainCategoryId(subCategoryById.get(subCat._id)?.mainCategoryId ?? null);
                                 setIsCategoryDrawerOpen(false);
                               }}
                               className={cn(
@@ -2272,7 +2340,7 @@ const filteredItems = menuData.menu.filter(item => {
       </Dialog>
 
       {/* Menu Items */}
-      <div className="space-y-10 pt-8">
+      <div id="public-menu-items" className="space-y-10 pt-8">
         {groupedItems.length === 0 ? (
           <div className="rounded-[28px] border border-[var(--menu-border)] bg-[var(--menu-surface)]/80 px-6 py-14 text-center shadow-[0_18px_50px_rgba(34,26,17,0.06)]">
             <p className="text-sm text-[var(--menu-muted)]">No items found</p>
@@ -2281,7 +2349,7 @@ const filteredItems = menuData.menu.filter(item => {
           groupedItems.map(mainCat => {
             const mainCatImage = mainCategoryById.get(mainCat._id)?.image;
             return (
-            <div key={mainCat._id} className="scroll-mt-32">
+            <div key={mainCat._id} id={`public-menu-category-${mainCat._id}`} className="scroll-mt-32">
               {/* Main Category Header */}
               <div className={cn("mb-5 flex items-center pb-3", mainCatImage ? "gap-3" : "gap-0")}> 
                 {mainCatImage && (
