@@ -2073,25 +2073,25 @@ const filteredItems = menuData.menu.filter(item => {
 
       </div>
       
-      <div className="pointer-events-none fixed bottom-12 right-1 z-[80] sm:right-6">
+      <div className="pointer-events-none fixed bottom-14 right-1 z-[80] sm:right-6">
         <button
           type="button"
           onClick={() => {
             openCategoryDrawer();
           }}
-          className="pointer-events-auto relative z-[80] inline-flex items-center gap-2 rounded-full border border-[var(--menu-border)] bg-[var(--menu-surface)]/95 px-3 py-2 text-sm font-semibold text-[var(--menu-text)] shadow-[0_18px_40px_rgba(34,26,17,0.18)] backdrop-blur-xl transition-transform active:scale-95"
+          className="pointer-events-auto relative z-[80] inline-flex items-center gap-2 rounded-full border border-[var(--menu-border)] bg-[var(--menu-surface)]/95 px-3 py-3 text-sm font-semibold text-[var(--menu-text)] shadow-[0_18px_40px_rgba(34,26,17,0.18)] backdrop-blur-xl transition-transform active:scale-95"
           aria-label={isCategoryDrawerOpen ? 'Close menu categories' : 'Open menu categories'}
         >
           {!isCategoryDrawerOpen && (
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--menu-primary)] text-white">
-              <UtensilsCrossed className="h-4 w-4" />
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--menu-primary)] text-white">
+              <UtensilsCrossed className="h-5 w-5" />
             </span>
           )}
           <span className={cn(isCategoryDrawerOpen ? 'text-white' : 'text-[var(--menu-text)]')}>
             {isCategoryDrawerOpen ? 'Close' : 'Menu'}
           </span>
           {activeCategoryCount > 0 && (
-            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--menu-primary)] px-1.5 text-[10px] font-bold leading-none text-white">
+            <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-[var(--menu-primary)] px-1.5 text-[10px] font-bold leading-none text-white">
               {activeCategoryCount}
             </span>
           )}
