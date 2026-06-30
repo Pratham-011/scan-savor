@@ -542,8 +542,14 @@ export interface Restaurant {
   foodTypes?: ('jain' | 'veg' | 'non-veg' | 'vegan' | 'half-jain')[];
   locationLink?: string;
   menuAppearance?: {
-    theme?: 'classic' | 'midnight' | 'fresh' | 'rose';
+    theme?: 'classic' | 'midnight' | 'fresh' | 'rose' | 'stone';
     primaryColor?: string;
+    backgroundColor?: string;
+    surfaceColor?: string;
+    softColor?: string;
+    borderColor?: string;
+    textColor?: string;
+    mutedColor?: string;
   };
   menuOpenPopup?: {
     isEnabled?: boolean;
@@ -564,8 +570,14 @@ export interface CreateRestaurantData {
   foodTypes?: ('jain' | 'veg' | 'non-veg' | 'vegan' | 'half-jain')[];
   locationLink?: string;
   menuAppearance?: {
-    theme?: 'classic' | 'midnight' | 'fresh' | 'rose';
+    theme?: 'classic' | 'midnight' | 'fresh' | 'rose' | 'stone';
     primaryColor?: string;
+    backgroundColor?: string;
+    surfaceColor?: string;
+    softColor?: string;
+    borderColor?: string;
+    textColor?: string;
+    mutedColor?: string;
   };
   menuOpenPopup?: {
     isEnabled?: boolean;

@@ -25,6 +25,12 @@ export const demoMenuData: PublicMenuResponse = {
     menuAppearance: {
       theme: 'classic',
       primaryColor: '#855300',
+      backgroundColor: '#fff8f4',
+      surfaceColor: '#fffdfb',
+      softColor: '#fff1e5',
+      borderColor: '#e6cdb7',
+      textColor: '#221a11',
+      mutedColor: '#5d4a38',
     },
   },
   menu: [

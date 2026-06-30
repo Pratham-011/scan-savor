@@ -1685,17 +1685,23 @@ const filteredItems = menuData.menu.filter(item => {
   const popupMessage = menuOpenPopupConfig?.message?.trim() || menuData?.restaurant?.menuOpenPopup?.message?.trim() || '';
   const popupButtonText = menuOpenPopupConfig?.buttonText?.trim() || menuData?.restaurant?.menuOpenPopup?.buttonText?.trim() || 'Continue';
   const themePreset = getMenuThemePreset(restaurant.menuAppearance?.theme);
-  const menuPrimaryColor = normalizeMenuColor(restaurant.menuAppearance?.primaryColor);
-  const menuSurfaceRgb = hexToRgbTuple(themePreset.colors.surface).join(', ');
+  const menuPrimaryColor = normalizeMenuColor(restaurant.menuAppearance?.primaryColor, themePreset.defaultPrimaryColor);
+  const menuBackgroundColor = normalizeMenuColor(restaurant.menuAppearance?.backgroundColor, themePreset.colors.bg);
+  const menuSurfaceColor = normalizeMenuColor(restaurant.menuAppearance?.surfaceColor, themePreset.colors.surface);
+  const menuSoftColor = normalizeMenuColor(restaurant.menuAppearance?.softColor, themePreset.colors.soft);
+  const menuBorderColor = normalizeMenuColor(restaurant.menuAppearance?.borderColor, themePreset.colors.border);
+  const menuTextColor = normalizeMenuColor(restaurant.menuAppearance?.textColor, themePreset.colors.text);
+  const menuMutedColor = normalizeMenuColor(restaurant.menuAppearance?.mutedColor, themePreset.colors.muted);
+  const menuSurfaceRgb = hexToRgbTuple(menuSurfaceColor).join(', ');
   const menuPrimaryRgb = menuPrimaryColor ? hexToRgbTuple(menuPrimaryColor).join(', ') : '';
   const isDarkTheme = themePreset.id === 'midnight';
   const menuThemeStyle = {
-    '--menu-bg': themePreset.colors.bg,
-    '--menu-surface': themePreset.colors.surface,
-    '--menu-soft': themePreset.colors.soft,
-    '--menu-border': themePreset.colors.border,
-    '--menu-text': themePreset.colors.text,
-    '--menu-muted': themePreset.colors.muted,
+    '--menu-bg': menuBackgroundColor,
+    '--menu-surface': menuSurfaceColor,
+    '--menu-soft': menuSoftColor,
+    '--menu-border': menuBorderColor,
+    '--menu-text': menuTextColor,
+    '--menu-muted': menuMutedColor,
     '--menu-primary': menuPrimaryColor,
     '--menu-primary-rgb': menuPrimaryRgb,
     '--menu-surface-rgb': menuSurfaceRgb,

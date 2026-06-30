@@ -20,7 +20,22 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
-import { DEFAULT_MENU_APPEARANCE, MENU_THEME_PRESETS, normalizeMenuColor, type MenuThemeId } from '@/lib/menuAppearance';
+import { DEFAULT_MENU_APPEARANCE, MENU_THEME_PRESETS, normalizeMenuColor, type MenuAppearance, type MenuThemeId } from '@/lib/menuAppearance';
+
+const resolveMenuAppearance = (appearance?: Partial<MenuAppearance>) => {
+  const themePreset = MENU_THEME_PRESETS.find((preset) => preset.id === appearance?.theme) || MENU_THEME_PRESETS[0];
+
+  return {
+    theme: themePreset.id,
+    primaryColor: normalizeMenuColor(appearance?.primaryColor, themePreset.defaultPrimaryColor),
+    backgroundColor: normalizeMenuColor(appearance?.backgroundColor, themePreset.colors.bg),
+    surfaceColor: normalizeMenuColor(appearance?.surfaceColor, themePreset.colors.surface),
+    softColor: normalizeMenuColor(appearance?.softColor, themePreset.colors.soft),
+    borderColor: normalizeMenuColor(appearance?.borderColor, themePreset.colors.border),
+    textColor: normalizeMenuColor(appearance?.textColor, themePreset.colors.text),
+    mutedColor: normalizeMenuColor(appearance?.mutedColor, themePreset.colors.muted),
+  };
+};
 
 export default function Settings() {
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
@@ -68,8 +83,7 @@ export default function Settings() {
           Instaurl: data.Instaurl || '',
           locationLink: data.locationLink || '',
           menuAppearance: {
-            theme: data.menuAppearance?.theme || DEFAULT_MENU_APPEARANCE.theme,
-            primaryColor: normalizeMenuColor(data.menuAppearance?.primaryColor),
+            ...resolveMenuAppearance(data.menuAppearance as Partial<MenuAppearance> | undefined),
           },
           menuOpenPopup: {
             isEnabled: data.menuOpenPopup?.isEnabled || false,
@@ -119,8 +133,7 @@ export default function Settings() {
       const payload = {
         ...formData,
         menuAppearance: {
-          ...formData.menuAppearance,
-          primaryColor: normalizeMenuColor(formData.menuAppearance.primaryColor),
+          ...resolveMenuAppearance(formData.menuAppearance as Partial<MenuAppearance>),
         },
       };
       const savedRestaurant = await restaurantApi.update(payload);
@@ -128,8 +141,7 @@ export default function Settings() {
       setFormData(prev => ({
         ...prev,
         menuAppearance: {
-          theme: savedRestaurant.menuAppearance?.theme || prev.menuAppearance.theme,
-          primaryColor: normalizeMenuColor(savedRestaurant.menuAppearance?.primaryColor),
+          ...resolveMenuAppearance((savedRestaurant.menuAppearance || prev.menuAppearance) as Partial<MenuAppearance>),
         },
       }));
       toast({ title: 'Settings saved!' });
@@ -363,6 +375,12 @@ export default function Settings() {
                     onClick={() => handleMenuAppearanceChange({
                       theme: theme.id as MenuThemeId,
                       primaryColor: theme.defaultPrimaryColor,
+                      backgroundColor: theme.colors.bg,
+                      surfaceColor: theme.colors.surface,
+                      softColor: theme.colors.soft,
+                      borderColor: theme.colors.border,
+                      textColor: theme.colors.text,
+                      mutedColor: theme.colors.muted,
                     })}
                     className={`rounded-xl border p-3 text-left transition-all ${
                       selected
@@ -409,6 +427,68 @@ export default function Settings() {
               </div>
             </div>
 
+            <div className="grid gap-3 sm:grid-cols-[auto_1fr] sm:items-end">
+              <div className="space-y-2">
+                <Label htmlFor="menuBackgroundColor">Background Color</Label>
+                <Input
+                  id="menuBackgroundColor"
+                  type="color"
+                  value={formData.menuAppearance.backgroundColor}
+                  onChange={(e) => handleMenuAppearanceChange({ backgroundColor: e.target.value })}
+                  className="h-10 w-20 cursor-pointer p-1"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="menuBackgroundColorHex">Hex Code</Label>
+                <Input
+                  id="menuBackgroundColorHex"
+                  value={formData.menuAppearance.backgroundColor}
+                  onChange={(e) => handleMenuAppearanceChange({ backgroundColor: e.target.value })}
+                  onBlur={() => handleMenuAppearanceChange({ backgroundColor: normalizeMenuColor(formData.menuAppearance.backgroundColor, DEFAULT_MENU_APPEARANCE.backgroundColor) })}
+                  placeholder="#fff8f4"
+                />
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-border/70 bg-background/50 p-3">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Advanced palette</p>
+                  <p className="text-[11px] text-muted-foreground">Fine tune the menu surface, borders, and text.</p>
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                {[
+                  { key: 'surfaceColor', label: 'Surface', placeholder: '#fffdfb' },
+                  { key: 'softColor', label: 'Soft Accent', placeholder: '#fff1e5' },
+                  { key: 'borderColor', label: 'Border', placeholder: '#e6cdb7' },
+                  { key: 'textColor', label: 'Text', placeholder: '#221a11' },
+                  { key: 'mutedColor', label: 'Muted Text', placeholder: '#5d4a38' },
+                ].map((field) => (
+                  <div key={field.key} className="space-y-2">
+                    <Label htmlFor={`menu${field.key}`}>{field.label}</Label>
+                    <Input
+                      id={`menu${field.key}`}
+                      type="color"
+                      value={formData.menuAppearance[field.key as keyof typeof formData.menuAppearance] as string}
+                      onChange={(e) => handleMenuAppearanceChange({ [field.key]: e.target.value } as Partial<typeof formData.menuAppearance>)}
+                      className="h-10 w-20 cursor-pointer p-1"
+                    />
+                    <Input
+                      value={formData.menuAppearance[field.key as keyof typeof formData.menuAppearance] as string}
+                      onChange={(e) => handleMenuAppearanceChange({ [field.key]: e.target.value } as Partial<typeof formData.menuAppearance>)}
+                      onBlur={() => handleMenuAppearanceChange({ [field.key]: normalizeMenuColor(
+                        formData.menuAppearance[field.key as keyof typeof formData.menuAppearance] as string,
+                        resolveMenuAppearance(formData.menuAppearance)[field.key as keyof ReturnType<typeof resolveMenuAppearance>] as string
+                      ) } as Partial<typeof formData.menuAppearance>)}
+                      placeholder={field.placeholder}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div className="rounded-xl border border-border/70 bg-background/50 p-3">
               <p className="mb-2 text-xs font-medium text-muted-foreground">Accent preview</p>
               <div className="flex flex-wrap items-center gap-2">
@@ -429,6 +509,20 @@ export default function Settings() {
                   style={{ color: normalizeMenuColor(formData.menuAppearance.primaryColor) }}
                 >
                   Read more
+                </span>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <span
+                  className="rounded-full border px-3 py-1.5 text-xs font-semibold"
+                  style={{ backgroundColor: normalizeMenuColor(formData.menuAppearance.backgroundColor, DEFAULT_MENU_APPEARANCE.backgroundColor), color: 'inherit' }}
+                >
+                  Background preview
+                </span>
+                <span
+                  className="rounded-full border px-3 py-1.5 text-xs font-semibold"
+                  style={{ backgroundColor: normalizeMenuColor(formData.menuAppearance.surfaceColor, DEFAULT_MENU_APPEARANCE.surfaceColor), color: normalizeMenuColor(formData.menuAppearance.textColor, DEFAULT_MENU_APPEARANCE.textColor) }}
+                >
+                  Surface preview
                 </span>
               </div>
               <p className="mt-2 text-[11px] text-muted-foreground">
