@@ -18,6 +18,7 @@ import NotFound from "./pages/NotFound";
 // Dashboard
 import { DashboardLayout } from "./components/dashboard/DashboardLayout";
 import Dashboard from "./pages/dashboard/Dashboard";
+import Orders from "./pages/dashboard/Orders";
 import RestaurantSetup from "./pages/dashboard/RestaurantSetup";
 import Categories from "./pages/dashboard/Categories";
 import MenuItems from "./pages/dashboard/MenuItems";
@@ -114,6 +115,7 @@ const App = () => (
               <Route path="add-ons" element={<AddOns />} />
               <Route path="items" element={<MenuItems />} />
               <Route path="items/new" element={<MenuItems />} />
+              <Route path="orders" element={<Orders />} />
               <Route path="qr" element={<QRCodePage />} />
               <Route path="settings" element={<Settings />} />
               <Route path="whatsapp" element={<WhatsAppSettingsWrapper />} />

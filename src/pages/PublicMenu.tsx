@@ -1060,14 +1060,16 @@
 
 import { useEffect, useState, useMemo, useCallback, useRef, type CSSProperties } from 'react';
 import { useParams } from 'react-router-dom';
-import { publicMenuApi, PublicMenuResponse, PublicMenuItem } from '@/lib/api';
+import { orderApi, publicMenuApi, tableApi, PublicMenuResponse, PublicMenuItem, type CreateOrderData, type OrderAddOn } from '@/lib/api';
 import { demoMenuData } from '@/lib/demoData';
-import { MapPin, Phone, Instagram, Leaf, Search, X, Sparkles, Salad, Drumstick, CookingPot, TagIcon, Check, SlidersHorizontal, UtensilsCrossed, Plus, ChevronUp } from 'lucide-react';
+import { MapPin, Phone, Instagram, Leaf, Search, X, Sparkles, Salad, Drumstick, CookingPot, TagIcon, Check, SlidersHorizontal, UtensilsCrossed, Plus, ChevronUp, Minus, ShoppingCart, Trash2, Send } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Drawer, DrawerClose, DrawerContent, DrawerTitle } from '@/components/ui/drawer';
+import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { getMenuThemePreset, hexToRgbTuple, normalizeMenuColor } from '@/lib/menuAppearance';
 
@@ -1085,6 +1087,14 @@ interface GroupedMainCategory {
   subCategories: GroupedCategory[];
 }
 
+interface CartItem {
+  id: string;
+  item: PublicMenuItem;
+  quantity: number;
+  addOns: OrderAddOn[];
+  note: string;
+}
+
 const normalizeImageUrl = (value?: string | null): string | undefined => {
   const cleaned = value?.trim();
   return cleaned ? cleaned : undefined;
@@ -1092,6 +1102,7 @@ const normalizeImageUrl = (value?: string | null): string | undefined => {
 
 export default function PublicMenu() {
   const { slug } = useParams<{ slug: string }>();
+  const { toast } = useToast();
   const [menuData, setMenuData] = useState<PublicMenuResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1126,6 +1137,13 @@ export default function PublicMenu() {
   } | null>(null);
   const [pendingScrollMainCategoryId, setPendingScrollMainCategoryId] = useState<string | null>(null);
   const [pendingScrollAllItems, setPendingScrollAllItems] = useState(false);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [selectedAddOns, setSelectedAddOns] = useState<OrderAddOn[]>([]);
+  const [selectedQuantity, setSelectedQuantity] = useState(1);
+  const [selectedNote, setSelectedNote] = useState('');
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [orderNote, setOrderNote] = useState('');
+  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
 
     const isMobileDevice =
     /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
@@ -1133,10 +1151,137 @@ export default function PublicMenu() {
     
   const [isCheckingSettings, setIsCheckingSettings] = useState(true);  // true until the lightweight settings check completes
   const [isRedirectingToWhatsApp, setIsRedirectingToWhatsApp] = useState(false);
+  const [isTableInvalid, setIsTableInvalid] = useState(false);
   const dietFilterRef = useRef<HTMLDivElement>(null);
   const tagFilterRef = useRef<HTMLDivElement>(null);
   const filterBarRef = useRef<HTMLDivElement>(null);
   const filterSentinelRef = useRef<HTMLDivElement>(null);
+
+  const qrOrderContext = useMemo(() => {
+    const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+    const accessCode = params.get('table')?.trim() || params.get('locationIdentifier')?.trim() || '';
+
+    if (params.get('mode') === 'ordering' || accessCode) {
+      return {
+        isOrdering: true,
+        accessCode,
+      };
+    }
+
+    return {
+      isOrdering: false,
+      accessCode: '',
+    };
+  }, []);
+
+  const isOrderingMenu = qrOrderContext.isOrdering || menuData?.restaurant?.qrSettings?.mode === 'ordering';
+  const locationType = 'table' as const;
+  const locationIdentifier = qrOrderContext.accessCode;
+  const cartTotal = useMemo(() => {
+    return cartItems.reduce((sum, cartItem) => {
+      const addOnTotal = cartItem.addOns.reduce((addOnSum, addOn) => addOnSum + addOn.price, 0);
+      return sum + (cartItem.item.price + addOnTotal) * cartItem.quantity;
+    }, 0);
+  }, [cartItems]);
+
+  const cartQuantity = useMemo(
+    () => cartItems.reduce((sum, cartItem) => sum + cartItem.quantity, 0),
+    [cartItems]
+  );
+
+  const openItemDetails = useCallback((item: PublicMenuItem) => {
+    setSelectedItem(item);
+    setSelectedQuantity(1);
+    setSelectedAddOns([]);
+    setSelectedNote('');
+  }, []);
+
+  const toggleSelectedAddOn = useCallback((addOn: OrderAddOn) => {
+    setSelectedAddOns(prev =>
+      prev.some(existing => existing._id === addOn._id)
+        ? prev.filter(existing => existing._id !== addOn._id)
+        : [...prev, addOn]
+    );
+  }, []);
+
+  const addSelectedItemToCart = useCallback(() => {
+    if (!selectedItem || selectedItem.isCurrentlyAvailable === false) return;
+
+    setCartItems(prev => [
+      ...prev,
+      {
+        id: `${selectedItem._id}-${Date.now()}`,
+        item: selectedItem,
+        quantity: selectedQuantity,
+        addOns: selectedAddOns,
+        note: selectedNote.trim(),
+      },
+    ]);
+    setSelectedItem(null);
+    setIsCartOpen(true);
+  }, [selectedAddOns, selectedItem, selectedNote, selectedQuantity]);
+
+  const updateCartQuantity = useCallback((cartItemId: string, delta: number) => {
+    setCartItems(prev =>
+      prev
+        .map(cartItem =>
+          cartItem.id === cartItemId
+            ? { ...cartItem, quantity: Math.max(1, cartItem.quantity + delta) }
+            : cartItem
+        )
+    );
+  }, []);
+
+  const removeCartItem = useCallback((cartItemId: string) => {
+    setCartItems(prev => prev.filter(cartItem => cartItem.id !== cartItemId));
+  }, []);
+
+  const createOrderPayload = useCallback((): CreateOrderData | null => {
+    if (cartItems.length === 0 || !locationIdentifier) return null;
+
+    return {
+      locationType,
+      locationIdentifier,
+      items: cartItems.map(cartItem => ({
+        menuItem: cartItem.item._id,
+        name: cartItem.item.name,
+        price: cartItem.item.price,
+        quantity: cartItem.quantity,
+        addOns: cartItem.addOns,
+        note: cartItem.note || undefined,
+      })),
+      note: orderNote.trim() || undefined,
+      subtotal: cartTotal,
+      total: cartTotal,
+    };
+  }, [cartItems, cartTotal, locationIdentifier, locationType, orderNote]);
+
+  const submitOrder = useCallback(async () => {
+    if (!slug || cartItems.length === 0 || !locationIdentifier) return;
+
+    const payload = createOrderPayload();
+    if (!payload) return;
+
+    setIsSubmittingOrder(true);
+    try {
+      await orderApi.createPublic(slug, payload);
+      setCartItems([]);
+      setOrderNote('');
+      setIsCartOpen(false);
+      toast({
+        title: 'Order sent',
+        description: 'Your order has been sent to the restaurant.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Could not send order',
+        description: error instanceof Error ? error.message : 'Please call the restaurant staff and try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmittingOrder(false);
+    }
+  }, [cartItems.length, createOrderPayload, locationIdentifier, slug, toast]);
 
   const toggleDescription = useCallback((itemId: string) => {
     setExpandedDescriptions(prev => {
@@ -1243,6 +1388,16 @@ export default function PublicMenu() {
       try {
         const data = await publicMenuApi.getBySlug(slug, source);
         setMenuData(data);
+
+        // Step 3: an ordering QR's `table` param carries a random access code,
+        // not the printed table number — reject it here if it's been edited,
+        // truncated, or made up instead of silently accepting the order later.
+        if (qrOrderContext.accessCode) {
+          const result = await tableApi.validatePublic(slug, qrOrderContext.accessCode);
+          if (!result.valid) {
+            setIsTableInvalid(true);
+          }
+        }
       } catch (err) {
         console.error('Failed to load menu:', err);
         setError('Menu not found or unavailable');
@@ -1646,6 +1801,19 @@ const filteredItems = menuData.menu.filter(item => {
         <div className="text-center">
           <h1 className="font-display mb-2 text-2xl font-semibold text-[#221a11]">Menu Unavailable</h1>
           <p className="text-sm text-[#534433]">{error || 'This menu could not be found.'}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isTableInvalid) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#fff8f4] p-4">
+        <div className="text-center max-w-sm">
+          <h1 className="font-display mb-2 text-2xl font-semibold text-[#221a11]">This QR code is broken</h1>
+          <p className="text-sm text-[#534433]">
+            This table link looks edited or out of date, so we can't take orders from it. Please scan the QR code on your table again or ask staff for help.
+          </p>
         </div>
       </div>
     );
@@ -2405,7 +2573,7 @@ const filteredItems = menuData.menu.filter(item => {
                             ? "bg-[var(--menu-surface)]/60 opacity-75"
                             : "bg-[var(--menu-surface)] shadow-[0_16px_36px_rgba(34,26,17,0.06)] hover:-translate-y-0.5 hover:shadow-[0_20px_42px_rgba(34,26,17,0.10)]"
                         )}
-                        onClick={() => setSelectedItem(item)}
+                        onClick={() => openItemDetails(item)}
                       >
                         {item.image && (
                           <img
@@ -2442,6 +2610,22 @@ const filteredItems = menuData.menu.filter(item => {
                               ₹{item.price}
                             </span>
                           </div>
+                          {isOrderingMenu && item.isCurrentlyAvailable !== false && (
+                            <div className="mt-auto flex justify-end">
+                              <Button
+                                type="button"
+                                size="sm"
+                                className="h-8 rounded-full bg-[var(--menu-primary)] px-3 text-xs text-white hover:bg-[var(--menu-primary)]/90"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  openItemDetails(item);
+                                }}
+                              >
+                                <Plus className="mr-1 h-3.5 w-3.5" />
+                                Add
+                              </Button>
+                            </div>
+                          )}
 
                           {/* Row 2: badges (tags + dietary) */}
                           {(item.tags?.length || item.isJain || item.isVegan || item.isHalfJain) ? (
@@ -2520,10 +2704,31 @@ const filteredItems = menuData.menu.filter(item => {
       </div>
 
       {/* Powered By Footer */}
-      <div className="fixed inset-x-0 bottom-0 border-t border-[var(--menu-border)] bg-[var(--menu-surface)]/92 px-4 py-3 backdrop-blur-xl">
-        <p className="text-center text-xs text-[var(--menu-muted)]">
-          Powered by <span className="font-semibold text-[var(--menu-primary)]">oneQr</span>
-        </p>
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--menu-border)] bg-[var(--menu-surface)]/92 px-4 py-3 backdrop-blur-xl">
+        {cartItems.length > 0 ? (
+          <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-[var(--menu-text)]">
+                {cartQuantity} item{cartQuantity === 1 ? '' : 's'} in order
+              </p>
+              <p className="text-xs text-[var(--menu-muted)]">Ordering QR</p>
+            </div>
+            <div className="flex flex-shrink-0 items-center gap-2">
+              <Button
+                type="button"
+                className="rounded-full bg-[var(--menu-primary)] px-5 text-white hover:bg-[var(--menu-primary)]/90"
+                onClick={() => setIsCartOpen(true)}
+              >
+                <ShoppingCart className="mr-2 h-4 w-4" />
+                ₹{cartTotal}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-center text-xs text-[var(--menu-muted)]">
+            Powered by <span className="font-semibold text-[var(--menu-primary)]">oneQr</span>
+          </p>
+        )}
       </div>
 
       {/* Item Details Drawer */}
@@ -2608,20 +2813,165 @@ const filteredItems = menuData.menu.filter(item => {
 
                 {selectedItem.effectiveAddOns && selectedItem.effectiveAddOns.length > 0 && (
                   <div>
-                    <h4 className="mb-2 text-[11px] font-bold uppercase tracking-[0.28em] text-[var(--menu-muted)]">Available Add-ons</h4>
+                    <h4 className="mb-2 text-[11px] font-bold uppercase tracking-[0.28em] text-[var(--menu-muted)]">
+                      {isOrderingMenu ? 'Choose Add-ons' : 'Available Add-ons'}
+                    </h4>
                     <div className="space-y-2">
                       {selectedItem.effectiveAddOns.map(addOn => (
-                        <div key={addOn._id} className="flex items-center justify-between rounded-2xl border border-[var(--menu-border)] bg-[var(--menu-surface)] px-4 py-3 shadow-sm">
+                        <button
+                          key={addOn._id}
+                          type="button"
+                          disabled={!isOrderingMenu}
+                          onClick={() => toggleSelectedAddOn(addOn)}
+                          className={cn(
+                            "flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left shadow-sm transition-colors",
+                            selectedAddOns.some(selected => selected._id === addOn._id)
+                              ? "border-[var(--menu-primary)] bg-[var(--menu-soft)]"
+                              : "border-[var(--menu-border)] bg-[var(--menu-surface)]",
+                            !isOrderingMenu && "cursor-default"
+                          )}
+                        >
                           <span className="text-sm text-[var(--menu-text)]">{addOn.name}</span>
-                          <span className="text-sm font-semibold text-[var(--menu-primary)]">+₹{addOn.price}</span>
-                        </div>
+                          <span className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--menu-primary)]">
+                            +₹{addOn.price}
+                            {isOrderingMenu && selectedAddOns.some(selected => selected._id === addOn._id) && <Check className="h-4 w-4" />}
+                          </span>
+                        </button>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {isOrderingMenu && (
+                  <div className="space-y-4 rounded-[22px] border border-[var(--menu-border)] bg-[var(--menu-soft)] p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-sm font-semibold text-[var(--menu-text)]">Quantity</span>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-9 w-9 rounded-full border-[var(--menu-border)] bg-[var(--menu-surface)]"
+                          onClick={() => setSelectedQuantity(quantity => Math.max(1, quantity - 1))}
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                        <span className="flex h-9 min-w-10 items-center justify-center rounded-full bg-[var(--menu-surface)] px-3 text-sm font-bold text-[var(--menu-text)]">
+                          {selectedQuantity}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-9 w-9 rounded-full border-[var(--menu-border)] bg-[var(--menu-surface)]"
+                          onClick={() => setSelectedQuantity(quantity => quantity + 1)}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    <Textarea
+                      value={selectedNote}
+                      onChange={(event) => setSelectedNote(event.target.value)}
+                      placeholder="Add a note for this item"
+                      className="min-h-20 border-[var(--menu-border)] bg-[var(--menu-surface)] text-[var(--menu-text)] placeholder:text-[var(--menu-muted)]"
+                    />
+
+                    <Button
+                      type="button"
+                      className="h-12 w-full rounded-full bg-[var(--menu-primary)] text-white hover:bg-[var(--menu-primary)]/90"
+                      disabled={selectedItem.isCurrentlyAvailable === false}
+                      onClick={addSelectedItemToCart}
+                    >
+                      <ShoppingCart className="mr-2 h-4 w-4" />
+                      Add to order · ₹{(selectedItem.price + selectedAddOns.reduce((sum, addOn) => sum + addOn.price, 0)) * selectedQuantity}
+                    </Button>
                   </div>
                 )}
               </div>
             </div>
           )}
+        </DrawerContent>
+      </Drawer>
+
+      <Drawer open={isCartOpen} onOpenChange={setIsCartOpen}>
+        <DrawerContent
+          className="max-h-[88vh] rounded-t-[28px] border-t border-[var(--menu-border)] bg-[var(--menu-surface)] text-[var(--menu-text)]"
+          style={menuThemeStyle}
+        >
+          <div className="overflow-y-auto px-4 pb-6 pt-3 sm:px-6">
+            <DrawerTitle className="mb-4 font-display text-2xl font-semibold">Your order</DrawerTitle>
+            {!locationIdentifier && (
+              <div className="mb-4 rounded-2xl border border-[#b34b39]/25 bg-[#f8e3df] p-3 text-sm font-medium text-[#9c2f2f]">
+                This QR code does not have an ordering access code. Please scan the restaurant QR again.
+              </div>
+            )}
+
+            {cartItems.length === 0 ? (
+              <div className="rounded-2xl border border-[var(--menu-border)] bg-[var(--menu-soft)] p-6 text-center text-sm text-[var(--menu-muted)]">
+                No items added yet.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {cartItems.map(cartItem => {
+                  const addOnTotal = cartItem.addOns.reduce((sum, addOn) => sum + addOn.price, 0);
+                  const lineTotal = (cartItem.item.price + addOnTotal) * cartItem.quantity;
+
+                  return (
+                    <div key={cartItem.id} className="rounded-2xl border border-[var(--menu-border)] bg-[var(--menu-soft)] p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-[var(--menu-text)]">{cartItem.item.name}</p>
+                          <p className="text-xs text-[var(--menu-muted)]">₹{cartItem.item.price}{cartItem.addOns.length > 0 ? ` + ${cartItem.addOns.map(addOn => `${addOn.name} ₹${addOn.price}`).join(', ')}` : ''}</p>
+                          {cartItem.note && <p className="mt-1 text-xs text-[var(--menu-muted)]">Note: {cartItem.note}</p>}
+                        </div>
+                        <p className="whitespace-nowrap text-sm font-bold text-[var(--menu-primary)]">₹{lineTotal}</p>
+                      </div>
+                      <div className="mt-3 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Button type="button" variant="outline" size="icon" className="h-8 w-8 rounded-full" onClick={() => updateCartQuantity(cartItem.id, -1)}>
+                            <Minus className="h-3.5 w-3.5" />
+                          </Button>
+                          <span className="min-w-8 text-center text-sm font-semibold">{cartItem.quantity}</span>
+                          <Button type="button" variant="outline" size="icon" className="h-8 w-8 rounded-full" onClick={() => updateCartQuantity(cartItem.id, 1)}>
+                            <Plus className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                        <Button type="button" variant="ghost" size="sm" className="text-[#9c2f2f] hover:text-[#9c2f2f]" onClick={() => removeCartItem(cartItem.id)}>
+                          <Trash2 className="mr-1 h-4 w-4" />
+                          Remove
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                <Textarea
+                  value={orderNote}
+                  onChange={(event) => setOrderNote(event.target.value)}
+                  placeholder="Add a note for the kitchen"
+                  className="min-h-20 border-[var(--menu-border)] bg-[var(--menu-surface)] text-[var(--menu-text)] placeholder:text-[var(--menu-muted)]"
+                />
+
+                <div className="rounded-2xl border border-[var(--menu-border)] bg-[var(--menu-surface)] p-4">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-[var(--menu-muted)]">Total</span>
+                    <span className="text-xl font-bold text-[var(--menu-primary)]">₹{cartTotal}</span>
+                  </div>
+                  <Button
+                    type="button"
+                    className="mt-4 h-12 w-full rounded-full bg-[var(--menu-primary)] text-white hover:bg-[var(--menu-primary)]/90"
+                    disabled={isSubmittingOrder || !locationIdentifier}
+                    onClick={submitOrder}
+                  >
+                    <Send className="mr-2 h-4 w-4" />
+                    {isSubmittingOrder ? 'Sending order...' : 'Send order'}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
         </DrawerContent>
       </Drawer>
 

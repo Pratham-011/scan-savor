@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { restaurantApi, mainCategoryApi, categoryApi, menuItemApi, menuAnalyticsApi } from '@/lib/api';
+import { restaurantApi, mainCategoryApi, categoryApi, menuItemApi, menuAnalyticsApi, orderApi } from '@/lib/api';
 import type { Restaurant, MenuAnalytics } from '@/lib/api';
 import { 
   UtensilsCrossed, 
@@ -12,7 +12,8 @@ import {
   ArrowRight,
   TrendingUp,
   Eye,
-  ScanLine
+  ScanLine,
+  BellRing
 } from 'lucide-react';
 import {
   Select,
@@ -29,6 +30,8 @@ export default function Dashboard() {
     categories: 0,
     menuItems: 0,
     availableItems: 0,
+    newOrders: 0,
+    activeOrders: 0,
   });
   const [analytics, setAnalytics] = useState<MenuAnalytics | null>(null);
   const [analyticsPeriod, setAnalyticsPeriod] = useState<'today' | 'week' | 'month' | 'year'>('today');
@@ -37,11 +40,12 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [rest, mainCats, cats, items] = await Promise.all([
+        const [rest, mainCats, cats, items, orders] = await Promise.all([
           restaurantApi.get().catch(() => null),
           mainCategoryApi.getAll().catch(() => []),
           categoryApi.getAll().catch(() => []),
           menuItemApi.getAll().catch(() => []),
+          orderApi.getAll().catch(() => []),
         ]);
 
         setRestaurant(rest);
@@ -50,6 +54,8 @@ export default function Dashboard() {
           categories: cats.length,
           menuItems: items.length,
           availableItems: items.filter(i => i.isCurrentlyAvailable).length,
+          newOrders: orders.filter(order => order.status === 'new').length,
+          activeOrders: orders.filter(order => !['served', 'cancelled'].includes(order.status)).length,
         });
 
         // Fetch analytics if restaurant exists
@@ -147,7 +153,20 @@ export default function Dashboard() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        <StatCard
+          icon={BellRing}
+          label="New Orders"
+          value={stats.newOrders}
+          href="/dashboard/orders"
+          color="green"
+        />
+        <StatCard
+          icon={BellRing}
+          label="Active Orders"
+          value={stats.activeOrders}
+          href="/dashboard/orders"
+        />
         <StatCard
           icon={FolderTree}
           label="Main Categories"
@@ -233,6 +252,12 @@ export default function Dashboard() {
             href="/dashboard/items/new"
           />
           <QuickActionCard
+            icon={BellRing}
+            title="View Orders"
+            description="Review table orders"
+            href="/dashboard/orders"
+          />
+          <QuickActionCard
             icon={FolderTree}
             title="Manage Categories"
             description="Organize your menu structure"
@@ -240,8 +265,8 @@ export default function Dashboard() {
           />
           <QuickActionCard
             icon={QrCode}
-            title="Download QR Code"
-            description="Get your menu QR code"
+            title="QR Management"
+            description="Create, bulk-generate, and manage QR codes"
             href="/dashboard/qr"
           />
         </div>

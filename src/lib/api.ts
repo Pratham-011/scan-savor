@@ -2,8 +2,8 @@
 // const BASE_URL = 'https://oneqr.onrender.com';
 
 // LOCAL DEV BACKEND LINK
-// const API_BASE = 'http://localhost:5000/api';
-// const BASE_URL = 'http://localhost:5000';
+const API_BASE = 'http://localhost:5000/api';
+const BASE_URL = 'http://localhost:5000';
 
 // LOCAL NGINX DEV BACKEND LINK
 // const API_BASE = 'https://54c2-36-255-170-81.ngrok-free.app/api';
@@ -14,8 +14,8 @@
 // const BASE_URL = 'https://oneqrbackend-axhad4hnenejhtek.eastasia-01.azurewebsites.net';
 
 // PROD BACKEND LINK(prod branch)
-const API_BASE = 'https://oneqrprod-dag2b3cmg0gsa7br.eastasia-01.azurewebsites.net/api';
-const BASE_URL = 'https://oneqrprod-dag2b3cmg0gsa7br.eastasia-01.azurewebsites.net';
+// const API_BASE = 'https://oneqrprod-dag2b3cmg0gsa7br.eastasia-01.azurewebsites.net/api';
+// const BASE_URL = 'https://oneqrprod-dag2b3cmg0gsa7br.eastasia-01.azurewebsites.net';
 
 
 export const getResolvedApiBase = () => API_BASE;
@@ -539,8 +539,19 @@ export interface Restaurant {
   phone?: string;
   slug: string;
   user: string;
+  qrSlug?: string;
+  qrSettings?: {
+    mode?: 'single' | 'ordering';
+    locationType?: 'table';
+    locationIdentifier?: string;
+  };
   foodTypes?: ('jain' | 'veg' | 'non-veg' | 'vegan' | 'half-jain')[];
   locationLink?: string;
+  whatsapp?: {
+    isEnabled?: boolean;
+    qrRedirectEnabled?: boolean;
+    autoReplyEnabled?: boolean;
+  };
   menuAppearance?: {
     theme?: 'classic' | 'midnight' | 'fresh' | 'rose' | 'stone';
     primaryColor?: string;
@@ -569,6 +580,11 @@ export interface CreateRestaurantData {
   phone?: string;
   foodTypes?: ('jain' | 'veg' | 'non-veg' | 'vegan' | 'half-jain')[];
   locationLink?: string;
+  qrSettings?: {
+    mode?: 'single' | 'ordering';
+    locationType?: 'table';
+    locationIdentifier?: string;
+  };
   menuAppearance?: {
     theme?: 'classic' | 'midnight' | 'fresh' | 'rose' | 'stone';
     primaryColor?: string;
@@ -705,6 +721,11 @@ export interface PublicRestaurant extends Omit<Restaurant, 'slug'> {
   qrSlug: string;
   foodTypes?: ('jain' | 'veg' | 'non-veg' | 'vegan' | 'half-jain')[];
   locationLink?: string;
+  qrSettings?: {
+    mode?: 'single' | 'ordering';
+    locationType?: 'table';
+    locationIdentifier?: string;
+  };
   whatsapp?: {
     isEnabled?: boolean;
     qrRedirectEnabled?: boolean;
@@ -718,6 +739,312 @@ export interface PublicMenuResponse {
   redirectToWhatsapp?: boolean;
   redirectUrl?: string;
 }
+
+export interface OrderAddOn {
+  _id: string;
+  name: string;
+  price: number;
+}
+
+export interface OrderItem {
+  menuItem: string;
+  name: string;
+  price: number;
+  quantity: number;
+  addOns: OrderAddOn[];
+  note?: string;
+  total: number;
+}
+
+export interface CustomerOrder {
+  _id: string;
+  restaurant?: string;
+  restaurantSlug?: string;
+  locationType: 'table';
+  locationIdentifier: string;
+  items: OrderItem[];
+  note?: string;
+  subtotal: number;
+  total: number;
+  status: 'new' | 'accepted' | 'preparing' | 'ready' | 'served' | 'cancelled';
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface CreateOrderData {
+  locationType: 'table';
+  locationIdentifier: string;
+  items: Array<{
+    menuItem: string;
+    name: string;
+    price: number;
+    quantity: number;
+    addOns: OrderAddOn[];
+    note?: string;
+  }>;
+  note?: string;
+  subtotal: number;
+  total: number;
+}
+
+const localOrdersKey = 'oneqr-local-orders';
+
+const readLocalOrders = (): CustomerOrder[] => {
+  if (typeof window === 'undefined') return [];
+
+  try {
+    const raw = window.localStorage.getItem(localOrdersKey);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
+
+const writeLocalOrders = (orders: CustomerOrder[]) => {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(localOrdersKey, JSON.stringify(orders));
+};
+
+const calculateOrderItems = (items: CreateOrderData['items']): OrderItem[] =>
+  items.map(item => ({
+    ...item,
+    total: (item.price + item.addOns.reduce((sum, addOn) => sum + addOn.price, 0)) * item.quantity,
+  }));
+
+const saveLocalOrder = (slug: string, data: CreateOrderData): CustomerOrder => {
+  const now = new Date().toISOString();
+  const order: CustomerOrder = {
+    _id: `local-${Date.now()}`,
+    restaurantSlug: slug,
+    locationType: data.locationType,
+    locationIdentifier: data.locationIdentifier,
+    items: calculateOrderItems(data.items),
+    note: data.note,
+    subtotal: data.subtotal,
+    total: data.total,
+    status: 'new',
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  writeLocalOrders([order, ...readLocalOrders()]);
+  window.dispatchEvent(new CustomEvent('oneqr-local-order-created', { detail: order }));
+  return order;
+};
+
+const mergeLocalOrders = (orders: CustomerOrder[]) => {
+  const seen = new Set(orders.map(order => order._id));
+  const localOnly = readLocalOrders().filter(order => !seen.has(order._id));
+  return [...localOnly, ...orders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+};
+
+const updateLocalOrder = (id: string, updater: (order: CustomerOrder) => CustomerOrder) => {
+  const orders = readLocalOrders();
+  const existing = orders.find(order => order._id === id);
+  if (!existing) throw new Error('Order not found');
+
+  const updated = updater(existing);
+  writeLocalOrders(orders.map(order => order._id === id ? updated : order));
+  window.dispatchEvent(new CustomEvent('oneqr-local-order-updated', { detail: updated }));
+  return updated;
+};
+
+// Table API
+// Ordering QR links encode a random access code (not the printed table
+// number) in the `table` query param. These records are the server-side
+// source of truth for which access codes are real, so an edited/guessed
+// link can be rejected instead of silently accepting an order.
+export interface RestaurantTable {
+  _id: string;
+  restaurant: string;
+  label: string;
+  locationType: 'table';
+  locationIdentifier: string;
+  accessCode: string;
+  batchId?: string;
+  batchLabel?: string;
+  status: 'active' | 'archived';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpsertTableData {
+  label: string;
+  locationIdentifier: string;
+  accessCode: string;
+  batchId?: string;
+  batchLabel?: string;
+}
+
+export const tableApi = {
+  // Upserts by accessCode — re-saving the same QR (e.g. editing its label)
+  // updates the existing table instead of creating a duplicate.
+  upsert: (data: UpsertTableData) =>
+    apiRequest<RestaurantTable>('/table', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  createBulk: (entries: UpsertTableData[]) =>
+    apiRequest<RestaurantTable[]>('/table/bulk', {
+      method: 'POST',
+      body: JSON.stringify({ entries }),
+    }),
+
+  getAll: () => apiRequest<RestaurantTable[]>('/table'),
+
+  update: (id: string, data: Partial<{ label: string; locationIdentifier: string; status: 'active' | 'archived' }>) =>
+    apiRequest<RestaurantTable>(`/table/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  remove: (id: string) =>
+    apiRequest<{ message: string }>(`/table/${id}`, {
+      method: 'DELETE',
+    }),
+
+  // Public — called from the customer-facing menu to check a scanned/typed
+  // `table` code before allowing ordering to proceed.
+  validatePublic: async (slug: string, accessCode: string) => {
+    const endpoint = `${publicMenuApi.getPublicApiOrigin()}/api/public-menu/${slug}/tables/${encodeURIComponent(accessCode)}`;
+
+    try {
+      const response = await fetch(endpoint, { headers: { Accept: 'application/json' } });
+      const data = await response.json().catch(() => ({ valid: false })) as {
+        valid: boolean;
+        locationIdentifier?: string;
+        label?: string;
+      };
+
+      if (!response.ok || !data.valid) {
+        return { valid: false as const };
+      }
+
+      return { valid: true as const, locationIdentifier: data.locationIdentifier, label: data.label };
+    } catch {
+      return { valid: false as const };
+    }
+  },
+};
+
+export const buildTableLabelMap = (tables: RestaurantTable[]): Map<string, string> =>
+  new Map(tables.map(table => [table.accessCode, table.locationIdentifier]));
+
+export const resolveTableLabel = (labelMap: Map<string, string> | undefined, identifier: string): string =>
+  (identifier && labelMap?.get(identifier)) || identifier;
+
+export const orderApi = {
+  createPublic: async (slug: string, data: CreateOrderData) => {
+    const endpoint = `${publicMenuApi.getPublicApiOrigin()}/api/public-menu/${slug}/orders`;
+
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) throw new Error('Order endpoint unavailable');
+
+      return response.json() as Promise<CustomerOrder>;
+    } catch {
+      return saveLocalOrder(slug, data);
+    }
+  },
+
+  getPublic: async (slug: string, id: string) => {
+    if (id.startsWith('local-')) {
+      const order = readLocalOrders().find(row => row._id === id);
+      if (!order) throw new Error('Order not found');
+      return order;
+    }
+
+    const endpoint = `${publicMenuApi.getPublicApiOrigin()}/api/public-menu/${slug}/orders/${id}`;
+    const response = await fetch(endpoint, { headers: { Accept: 'application/json' } });
+    if (!response.ok) throw new Error('Order not found');
+    return response.json() as Promise<CustomerOrder>;
+  },
+
+  updatePublic: async (slug: string, id: string, data: CreateOrderData) => {
+    if (id.startsWith('local-')) {
+      return updateLocalOrder(id, order => {
+        if (!['new', 'accepted'].includes(order.status)) {
+          throw new Error('This order can no longer be modified');
+        }
+
+        const now = new Date().toISOString();
+        return {
+          ...order,
+          locationType: data.locationType,
+          locationIdentifier: data.locationIdentifier,
+          items: calculateOrderItems(data.items),
+          note: data.note,
+          subtotal: data.subtotal,
+          total: data.total,
+          updatedAt: now,
+        };
+      });
+    }
+
+    const endpoint = `${publicMenuApi.getPublicApiOrigin()}/api/public-menu/${slug}/orders/${id}`;
+    const response = await fetch(endpoint, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) throw new Error('This order can no longer be modified');
+    return response.json() as Promise<CustomerOrder>;
+  },
+
+  cancelPublic: async (slug: string, id: string) => {
+    if (id.startsWith('local-')) {
+      return updateLocalOrder(id, order => {
+        if (!['new', 'accepted'].includes(order.status)) {
+          throw new Error('This order can no longer be cancelled');
+        }
+
+        return { ...order, status: 'cancelled', updatedAt: new Date().toISOString() };
+      });
+    }
+
+    const endpoint = `${publicMenuApi.getPublicApiOrigin()}/api/public-menu/${slug}/orders/${id}/cancel`;
+    const response = await fetch(endpoint, { method: 'POST', headers: { Accept: 'application/json' } });
+    if (!response.ok) throw new Error('This order can no longer be cancelled');
+    return response.json() as Promise<CustomerOrder>;
+  },
+
+  getAll: async () => {
+    try {
+      const orders = await apiRequest<CustomerOrder[]>('/orders');
+      return mergeLocalOrders(orders);
+    } catch {
+      return mergeLocalOrders([]);
+    }
+  },
+
+  updateStatus: async (id: string, status: CustomerOrder['status']) => {
+    if (id.startsWith('local-')) {
+      const updated = updateLocalOrder(id, order => ({ ...order, status, updatedAt: new Date().toISOString() }));
+      window.dispatchEvent(new CustomEvent('oneqr-order-status-changed', { detail: updated }));
+      return updated;
+    }
+
+    const updated = await apiRequest<CustomerOrder>(`/orders/${id}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+    window.dispatchEvent(new CustomEvent('oneqr-order-status-changed', { detail: updated }));
+    return updated;
+  },
+};
 
 // WhatsApp API
 export interface WhatsAppConfig {

@@ -17,7 +17,8 @@ import {
   PlusCircle,
   MessageCircle,
   Megaphone,
-  BadgeDollarSign
+  BadgeDollarSign,
+  ClipboardList
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -29,10 +30,11 @@ import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/s
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
   { icon: UtensilsCrossed, label: 'Menu Items', path: '/dashboard/items' },
+  { icon: ClipboardList, label: 'Orders', path: '/dashboard/orders' },
   { icon: TagIcon, label: 'Tags', path: '/dashboard/tags' },
   { icon: PlusCircle, label: 'Add-Ons', path: '/dashboard/add-ons' },
   { icon: FolderTree, label: 'Categories', path: '/dashboard/categories' },
-  { icon: QrCode, label: 'QR Code', path: '/dashboard/qr' },
+  { icon: QrCode, label: 'QR Management', path: '/dashboard/qr' },
   { icon: MessageCircle, label: 'WhatsApp Setup', path: '/dashboard/whatsapp' },
   { icon: MessageCircle, label: 'Templates', path: '/dashboard/whatsapp-automation' },
   { icon: MessageCircle, label: 'Quick Replies', path: '/dashboard/whatsapp-quick-replies' },

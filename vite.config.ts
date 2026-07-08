@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
-    allowedHosts: ["cluster-besides-toolbar-theories.trycloudflare.com"],
+    allowedHosts: ["operation-added-peterson-providing.trycloudflare.com"],
     proxy: {
       '/api': {
         target: 'http://localhost:5000',
