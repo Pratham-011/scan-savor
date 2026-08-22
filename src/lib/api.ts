@@ -14,8 +14,8 @@
 // const BASE_URL = 'https://oneqrbackend-axhad4hnenejhtek.eastasia-01.azurewebsites.net';
 
 // PROD BACKEND LINK(prod branch)
-const API_BASE = 'https://oneqrprod-dag2b3cmg0gsa7br.eastasia-01.azurewebsites.net/api';
-const BASE_URL = 'https://oneqrprod-dag2b3cmg0gsa7br.eastasia-01.azurewebsites.net';
+const API_BASE = 'https://oneqr-13ej.onrender.com/api';
+const BASE_URL = 'https://oneqr-13ej.onrender.com';
 
 
 export const getResolvedApiBase = () => API_BASE;
