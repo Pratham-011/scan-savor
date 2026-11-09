@@ -1070,6 +1070,7 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Drawer, DrawerClose, DrawerContent, DrawerTitle } from '@/components/ui/drawer';
 import { cn } from '@/lib/utils';
 import { getMenuThemePreset, hexToRgbTuple, normalizeMenuColor } from '@/lib/menuAppearance';
+import { computeVariantPrice, formatPrice, getDefaultSelection, getPriceRange, getReplaceGroup, groupKey, optionKey } from '@/lib/variants';
 
 interface GroupedCategory {
   _id: string;
@@ -1110,6 +1111,7 @@ export default function PublicMenu() {
   const [showTagFilter, setShowTagFilter] = useState(false);
   const [tagSearchQuery, setTagSearchQuery] = useState('');
   const [selectedItem, setSelectedItem] = useState<PublicMenuItem | null>(null);
+  const [variantSelection, setVariantSelection] = useState<Record<string, string>>({});
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
   const [addressExpanded, setAddressExpanded] = useState(false);
@@ -1146,6 +1148,11 @@ export default function PublicMenu() {
       return next;
     });
   }, []);
+
+  // Preselect each variation group's default option whenever an item is opened.
+  useEffect(() => {
+    setVariantSelection(getDefaultSelection(selectedItem?.variantGroups));
+  }, [selectedItem]);
 
   useEffect(() => {
     if (!showTagFilter && !showDietFilter) return;
@@ -2439,7 +2446,15 @@ const filteredItems = menuData.menu.filter(item => {
                               )}
                             </div>
                             <span className="flex-shrink-0 rounded-full bg-[var(--menu-soft)] px-3 py-1 text-sm font-bold text-[var(--menu-primary)]">
-                              ₹{item.price}
+                              {(() => {
+                                const range = getPriceRange(item.price, item.variantGroups);
+                                return (
+                                  <>
+                                    {formatPrice(range.min)}
+                                    {range.varies && <span className="ml-0.5 text-[10px] font-semibold opacity-75">onwards</span>}
+                                  </>
+                                );
+                              })()}
                             </span>
                           </div>
 
@@ -2493,7 +2508,29 @@ const filteredItems = menuData.menu.filter(item => {
                             </div>
                           )}
 
-                          {/* Row 4: add-ons */}
+                          {/* Row 4: price-setting variations (e.g. sizes) */}
+                          {(() => {
+                            const replaceGroup = getReplaceGroup(item.variantGroups);
+                            if (!replaceGroup) return null;
+                            return (
+                              <div className="flex flex-wrap gap-1">
+                                {replaceGroup.options.map((opt, oi) => (
+                                  <span
+                                    key={optionKey(opt, oi)}
+                                    className={cn(
+                                      "rounded-full border border-[var(--menu-border)] px-2 py-0.5 text-[10px] font-semibold text-[var(--menu-text)]",
+                                      opt.isAvailable === false && "line-through opacity-50"
+                                    )}
+                                  >
+                                    {opt.name}{opt.description ? ` · ${opt.description}` : ''}{' '}
+                                    <span className="text-[var(--menu-primary)]">{formatPrice(Number(opt.price))}</span>
+                                  </span>
+                                ))}
+                              </div>
+                            );
+                          })()}
+
+                          {/* Row 5: add-ons */}
                           {item.effectiveAddOns && item.effectiveAddOns.length > 0 && (
                             <div className="mt-auto flex flex-wrap gap-1 pt-1">
                               {item.effectiveAddOns.map(addOn => (
@@ -2597,7 +2634,9 @@ const filteredItems = menuData.menu.filter(item => {
                       )}
                     </div>
                   </div>
-                  <span className="whitespace-nowrap rounded-full bg-[var(--menu-primary)] px-4 py-2 text-xl font-bold text-white shadow-[0_14px_30px_rgba(34,26,17,0.18)]">₹{selectedItem.price}</span>
+                  <span className="whitespace-nowrap rounded-full bg-[var(--menu-primary)] px-4 py-2 text-xl font-bold text-white shadow-[0_14px_30px_rgba(34,26,17,0.18)]">
+                    {formatPrice(computeVariantPrice(selectedItem.price, selectedItem.variantGroups, variantSelection))}
+                  </span>
                 </div>
 
                 {selectedItem.description && (
@@ -2605,6 +2644,65 @@ const filteredItems = menuData.menu.filter(item => {
                     <p className="text-sm leading-relaxed text-[var(--menu-muted)]">{selectedItem.description}</p>
                   </div>
                 )}
+
+                {selectedItem.variantGroups?.map((group, gi) => {
+                  if (!group.options?.length) return null;
+                  const gKey = groupKey(group, gi);
+                  return (
+                    <div key={gKey}>
+                      <h4 className="mb-2 text-[11px] font-bold uppercase tracking-[0.28em] text-[var(--menu-muted)]">Choose {group.name}</h4>
+                      <div className="space-y-2" role="radiogroup" aria-label={group.name}>
+                        {group.options.map((opt, oi) => {
+                          const oKey = optionKey(opt, oi);
+                          const isSelected = variantSelection[gKey] === oKey;
+                          const isUnavailable = opt.isAvailable === false;
+                          const optPrice = Number(opt.price) || 0;
+                          return (
+                            <button
+                              key={oKey}
+                              type="button"
+                              role="radio"
+                              aria-checked={isSelected}
+                              disabled={isUnavailable}
+                              onClick={() => setVariantSelection(prev => ({ ...prev, [gKey]: oKey }))}
+                              className={cn(
+                                "flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left shadow-sm transition-colors",
+                                isSelected
+                                  ? "border-[var(--menu-primary)] bg-[var(--menu-soft)]"
+                                  : "border-[var(--menu-border)] bg-[var(--menu-surface)]",
+                                isUnavailable && "cursor-not-allowed opacity-50"
+                              )}
+                            >
+                              <span className="flex min-w-0 items-center gap-3">
+                                <span
+                                  className={cn(
+                                    "flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border-2",
+                                    isSelected ? "border-[var(--menu-primary)]" : "border-[var(--menu-border)]"
+                                  )}
+                                >
+                                  {isSelected && <span className="h-2 w-2 rounded-full bg-[var(--menu-primary)]" />}
+                                </span>
+                                <span className="min-w-0">
+                                  <span className={cn("block text-sm text-[var(--menu-text)]", isUnavailable && "line-through")}>{opt.name}</span>
+                                  {(opt.description || isUnavailable) && (
+                                    <span className="block text-xs text-[var(--menu-muted)]">
+                                      {[opt.description, isUnavailable ? 'Not available' : ''].filter(Boolean).join(' · ')}
+                                    </span>
+                                  )}
+                                </span>
+                              </span>
+                              <span className="whitespace-nowrap text-sm font-semibold text-[var(--menu-primary)]">
+                                {group.pricingType === 'addon'
+                                  ? (optPrice > 0 ? `+${formatPrice(optPrice)}` : 'Included')
+                                  : formatPrice(optPrice)}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
 
                 {selectedItem.effectiveAddOns && selectedItem.effectiveAddOns.length > 0 && (
                   <div>

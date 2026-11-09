@@ -1,17 +1,10 @@
-// const API_BASE = 'https://oneqr.onrender.com/api';
-// const BASE_URL = 'https://oneqr.onrender.com';
-
 // LOCAL DEV BACKEND LINK
-// const API_BASE = 'http://localhost:5000/api';
-// const BASE_URL = 'http://localhost:5000';
+// const API_BASE = 'http://localhost:5001/api';
+// const BASE_URL = 'http://localhost:5001';
 
 // LOCAL NGINX DEV BACKEND LINK
 // const API_BASE = 'https://54c2-36-255-170-81.ngrok-free.app/api';
 // const BASE_URL = 'https://54c2-36-255-170-81.ngrok-free.app';
-
-// DEV BACKEND LINK(main branch)
-// const API_BASE = 'https://oneqrbackend-axhad4hnenejhtek.eastasia-01.azurewebsites.net/api';
-// const BASE_URL = 'https://oneqrbackend-axhad4hnenejhtek.eastasia-01.azurewebsites.net';
 
 // PROD BACKEND LINK(prod branch)
 const API_BASE = 'https://oneqr-13ej.onrender.com/api';
@@ -618,6 +611,26 @@ export interface Category {
 }
 
 
+// Generic item variations (Size, Crust, Portion, Quantity ...)
+export type VariantPricingType = 'replace' | 'addon';
+
+export interface VariantOption {
+  _id?: string;
+  name: string;
+  description?: string;
+  price: number;
+  isDefault?: boolean;
+  isAvailable?: boolean;
+}
+
+export interface VariantGroup {
+  _id?: string;
+  name: string;
+  /** 'replace' → option price is the item price; 'addon' → option price is added to the item price */
+  pricingType: VariantPricingType;
+  options: VariantOption[];
+}
+
 export interface MenuItem {
   _id: string;
   mainCategory: string | { _id: string; name: string };
@@ -640,6 +653,7 @@ export interface MenuItem {
   addOnExclusions?: AddOn[];
   inheritedAddOns?: AddOn[];
   effectiveAddOns?: AddOn[];
+  variantGroups?: VariantGroup[];
 }
 
 export interface CreateMenuItemData {
@@ -657,6 +671,7 @@ export interface CreateMenuItemData {
   tags?: Tag[];
   addOns?: string[];
   addOnExclusions?: string[];
+  variantGroups?: VariantGroup[];
 }
 
 // Public menu item with embedded category objects
@@ -697,6 +712,7 @@ export interface PublicMenuItem {
   status?: string;
   tags?: Array<{ _id: string; name: string; color: string }>;
   effectiveAddOns?: Array<{ _id: string; name: string; price: number }>;
+  variantGroups?: VariantGroup[];
 }
 
 

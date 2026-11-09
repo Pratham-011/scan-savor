@@ -51,6 +51,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import AvailabilityPicker from '@/components/AvailabilityPicker';
 import { AddOnSelector } from '@/components/AddOnSelector';
+import { VariantGroupsEditor } from '@/components/VariantGroupsEditor';
+import { getPriceRange, getReplaceGroup, formatPrice, validateVariantGroups } from '@/lib/variants';
 import {
   DndContext,
   closestCenter,
@@ -198,6 +200,7 @@ const emptyForm: CreateMenuItemData = {
   tags: [],
   addOns: [],
   addOnExclusions: [],
+  variantGroups: [],
 };
 
 function getShortAvailabilityLabel(a: Availability): string {
@@ -252,11 +255,35 @@ function SortableMenuItem({ item, isAvailable, disabledReason, mainCat, subCat, 
             )}
             <h3 className="font-semibold">{item.name}</h3>
           </div>
-          <p className="font-bold text-primary">₹{item.price}</p>
+          <p className="font-bold text-primary whitespace-nowrap">
+            {(() => {
+              const range = getPriceRange(item.price, item.variantGroups);
+              return range.varies ? `${formatPrice(range.min)} – ${formatPrice(range.max)}` : formatPrice(range.min);
+            })()}
+          </p>
         </div>
         
         {item.description && (
           <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{item.description}</p>
+        )}
+
+        {item.variantGroups && item.variantGroups.length > 0 && (
+          <div className="space-y-1 mb-3">
+            {item.variantGroups.map((group, gi) => (
+              <div key={group._id || gi} className="flex flex-wrap items-center gap-1 text-xs">
+                <span className="font-medium text-muted-foreground mr-1">{group.name}:</span>
+                {group.options.map((opt, oi) => (
+                  <Badge
+                    key={opt._id || oi}
+                    variant="outline"
+                    className={`text-xs ${opt.isAvailable === false ? 'line-through opacity-60' : ''}`}
+                  >
+                    {opt.name}{opt.description ? ` (${opt.description})` : ''} {group.pricingType === 'addon' ? (opt.price ? `+₹${opt.price}` : '') : `₹${opt.price}`}
+                  </Badge>
+                ))}
+              </div>
+            ))}
+          </div>
         )}
 
         <div className="flex flex-wrap gap-1 mb-3">
@@ -399,6 +426,12 @@ export default function MenuItems() {
   };
 
   const handleSubmit = async () => {
+    const variantError = validateVariantGroups(formData.variantGroups);
+    if (variantError) {
+      toast({ title: 'Check variations', description: variantError, variant: 'destructive' });
+      return;
+    }
+
     try {
       const inheritedIds = getInheritedAddOnIds(formData.mainCategory, formData.category);
       const selectedEffectiveIds = formData.addOns || [];
@@ -406,8 +439,16 @@ export default function MenuItems() {
       const itemLevelAddOns = selectedEffectiveIds.filter((id) => !inheritedIds.includes(id));
       const addOnExclusions = inheritedIds.filter((id) => !selectedEffectiveIds.includes(id));
 
+      const variantGroups = (formData.variantGroups || [])
+        .map((g) => ({ ...g, options: g.options.filter((o) => o.name.trim()) }))
+        .filter((g) => g.name.trim() && g.options.length > 0);
+      const priceRange = getPriceRange(Number(formData.price) || 0, variantGroups);
+
       const payload: CreateMenuItemData = {
         ...formData,
+        // Backend recalculates this too; keep it in sync so the required price is always present.
+        price: getReplaceGroup(variantGroups) ? priceRange.min : formData.price,
+        variantGroups,
         addOns: itemLevelAddOns,
         addOnExclusions,
       };
@@ -500,6 +541,7 @@ export default function MenuItems() {
       tags: item.tags || [],
       addOns: item.effectiveAddOns ? item.effectiveAddOns.map(a => a._id) : (item.addOns ? item.addOns.map(a => a._id) : []),
       addOnExclusions: item.addOnExclusions ? item.addOnExclusions.map(a => a._id) : [],
+      variantGroups: item.variantGroups || [],
     });
     setDialogOpen(true);
   };
@@ -560,6 +602,16 @@ export default function MenuItems() {
   }).sort((a, b) => (a.order || 0) - (b.order || 0));
   
   const availableSubCategories = categories.filter(c => c.mainCategory._id === formData.mainCategory);
+
+  // When a "sets item price" variation group exists, the price comes from its options.
+  const formReplaceGroup = getReplaceGroup(formData.variantGroups);
+  const formVariantPriceLabel = (() => {
+    if (!formReplaceGroup) return '';
+    const priced = formReplaceGroup.options.filter(o => o.name.trim() && o.price !== ('' as unknown as number));
+    if (!priced.length) return 'Set in variations';
+    const range = getPriceRange(0, [{ ...formReplaceGroup, options: priced }]);
+    return range.varies ? `${range.min} – ${range.max} (from variations)` : `${range.min} (from variations)`;
+  })();
   
   if (isLoading) {
     return (
@@ -637,7 +689,7 @@ export default function MenuItems() {
                 Add Item
               </Button>
             </DialogTrigger>
-          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" aria-describedby="menu-item-dialog-description">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" aria-describedby="menu-item-dialog-description">
             <DialogHeader>
               <DialogTitle>{editingItem ? 'Edit' : 'Add'} Menu Item</DialogTitle>
               <DialogDescription id="menu-item-dialog-description">
@@ -682,13 +734,25 @@ export default function MenuItems() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Price (₹)</Label>
-                  <Input type="number" value={formData.price === 0 ? '' : formData.price} onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value === '' ? '' as unknown as number : parseFloat(e.target.value) }))} min={0} placeholder="Enter price" />
+                  <Label>{formReplaceGroup ? 'Starting Price (₹)' : 'Price (₹)'}</Label>
+                  {formReplaceGroup ? (
+                    <Input disabled value={formVariantPriceLabel} />
+                  ) : (
+                    <Input type="number" value={formData.price === 0 ? '' : formData.price} onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value === '' ? '' as unknown as number : parseFloat(e.target.value) }))} min={0} placeholder="Enter price" />
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>Image URL</Label>
                   <Input value={formData.image} onChange={(e) => setFormData(prev => ({ ...prev, image: e.target.value }))} placeholder="https://..." />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Variations <span className="font-normal text-muted-foreground">(optional)</span></Label>
+                <VariantGroupsEditor
+                  value={formData.variantGroups || []}
+                  onChange={(variantGroups) => setFormData(prev => ({ ...prev, variantGroups }))}
+                />
               </div>
 
               <div className="flex flex-wrap items-center gap-4">
