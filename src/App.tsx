@@ -31,6 +31,8 @@ import WhatsAppQuickReplies from "./pages/dashboard/WhatsAppQuickReplies";
 import BroadcastPage from "./pages/dashboard/Broadcast";
 import MetaAdsPage from "./pages/dashboard/MetaAds";
 import ForgotPassword from "./pages/auth/ForgotPassword";
+import ComingSoon from "./components/ComingSoon";
+import { WHATSAPP_COMING_SOON } from "./lib/features";
 
 const queryClient = new QueryClient();
 
@@ -116,12 +118,12 @@ const App = () => (
               <Route path="items/new" element={<MenuItems />} />
               <Route path="qr" element={<QRCodePage />} />
               <Route path="settings" element={<Settings />} />
-              <Route path="whatsapp" element={<WhatsAppSettingsWrapper />} />
-              <Route path="whatsapp-automation" element={<WhatsAppAutomation />} />
-              <Route path="whatsapp-quick-replies" element={<WhatsAppQuickReplies />} />
-              <Route path="whatsapp-customers" element={<WhatsAppCustomerSheetWrapper />} />
-              <Route path="whatsapp-chat" element={<WhatsAppAnalyticsWrapper />} />
-              <Route path="broadcast" element={<BroadcastPage />} />
+              <Route path="whatsapp" element={WHATSAPP_COMING_SOON ? <ComingSoon title="WhatsApp Setup" /> : <WhatsAppSettingsWrapper />} />
+              <Route path="whatsapp-automation" element={WHATSAPP_COMING_SOON ? <ComingSoon title="WhatsApp Templates" /> : <WhatsAppAutomation />} />
+              <Route path="whatsapp-quick-replies" element={WHATSAPP_COMING_SOON ? <ComingSoon title="Quick Replies" /> : <WhatsAppQuickReplies />} />
+              <Route path="whatsapp-customers" element={WHATSAPP_COMING_SOON ? <ComingSoon title="Customer Sheet" /> : <WhatsAppCustomerSheetWrapper />} />
+              <Route path="whatsapp-chat" element={WHATSAPP_COMING_SOON ? <ComingSoon title="Chat Inbox" /> : <WhatsAppAnalyticsWrapper />} />
+              <Route path="broadcast" element={WHATSAPP_COMING_SOON ? <ComingSoon title="WhatsApp Broadcast" /> : <BroadcastPage />} />
               <Route path="meta-ads" element={<MetaAdsPage />} />
             </Route>
 

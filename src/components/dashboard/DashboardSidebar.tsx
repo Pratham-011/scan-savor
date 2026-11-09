@@ -25,20 +25,28 @@ import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
+import { WHATSAPP_COMING_SOON } from '@/lib/features';
 
-const navItems = [
+type NavItem = {
+  icon: typeof LayoutDashboard;
+  label: string;
+  path: string;
+  comingSoon?: boolean;
+};
+
+const navItems: NavItem[] = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
   { icon: UtensilsCrossed, label: 'Menu Items', path: '/dashboard/items' },
   { icon: TagIcon, label: 'Tags', path: '/dashboard/tags' },
   { icon: PlusCircle, label: 'Add-Ons', path: '/dashboard/add-ons' },
   { icon: FolderTree, label: 'Categories', path: '/dashboard/categories' },
   { icon: QrCode, label: 'QR Code', path: '/dashboard/qr' },
-  { icon: MessageCircle, label: 'WhatsApp Setup', path: '/dashboard/whatsapp' },
-  { icon: MessageCircle, label: 'Templates', path: '/dashboard/whatsapp-automation' },
-  { icon: MessageCircle, label: 'Quick Replies', path: '/dashboard/whatsapp-quick-replies' },
-  { icon: MessageCircle, label: 'Customer Sheet', path: '/dashboard/whatsapp-customers' },
-  { icon: MessageCircle, label: 'Chat Inbox', path: '/dashboard/whatsapp-chat' },
-  { icon: Megaphone, label: 'Broadcast', path: '/dashboard/broadcast' },
+  { icon: MessageCircle, label: 'WhatsApp Setup', path: '/dashboard/whatsapp', comingSoon: WHATSAPP_COMING_SOON },
+  { icon: MessageCircle, label: 'Templates', path: '/dashboard/whatsapp-automation', comingSoon: WHATSAPP_COMING_SOON },
+  { icon: MessageCircle, label: 'Quick Replies', path: '/dashboard/whatsapp-quick-replies', comingSoon: WHATSAPP_COMING_SOON },
+  { icon: MessageCircle, label: 'Customer Sheet', path: '/dashboard/whatsapp-customers', comingSoon: WHATSAPP_COMING_SOON },
+  { icon: MessageCircle, label: 'Chat Inbox', path: '/dashboard/whatsapp-chat', comingSoon: WHATSAPP_COMING_SOON },
+  { icon: Megaphone, label: 'Broadcast', path: '/dashboard/broadcast', comingSoon: WHATSAPP_COMING_SOON },
   { icon: BadgeDollarSign, label: 'Meta Ads', path: '/dashboard/meta-ads' },
   { icon: Settings, label: 'Settings', path: '/dashboard/settings' },
 ];
@@ -78,6 +86,7 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: { collapsed: bool
                 <Link
                   to={item.path}
                   onClick={onNavigate}
+                  title={item.comingSoon ? `${item.label} (coming soon)` : undefined}
                   className={cn(
                     "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors",
                     isActive 
@@ -85,9 +94,21 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: { collapsed: bool
                       : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
                   )}
                 >
-                  <item.icon className="h-5 w-5 flex-shrink-0" />
+                  <span className="relative flex-shrink-0">
+                    <item.icon className={cn("h-5 w-5", item.comingSoon && "opacity-60")} />
+                    {collapsed && item.comingSoon && (
+                      <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-amber-500" />
+                    )}
+                  </span>
                   {!collapsed && (
-                    <span className="font-medium">{item.label}</span>
+                    <>
+                      <span className={cn("font-medium", item.comingSoon && "opacity-60")}>{item.label}</span>
+                      {item.comingSoon && (
+                        <span className="ml-auto rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-600">
+                          Soon
+                        </span>
+                      )}
+                    </>
                   )}
                 </Link>
               </li>
